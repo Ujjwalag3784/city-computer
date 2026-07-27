@@ -1,13 +1,400 @@
-/* Obsidian Peak design tokens land here in Phase 2 (docs/05-DESIGN-SYSTEM.md).
-   This is a minimal placeholder so Phase 1 has a valid, buildable app shell. */
+/*
+ * Obsidian Peak — Tailwind v4 token map.
+ * Source of truth: docs/05-DESIGN-SYSTEM.md. All 14 corrections from
+ * docs/01-DISCOVERY-AND-AUDIT.md §C.3 are already applied below — this file
+ * does not reproduce the Stitch exports' bugs (remapped radius scale,
+ * conflicting base colour, four glass definitions, three nav heights, four
+ * currency formats). See the inline comments tagged CORRECTED.
+ *
+ * Rule: no component may use a literal hex, an arbitrary radius, or a raw
+ * font-family value. Everything goes through a token defined here
+ * (docs/05 §10, gate for "Definition of done").
+ */
 
-html {
-  color-scheme: dark;
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ---------------------------------------------------------------------- */
+/* Raw tokens (docs/05 §1)                                                  */
+/* ---------------------------------------------------------------------- */
+
+:root {
+  /* Surfaces and elevation */
+  /* CORRECTED (01 §C.3 #2): the exports conflict between #09090B and
+     #131315 for the page base, and Admin/Builder override the body to
+     #09090B in raw CSS while other screens use the #131315 token. One base
+     wins: --background is the true page floor, --surface is the very
+     first raised layer on top of it. */
+  --background: #09090b;
+  --surface: #131315;
+  --surface-dim: #131315;
+  --surface-container-lowest: #0e0e10;
+  --surface-container-low: #1c1b1d;
+  --surface-container: #201f22;
+  --surface-container-high: #2a2a2c;
+  --surface-container-highest: #353437;
+  --surface-bright: #39393b;
+  --surface-variant: #353437;
+  --obsidian-surface: #121417;
+
+  /* Primary — electric blue */
+  --primary: #a4e6ff;
+  --on-primary: #003543;
+  --primary-container: #00d1ff;
+  --on-primary-container: #00566a;
+  --primary-fixed: #b7eaff;
+  --primary-fixed-dim: #4cd6ff;
+  --surface-tint: var(--primary-fixed-dim);
+  --on-primary-fixed: #001f28;
+  --on-primary-fixed-variant: #004e60;
+  --inverse-primary: #00677f;
+
+  /* Text and outlines */
+  --on-surface: #e5e1e4;
+  --on-surface-variant: #bbc9cf;
+  --silver-text: #e4e4e7;
+  --outline: #859399;
+  --outline-variant: #3c494e;
+  --glass-stroke: rgba(255, 255, 255, 0.1);
+  --inverse-surface: #e5e1e4;
+  --inverse-on-surface: #313032;
+
+  /* Secondary / tertiary */
+  --secondary: #c5c6cc;
+  --on-secondary: #2e3135;
+  --secondary-container: #46494e;
+  --on-secondary-container: #b6b8be;
+  --tertiary: #dcdbe5;
+  --on-tertiary: #2f3038;
+  --tertiary-container: #c0bfc9;
+  --on-tertiary-container: #4d4e56;
+
+  /* Error */
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --on-error-container: #ffdad6;
+
+  /* Semantic status colours — ADDED (docs/05 §1.5), the exports have none */
+  --success: #7be8a8;
+  --on-success: #003919;
+  --warning: #ffd48a;
+  --on-warning: #4a2c00;
+  --info: var(--primary);
+  --on-info: var(--on-primary);
+  --danger: var(--error);
+  --on-danger: var(--on-error);
+
+  /* Effects */
+  /* CORRECTED (01 §C.3 #4): the exports define .glass-panel three
+     different ways (0.7/0.8 alpha, 12/20px blur) and four separate glow
+     classes. One value each, everywhere. */
+  --glass-bg: rgba(18, 20, 23, 0.75);
+  --glass-blur: 12px;
+  /* CORRECTED (01 §C.3 #5): three different nav heights (64/72/80px)
+     across screens. One height, referenced everywhere a nav/header/step
+     bar needs it. */
+  --nav-h: 72px;
+
+  /* Spacing rhythm (docs/05 §3) — named on top of Tailwind's own scale,
+     for the handful of places layout rhythm is called out by name rather
+     than an arbitrary Tailwind step. Use as `p-[--space-card-padding]`
+     etc., or Tailwind's numeric scale directly everywhere else. */
+  --space-unit: 4px;
+  --space-gutter: 24px;
+  --space-card-padding: 24px;
+  --space-margin-safe: 32px;
+  --space-section-gap: 80px;
+  --space-section-gap-mobile: 48px;
 }
 
-body {
-  background-color: #09090b;
-  color: #e5e1e4;
-  font-family: system-ui, sans-serif;
-  margin: 0;
+/* ---------------------------------------------------------------------- */
+/* Tailwind theme wiring — turns the tokens above into utility classes     */
+/* (bg-surface-container-high, text-on-surface-variant, rounded-2xl, ...)  */
+/* ---------------------------------------------------------------------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-variant: var(--surface-variant);
+  --color-obsidian-surface: var(--obsidian-surface);
+
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-primary-fixed: var(--primary-fixed);
+  --color-primary-fixed-dim: var(--primary-fixed-dim);
+  --color-surface-tint: var(--surface-tint);
+  --color-on-primary-fixed: var(--on-primary-fixed);
+  --color-on-primary-fixed-variant: var(--on-primary-fixed-variant);
+  --color-inverse-primary: var(--inverse-primary);
+
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-silver-text: var(--silver-text);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-glass-stroke: var(--glass-stroke);
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-on-surface: var(--inverse-on-surface);
+
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-tertiary: var(--tertiary);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
+
+  --color-success: var(--success);
+  --color-on-success: var(--on-success);
+  --color-warning: var(--warning);
+  --color-on-warning: var(--on-warning);
+  --color-info: var(--info);
+  --color-on-info: var(--on-info);
+  --color-danger: var(--danger);
+  --color-on-danger: var(--on-danger);
+
+  --color-glass-bg: var(--glass-bg);
+
+  /* shadcn/ui expects this exact set of aliases (docs/05 §6 primitives are
+     restyled shadcn components, not replacements) — mapped onto the
+     Obsidian Peak roles above so every shadcn primitive inherits the
+     theme with zero literal colour values. */
+  --color-border: var(--outline-variant);
+  --color-input: var(--outline-variant);
+  --color-ring: var(--primary-container);
+  --color-foreground: var(--on-surface);
+  --color-card: var(--surface-container);
+  --color-card-foreground: var(--on-surface);
+  --color-popover: var(--surface-container-high);
+  --color-popover-foreground: var(--on-surface);
+  --color-muted: var(--surface-container-low);
+  --color-muted-foreground: var(--on-surface-variant);
+  --color-accent: var(--surface-container-high);
+  --color-accent-foreground: var(--on-surface);
+  --color-destructive: var(--error);
+  --color-destructive-foreground: var(--on-error);
+
+  /* Fonts (docs/05 §2) — set via next/font in src/app/layout.tsx, which
+     writes the actual --font-display/--font-sans/--font-mono values as
+     CSS variables on <html>. Overriding Tailwind's default font-sans /
+     font-mono here means every unstyled element (and every shadcn
+     primitive, which uses font-sans by default) already gets Inter /
+     JetBrains Mono with no per-component font-family class needed. */
+  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* Radius — CORRECTED (01 §C.3 #1): the exports remap rounded-full to
+     12px, which silently breaks every avatar, status chip, and progress
+     bar that expects a true pill. Restored scale (docs/05 §3): */
+  --radius-sm: 2px;
+  --radius: 4px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 8px;
+  --radius-2xl: 12px;
+  --radius-full: 9999px;
+
+  /* Named shadows, so `shadow-glow` / `shadow-glow-strong` are real
+     Tailwind utilities (docs/05 §1.6) rather than an inline style
+     anywhere they're used. Static values, declared directly here rather
+     than aliased from :root — there's no runtime-variable indirection to
+     preserve for these two. */
+  --shadow-glow: 0 0 20px rgba(0, 209, 255, 0.15);
+  --shadow-glow-strong: 0 0 20px rgba(0, 209, 255, 0.35);
+
+  /* Animations for tw-animate-css / shadcn (accordion, etc.) */
+  --animate-accordion-down: accordion-down 200ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-accordion-up: accordion-up 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Base layer                                                              */
+/* ---------------------------------------------------------------------- */
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+    outline-color: var(--color-ring);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  /* docs/05 §4: a visible focus-visible ring on every interactive
+     element, not just form inputs — this is the one global rule that
+     guarantees it even on elements a future component forgets to style
+     explicitly. */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* docs/05 §4: reduced motion disables all transforms/transitions,
+     globally, rather than trusting every component to check the media
+     query itself. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Typography utilities (docs/05 §2)                                       */
+/* One utility per style — CORRECTED (01 §C.3 #3): the exports double-key  */
+/* fonts as both a fontFamily class and a fontSize class                   */
+/* (`font-headline-lg text-headline-lg`), a Stitch export artefact.        */
+/* ---------------------------------------------------------------------- */
+
+@utility text-display-lg {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  /* 64/72 desktop, clamps to 40px on narrow viewports per docs/05 §2 */
+  font-size: clamp(2.5rem, 1.2rem + 5vw, 4rem);
+  line-height: 1.125;
+}
+
+@utility text-headline-lg {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  /* 32/40 mobile, 40/48 desktop per docs/05 §2 */
+  font-size: clamp(2rem, 1.4rem + 2.5vw, 2.5rem);
+  line-height: 1.2;
+}
+
+@utility text-headline-md {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+@utility text-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+@utility text-body-lg {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+@utility text-body-md {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+@utility text-body-sm {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+@utility text-label-mono {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  letter-spacing: 0.05em;
+}
+
+@utility text-label-mono-xs {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* CORRECTED (01 §C.3 #9): the builder's price estimate is 64px in the
+   export and its rendered value overflows the panel — "145,800" clips.
+   Capped at 40px, tabular-nums, and callers must add `truncate` in
+   context (docs/05 §2). */
+@utility text-price {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility text-price-lg {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.5rem;
+  line-height: 2.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Effect utilities                                                        */
+/* ---------------------------------------------------------------------- */
+
+@utility glass-panel {
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-stroke);
+}
+
+@utility nav-height {
+  height: var(--nav-h);
 }
