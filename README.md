@@ -3,9 +3,10 @@
 Rebuild of https://citycomputer.com.np/. Full architecture is documented in
 [`docs/`](./docs/00-MASTER-INDEX.md) — read `docs/00-MASTER-INDEX.md` first.
 
-**Build status:** Phase 1 (Foundation & Tooling) in progress. See
-`docs/17-ROADMAP-PHASES.md` for the full phase plan and
-`docs/18-SONNET-HANDOFF.md` for the execution protocol this project follows.
+**Build status:** see [`PROGRESS.md`](./PROGRESS.md) for exactly what's built,
+what's verified, and what's next. `docs/17-ROADMAP-PHASES.md` has the full
+phase plan and `docs/18-SONNET-HANDOFF.md` the execution protocol this
+project follows.
 
 ## Setup
 
