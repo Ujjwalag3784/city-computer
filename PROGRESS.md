@@ -61,16 +61,24 @@ spec templates, ~10 demo products, ~22 PC-builder parts with connectors and
 reduced from the blueprint's suggested 20 products / 60 parts — flagged in
 comments in those files as a follow-up before real QA.
 
-**Important caveat:** `pnpm db:generate` / `pnpm db:migrate` have never
-actually been run against this schema. The sandbox this was built in blocks
-network access to Prisma's engine-binary CDN, so I could not verify the
-schema compiles. Everything that _could_ be checked without that engine —
-`pnpm lint` and `pnpm typecheck` on every new file — is clean; the only
-typecheck errors present are "`@prisma/client` has no exported member X",
-which is the exact, expected symptom of `generate` never having run, and
-nothing else. **First thing to do locally:** `pnpm db:generate`, then
-`docker compose up -d && pnpm db:migrate && pnpm db:seed`, and fix whatever
-Prisma's own error messages point at if anything doesn't compile.
+**Important caveat:** `pnpm db:generate` / `pnpm db:migrate` still haven't
+been run to completion against a real database (the sandbox this was built
+in blocks network access to Prisma's engine-binary CDN, so it can never
+finish either command itself). What has changed: `pnpm db:migrate`, run for
+real on your machine, caught a genuine bug — Prisma ORM 7 (already pinned
+in `package.json`) turned out to have several breaking changes versus what
+the schema was originally written against (custom Prisma Client `output`
+is now required, `datasource.url` moved out of the schema file entirely
+into the new `prisma.config.ts`, and `PrismaClient` now needs an explicit
+driver adapter). That's fixed — see the `fix(db): migrate schema/client
+setup to Prisma ORM v7 conventions` commit — and re-verified with
+`pnpm lint` / `pnpm typecheck`/`pnpm test:coverage`/`pnpm build`, all clean
+except for the one remaining, expected "cannot find module
+`@/generated/prisma/client`" error, which only `pnpm db:generate` itself
+can resolve (nothing left that's fixable without actually running it).
+**Next step:** re-run `pnpm install` to pick up the new dependencies, then
+`pnpm db:generate`, then `docker compose up -d && pnpm db:migrate &&
+pnpm db:seed`.
 
 **Not done:** Auth.js v5 config, Argon2id password hashing, session
 strategy, the `requirePermission()` RBAC layer, admin TOTP 2FA, auth rate
