@@ -70,3 +70,27 @@ and the module-boundary rules enforced by `eslint.config.mjs`.
 ## Contributing
 
 See `CONTRIBUTING.md` (added in Phase 1 completion) and `docs/15-DEVOPS-CICD.md §1`.
+
+## One-time local git setup
+
+This project was scaffolded and verified (typecheck, lint, tests, build,
+coverage) from an automated build sandbox, which is not able to create a
+`.git` repository directly on this Windows folder (Git needs to create and
+delete lock files, which the sandbox's mount doesn't permit). Everything
+else — every source file, config, and doc — is real and already on disk.
+
+To turn this into a working local git repo with the pre-commit/commit-msg
+hooks active, open a terminal **on your own machine** (PowerShell or the VS
+Code terminal) in this folder and run:
+
+```bash
+git init
+git branch -m main
+pnpm install        # also runs `pnpm prepare` → installs husky hooks
+git add -A
+git commit -m "chore: initial commit"
+```
+
+After that, `pnpm dev`, `pnpm test`, `pnpm lint`, `pnpm build`, and the git
+hooks all work exactly as documented above — this step only needs to run
+once.
