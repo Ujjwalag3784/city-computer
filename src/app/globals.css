@@ -1,0 +1,13 @@
+/* Obsidian Peak design tokens land here in Phase 2 (docs/05-DESIGN-SYSTEM.md).
+   This is a minimal placeholder so Phase 1 has a valid, buildable app shell. */
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #09090b;
+  color: #e5e1e4;
+  font-family: system-ui, sans-serif;
+  margin: 0;
+}

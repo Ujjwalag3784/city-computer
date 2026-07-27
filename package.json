@@ -1,0 +1,62 @@
+{
+  "name": "citycomputer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "City Computer Systems — e-commerce platform, PC builder, and admin console.",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepare": "husky",
+    "db:generate": "prisma generate --schema=./prisma/schema",
+    "db:migrate": "prisma migrate dev --schema=./prisma/schema",
+    "db:deploy": "prisma migrate deploy --schema=./prisma/schema",
+    "db:seed": "tsx prisma/seed/index.ts",
+    "db:reset": "prisma migrate reset --schema=./prisma/schema",
+    "db:studio": "prisma studio --schema=./prisma/schema"
+  },
+  "dependencies": {
+    "next": "15.5.22",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "zod": "3.24.1",
+    "pino": "9.6.0",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "3.2.0",
+    "@eslint/js": "9.18.0",
+    "@types/node": "22.10.7",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "@typescript-eslint/eslint-plugin": "8.20.0",
+    "@typescript-eslint/parser": "8.20.0",
+    "@vitest/coverage-v8": "2.1.8",
+    "eslint": "9.18.0",
+    "eslint-config-next": "15.5.22",
+    "eslint-config-prettier": "9.1.0",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-security": "3.0.1",
+    "husky": "9.1.7",
+    "lint-staged": "15.4.1",
+    "prettier": "3.4.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.3",
+    "typescript-eslint": "8.20.0",
+    "vitest": "2.1.8",
+    "@commitlint/cli": "19.6.1",
+    "@commitlint/config-conventional": "19.6.0"
+  }
+}
