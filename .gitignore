@@ -39,3 +39,6 @@ prisma/**/*.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# stray lock/tmp artifacts from filesystem sync tooling
+_tmp_*
