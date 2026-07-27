@@ -1,0 +1,503 @@
+// Commerce — docs/06-DATA-MODEL.md §6.
+// Cart, CartItem, Order, OrderItem, OrderAddress, OrderStatusEvent, Payment,
+// PaymentEvent, Refund, Fulfilment, FulfilmentItem, Invoice, Coupon,
+// CouponRedemption, Promotion, PromotionRule, DeliveryZone, ShippingRate.
+
+/// Guest carts expire after 30 days; customer carts persist. Merged on
+/// login by SKU with quantity summing (service-layer behaviour).
+model Cart {
+  id             String    @id @default(cuid(2))
+  /// Cookie value.
+  token          String    @unique
+  customerId     String?   @map("customer_id")
+  currency       String    @default("NPR")
+  branchId       String?   @map("branch_id")
+  couponCode     String?   @map("coupon_code")
+  metadata       Json?
+  expiresAt      DateTime  @map("expires_at")
+  lastActivityAt DateTime  @default(now()) @map("last_activity_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  customer     Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  branch       Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  items        CartItem[]
+  reservations StockReservation[]
+  abandoned    AbandonedCart?
+
+  @@index([customerId])
+  @@index([expiresAt])
+  @@map("carts")
+}
+
+/// Price is re-resolved server-side at checkout. The snapshot exists only
+/// to detect and surface "the price changed since you added this".
+model CartItem {
+  id                       String   @id @default(cuid(2))
+  cartId                   String   @map("cart_id")
+  variantId                String   @map("variant_id")
+  quantity                 Int
+  unitPricePaisaSnapshot   Int      @map("unit_price_paisa_snapshot")
+  addedAt                  DateTime @default(now()) @map("added_at")
+  /// Set when the line came from a PC build.
+  buildId                  String?  @map("build_id")
+  metadata                 Json?
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  build   Build?  @relation(fields: [buildId], references: [id], onDelete: SetNull)
+
+  @@unique([cartId, variantId])
+  @@index([variantId])
+  @@map("cart_items")
+}
+
+// TODO(raw-sql): CHECK (total_paisa = subtotal_paisa - discount_paisa +
+// shipping_paisa + (CASE WHEN NOT tax_inclusive THEN tax_paisa ELSE 0 END))
+// (docs/06-DATA-MODEL.md §12 #5). Also enforced by a service-level
+// assertion on every write path (order placement, refund, coupon apply).
+model Order {
+  id                    String              @id @default(cuid(2))
+  /// Unique, `CC-2607-0001`. Monthly sequence via a DB sequence + advisory
+  /// lock — see src/lib/ids.ts formatOrderNumber for the string format.
+  orderNumber           String              @unique @map("order_number")
+  customerId            String              @map("customer_id")
+  /// Denormalised — orders must be readable if the customer record is
+  /// soft-deleted (see the FK comment below).
+  email                 String?
+  phone                 String?
+  status                OrderStatus         @default(PENDING_PAYMENT)
+  paymentStatus         OrderPaymentStatus  @default(UNPAID) @map("payment_status")
+  fulfilmentType        FulfilmentType      @map("fulfilment_type")
+  /// Fulfilling branch.
+  branchId              String              @map("branch_id")
+  subtotalPaisa         Int                 @map("subtotal_paisa")
+  discountPaisa         Int                 @default(0) @map("discount_paisa")
+  shippingPaisa         Int                 @default(0) @map("shipping_paisa")
+  taxPaisa              Int                 @default(0) @map("tax_paisa")
+  totalPaisa            Int                 @map("total_paisa")
+  paidPaisa             Int                 @default(0) @map("paid_paisa")
+  refundedPaisa         Int                 @default(0) @map("refunded_paisa")
+  /// VAT 13% is included in displayed prices in Nepal.
+  taxInclusive          Boolean             @default(true) @map("tax_inclusive")
+  couponCode            String?             @map("coupon_code")
+  couponDiscountPaisa   Int?                @map("coupon_discount_paisa")
+  /// Nullable — pickup orders may not resolve to a delivery zone.
+  deliveryZoneId        String?             @map("delivery_zone_id")
+  customerNote          String?             @map("customer_note") @db.Text
+  internalNote          String?             @map("internal_note") @db.Text
+  placedAt              DateTime            @default(now()) @map("placed_at")
+  confirmedAt           DateTime?           @map("confirmed_at")
+  shippedAt             DateTime?           @map("shipped_at")
+  deliveredAt           DateTime?           @map("delivered_at")
+  completedAt           DateTime?           @map("completed_at")
+  cancelledAt           DateTime?           @map("cancelled_at")
+  cancellationReason    String?             @map("cancellation_reason")
+  /// The owner takes many orders by phone.
+  sourceChannel         OrderSourceChannel  @default(WEB) @map("source_channel")
+  /// If the order originated from a PC build.
+  buildId               String?             @map("build_id")
+  /// Fraud signals; retention-limited.
+  ipAddress             String?             @map("ip_address")
+  userAgent             String?             @map("user_agent")
+  version               Int                 @default(0)
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  // Restrict rather than Cascade/SetNull: Order.customerId is required
+  // (non-null) per the doc's field table. "Orders must be readable if the
+  // customer is deleted" is satisfied by Customer using soft delete
+  // (deletedAt) — the row and its id persist, so this FK stays valid. A
+  // true hard-delete of a Customer with orders is blocked here on purpose.
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  deliveryZone  DeliveryZone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+  // Two independent, explicitly-named relations to Build — see the long
+  // comment on Build.orderId in builder.prisma for why both exist.
+  build         Build?        @relation("OrderFromBuild", fields: [buildId], references: [id], onDelete: SetNull)
+  buildsPurchased Build[]     @relation("BuildOrderId")
+
+  items              OrderItem[]
+  addresses          OrderAddress[]
+  statusEvents       OrderStatusEvent[]
+  payments           Payment[]
+  fulfilments        Fulfilment[]
+  refunds            Refund[]
+  invoice            Invoice?
+  couponRedemptions  CouponRedemption[]
+  reviews            Review[]
+  stockReservations  StockReservation[]
+  serviceTicketsUnderWarranty ServiceTicket[]
+  abandonedCartRecovered      AbandonedCart[]
+  builderSessionConverted     BuilderSession[]
+
+  @@index([customerId])
+  @@index([status, placedAt(sort: Desc)])
+  @@index([paymentStatus])
+  @@index([branchId, status])
+  @@index([phone])
+  @@map("orders")
+}
+
+/// Immutable snapshot — everything is captured at order time so an invoice
+/// from 2027 renders identically in 2030. variantId is nullable so
+/// deleting a product never orphans history.
+model OrderItem {
+  id                    String   @id @default(cuid(2))
+  orderId               String   @map("order_id")
+  variantId             String?  @map("variant_id")
+  productNameSnapshot   String   @map("product_name_snapshot")
+  variantTitleSnapshot  String?  @map("variant_title_snapshot")
+  skuSnapshot           String   @map("sku_snapshot")
+  imageUrlSnapshot      String?  @map("image_url_snapshot")
+  unitPricePaisa        Int      @map("unit_price_paisa")
+  quantity              Int
+  lineTotalPaisa        Int      @map("line_total_paisa")
+  taxPaisa              Int      @default(0) @map("tax_paisa")
+  costPaisaSnapshot     Int?     @map("cost_paisa_snapshot")
+  /// Points back at the BuildItem.slotKey this line fulfilled, when the
+  /// order came from a PC build. Not a Prisma relation — BuildItem rows
+  /// can be edited/removed independently of the immutable order snapshot.
+  buildItemRef          String?  @map("build_item_ref")
+  isAssemblyService     Boolean  @default(false) @map("is_assembly_service")
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  fulfilmentItems FulfilmentItem[]
+
+  @@index([orderId])
+  @@index([variantId])
+  @@map("order_items")
+}
+
+/// Frozen copy of the shipping and billing address at placement — never a
+/// foreign key to a mutable Address. `type` distinguishes the (up to) two
+/// rows per order rather than declaring two separate FK fields on Order,
+/// which is the cleanest way to model "0-2 addresses of different kinds"
+/// without an artificial dual-relation to the same target model.
+model OrderAddress {
+  id              String            @id @default(cuid(2))
+  orderId         String            @map("order_id")
+  type            OrderAddressType
+  fullName        String            @map("full_name")
+  phone           String
+  alternatePhone  String?           @map("alternate_phone")
+  province        Province
+  district        String
+  municipality    String
+  ward            Int?
+  streetAddress   String            @map("street_address")
+  landmark        String?
+  latitude        Float?
+  longitude       Float?
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, type])
+  @@map("order_addresses")
+}
+
+/// APPEND-ONLY. Powers the visual tracker and the undo window.
+model OrderStatusEvent {
+  id         String          @id @default(cuid(2))
+  orderId    String          @map("order_id")
+  fromStatus OrderStatus?    @map("from_status")
+  toStatus   OrderStatus     @map("to_status")
+  actorId    String?         @map("actor_id")
+  actorType  OrderActorType  @map("actor_type")
+  note       String?
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@map("order_status_events")
+}
+
+/// An order may have several payments — retries, and deposit + balance.
+/// Hard rule (docs/10): a Payment may only reach PAID via a server-side
+/// provider lookup or a signature-verified webhook. A browser redirect is
+/// never proof.
+model Payment {
+  id                     String                     @id @default(cuid(2))
+  orderId                String                     @map("order_id")
+  provider               PaymentProvider
+  amountPaisa            Int                        @map("amount_paisa")
+  status                 PaymentStatus              @default(INITIATED)
+  /// Our idempotency key sent to the gateway (`transaction_uuid` /
+  /// `purchase_order_id`). Unique.
+  intentReference        String                     @unique @map("intent_reference")
+  /// Their reference (`pidx`, `refId`, `PRN`).
+  providerTransactionId  String?                    @map("provider_transaction_id")
+  providerStatusRaw      String?                    @map("provider_status_raw")
+  signature              String?
+  verifiedAt             DateTime?                  @map("verified_at")
+  verificationMethod     PaymentVerificationMethod? @map("verification_method")
+  /// Secrets redacted before storage.
+  requestPayload         Json?                      @map("request_payload")
+  responsePayload        Json?                      @map("response_payload")
+  /// Bank-transfer slip.
+  receiptMediaId         String?                    @map("receipt_media_id")
+  approvedById           String?                    @map("approved_by_id")
+  approvedAt             DateTime?                  @map("approved_at")
+  rejectionReason        String?                    @map("rejection_reason")
+  expiresAt              DateTime?                  @map("expires_at")
+  attemptNumber          Int                        @default(1) @map("attempt_number")
+  createdAt              DateTime                   @default(now()) @map("created_at")
+  updatedAt              DateTime                   @updatedAt @map("updated_at")
+
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  receiptMedia Media?  @relation(fields: [receiptMediaId], references: [id], onDelete: SetNull)
+  approvedBy   User?   @relation(fields: [approvedById], references: [id], onDelete: SetNull)
+
+  events  PaymentEvent[]
+  refunds Refund[]
+
+  // Postgres treats NULL as distinct in a unique index, so this compound
+  // unique already behaves like the doc's "unique where non-null" —
+  // multiple rows with providerTransactionId = NULL are allowed.
+  @@unique([provider, providerTransactionId])
+  @@index([orderId])
+  @@index([status, createdAt])
+  @@index([provider, status])
+  // TODO(raw-sql): partial index for the reconciliation sweep
+  // (docs/06-DATA-MODEL.md §11): CREATE INDEX ... ON payments (status, created_at)
+  // WHERE status IN ('INITIATED','PENDING');
+  @@map("payments")
+}
+
+/// APPEND-ONLY log of every interaction.
+model PaymentEvent {
+  id         String           @id @default(cuid(2))
+  paymentId  String           @map("payment_id")
+  type       PaymentEventType
+  /// Redacted.
+  payload    Json?
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId, createdAt])
+  @@map("payment_events")
+}
+
+/// eSewa, Fonepay, and connectIPS have no refund API — most refunds are a
+/// recorded manual bank transfer. The model must not assume automation.
+model Refund {
+  id                 String       @id @default(cuid(2))
+  orderId            String       @map("order_id")
+  paymentId          String       @map("payment_id")
+  amountPaisa        Int          @map("amount_paisa")
+  reason             String
+  status             RefundStatus @default(REQUESTED)
+  providerRefundId   String?      @map("provider_refund_id")
+  method             RefundMethod
+  requestedById      String       @map("requested_by_id")
+  approvedById       String?      @map("approved_by_id")
+  note               String?
+  evidenceMediaIds   String[]     @map("evidence_media_ids")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  payment     Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  requestedBy User    @relation("RefundRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedBy  User?   @relation("RefundApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([paymentId])
+  @@map("refunds")
+}
+
+/// Supports partial shipment via FulfilmentItem.
+model Fulfilment {
+  id                    String            @id @default(cuid(2))
+  orderId               String            @map("order_id")
+  branchId              String            @map("branch_id")
+  type                  FulfilmentType
+  carrier               String?
+  trackingNumber        String?           @map("tracking_number")
+  trackingUrl           String?           @map("tracking_url")
+  status                FulfilmentStatus  @default(PENDING)
+  packedAt              DateTime?         @map("packed_at")
+  dispatchedAt          DateTime?         @map("dispatched_at")
+  deliveredAt           DateTime?         @map("delivered_at")
+  deliveryPersonName    String?           @map("delivery_person_name")
+  deliveryPersonPhone   String?           @map("delivery_person_phone")
+  proofMediaId          String?           @map("proof_media_id")
+  podSignatureName      String?           @map("pod_signature_name")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  branch      Branch  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  proofMedia  Media?  @relation(fields: [proofMediaId], references: [id], onDelete: SetNull)
+
+  items FulfilmentItem[]
+
+  @@index([orderId])
+  @@map("fulfilments")
+}
+
+model FulfilmentItem {
+  id            String @id @default(cuid(2))
+  fulfilmentId  String @map("fulfilment_id")
+  orderItemId   String @map("order_item_id")
+  quantity      Int
+
+  fulfilment Fulfilment @relation(fields: [fulfilmentId], references: [id], onDelete: Cascade)
+  orderItem  OrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+
+  @@index([fulfilmentId])
+  @@index([orderItemId])
+  @@map("fulfilment_items")
+}
+
+/// Unique orderId — separate legal sequence from orderNumber. Immutable
+/// once issued; corrections are credit notes.
+model Invoice {
+  id             String    @id @default(cuid(2))
+  orderId        String    @unique @map("order_id")
+  invoiceNumber  String    @unique @map("invoice_number")
+  issuedAt       DateTime  @default(now()) @map("issued_at")
+  pdfMediaId     String?   @map("pdf_media_id")
+  vatNumber      String?   @map("vat_number")
+  totalPaisa     Int       @map("total_paisa")
+  taxPaisa       Int       @map("tax_paisa")
+
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  pdfMedia Media? @relation(fields: [pdfMediaId], references: [id], onDelete: SetNull)
+
+  @@map("invoices")
+}
+
+/// `code` is normalised to uppercase on every write to emulate
+/// case-insensitive matching without a `citext` column — citext is not in
+/// the approved extension list (docs/06 §11: pg_trgm, unaccent, btree_gin,
+/// pgcrypto only). Judgment call, flagged here rather than silently done.
+model Coupon {
+  id                     String            @id @default(cuid(2))
+  code                   String            @unique
+  description            String?
+  type                   CouponType
+  /// Percentage points (0-100) when type = PERCENTAGE, else paisa.
+  value                  Int
+  minOrderPaisa          Int?              @map("min_order_paisa")
+  maxDiscountPaisa       Int?              @map("max_discount_paisa")
+  usageLimit             Int?              @map("usage_limit")
+  usageLimitPerCustomer  Int?              @map("usage_limit_per_customer")
+  usedCount              Int               @default(0) @map("used_count")
+  startsAt               DateTime?         @map("starts_at")
+  endsAt                 DateTime?         @map("ends_at")
+  isActive               Boolean           @default(true) @map("is_active")
+  appliesTo              CouponAppliesTo   @default(ALL) @map("applies_to")
+  targetIds              String[]          @map("target_ids")
+  excludeDiscounted      Boolean           @default(false) @map("exclude_discounted")
+  firstOrderOnly         Boolean           @default(false) @map("first_order_only")
+  createdAt              DateTime          @default(now()) @map("created_at")
+  updatedAt               DateTime          @updatedAt @map("updated_at")
+
+  redemptions CouponRedemption[]
+
+  @@index([isActive])
+  @@map("coupons")
+}
+
+/// Unique (couponId, orderId).
+model CouponRedemption {
+  id            String   @id @default(cuid(2))
+  couponId      String   @map("coupon_id")
+  orderId       String   @map("order_id")
+  customerId    String   @map("customer_id")
+  discountPaisa Int      @map("discount_paisa")
+  redeemedAt    DateTime @default(now()) @map("redeemed_at")
+
+  coupon   Coupon   @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@unique([couponId, orderId])
+  @@index([customerId])
+  @@map("coupon_redemptions")
+}
+
+/// Automatic discounts requiring no code. Powers "Save up to 40% on
+/// Headphones" banners that currently link nowhere.
+model Promotion {
+  id         String        @id @default(cuid(2))
+  name       String
+  type       PromotionType
+  priority   Int           @default(0)
+  stackable  Boolean       @default(false)
+  startsAt   DateTime?     @map("starts_at")
+  endsAt     DateTime?     @map("ends_at")
+  isActive   Boolean       @default(true) @map("is_active")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  rules PromotionRule[]
+
+  @@index([isActive, priority])
+  @@map("promotions")
+}
+
+/// JUDGMENT CALL: the doc groups "condition/action rules" under Promotion
+/// without a field list. Modelled generically so a single Promotion can
+/// carry several conditions and actions (e.g. "category = Headphones" AND
+/// "quantity >= 2" -> "20% off"), each rule row typed by a plain string
+/// discriminator plus a JSONB payload evaluated by the promotions engine.
+model PromotionRule {
+  id             String   @id @default(cuid(2))
+  promotionId    String   @map("promotion_id")
+  /// e.g. `CATEGORY`, `PRODUCT`, `MIN_QUANTITY`, `MIN_SUBTOTAL`.
+  conditionType  String   @map("condition_type")
+  conditionValue Json     @map("condition_value")
+  /// e.g. `PERCENTAGE_OFF`, `FIXED_OFF`, `FREE_ITEM`.
+  actionType     String   @map("action_type")
+  actionValue    Json     @map("action_value")
+  position       Int      @default(0)
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId])
+  @@map("promotion_rules")
+}
+
+/// Seeded: "Inside Kathmandu Valley" NPR 150, "Outside Valley" NPR 350.
+model DeliveryZone {
+  id                 String   @id @default(cuid(2))
+  name               String
+  districts          String[]
+  isActive           Boolean  @default(true) @map("is_active")
+  position           Int      @default(0)
+  estimatedDaysMin   Int      @map("estimated_days_min")
+  estimatedDaysMax   Int      @map("estimated_days_max")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  rates  ShippingRate[]
+  orders Order[]
+
+  @@map("delivery_zones")
+}
+
+model ShippingRate {
+  id             String            @id @default(cuid(2))
+  zoneId         String            @map("zone_id")
+  name           String
+  type           ShippingRateType
+  basePaisa      Int               @map("base_paisa")
+  freeAbovePaisa Int?              @map("free_above_paisa")
+  perKgPaisa     Int?              @map("per_kg_paisa")
+  isActive       Boolean           @default(true) @map("is_active")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  zone DeliveryZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@index([zoneId])
+  @@map("shipping_rates")
+}

@@ -1,0 +1,133 @@
+// Inventory & branches — docs/06-DATA-MODEL.md §5.
+// Branch, BranchHours, StockLevel, StockMovement, StockReservation.
+
+model Branch {
+  id                  String   @id @default(cuid(2))
+  slug                String   @unique
+  name                String
+  addressLine         String   @map("address_line")
+  district             String
+  province             Province
+  phone                String
+  email                String?
+  latitude             Float?
+  longitude            Float?
+  mapEmbedUrl          String?  @map("map_embed_url")
+  isPickupEnabled      Boolean  @default(true) @map("is_pickup_enabled")
+  isDefaultFulfilment  Boolean  @default(false) @map("is_default_fulfilment")
+  isActive             Boolean  @default(true) @map("is_active")
+  position             Int      @default(0)
+  metaTitle            String?  @map("meta_title")
+  metaDescription      String?  @map("meta_description")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  hours              BranchHours[]
+  stockLevels        StockLevel[]
+  stockMovements     StockMovement[]
+  stockReservations  StockReservation[]
+  orders             Order[]
+  carts              Cart[]
+  fulfilments        Fulfilment[]
+  serviceTickets     ServiceTicket[]
+
+  @@index([isActive])
+  @@map("branches")
+}
+
+/// Feeds openingHoursSpecification in LocalBusiness schema.
+model BranchHours {
+  id         String   @id @default(cuid(2))
+  branchId   String   @map("branch_id")
+  /// 0 = Sunday ... 6 = Saturday.
+  dayOfWeek  Int      @map("day_of_week")
+  openTime   String?  @map("open_time")
+  closeTime  String?  @map("close_time")
+  isClosed   Boolean  @default(false) @map("is_closed")
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, dayOfWeek])
+  @@map("branch_hours")
+}
+
+/// Available = quantity - reservedQuantity. Computed, never stored.
+model StockLevel {
+  id                 String    @id @default(cuid(2))
+  variantId          String    @map("variant_id")
+  branchId           String    @map("branch_id")
+  // TODO(raw-sql): CHECK (quantity >= 0) (docs/06-DATA-MODEL.md §12 #3).
+  quantity           Int       @default(0)
+  // TODO(raw-sql): CHECK (reserved_quantity >= 0) (docs/06-DATA-MODEL.md §12 #3).
+  // Rule #4 (reservedQuantity <= quantity unless allowBackorder) is
+  // service-level only, per the doc, since it depends on a sibling table
+  // (Variant.allowBackorder) that a single-table CHECK cannot see.
+  reservedQuantity   Int       @default(0) @map("reserved_quantity")
+  incomingQuantity   Int?      @map("incoming_quantity")
+  expectedAt         DateTime? @map("expected_at")
+  version            Int       @default(0)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@unique([variantId, branchId])
+  // Partial index for the low-stock report (docs/06 §11). Prisma's DSL
+  // cannot express the `WHERE quantity <= 5` predicate — see
+  // manual-constraints.sql. The plain composite index below still helps
+  // the unfiltered access path.
+  // TODO(raw-sql): CREATE INDEX ... ON stock_levels (branch_id, quantity) WHERE quantity <= 5;
+  @@index([branchId, quantity])
+  @@map("stock_levels")
+}
+
+/// APPEND-ONLY: never updated or deleted. This is the audit trail for
+/// stock — StockLevel.quantity must always equal SUM(StockMovement.delta)
+/// for that (variantId, branchId) pair; a nightly job asserts this.
+/// UPDATE/DELETE grants must be revoked at the DB role level — see
+/// manual-constraints.sql (`app_user` is a placeholder role name there).
+model StockMovement {
+  id            String              @id @default(cuid(2))
+  variantId     String              @map("variant_id")
+  branchId      String              @map("branch_id")
+  /// Signed.
+  delta         Int
+  reason        StockMovementReason
+  referenceType String?             @map("reference_type")
+  referenceId   String?             @map("reference_id")
+  note          String?
+  actorId       String?             @map("actor_id")
+  createdAt     DateTime            @default(now()) @map("created_at")
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([variantId, branchId])
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+model StockReservation {
+  id         String                 @id @default(cuid(2))
+  variantId  String                 @map("variant_id")
+  branchId   String                 @map("branch_id")
+  quantity   Int
+  cartId     String?                @map("cart_id")
+  orderId    String?                @map("order_id")
+  expiresAt  DateTime               @map("expires_at")
+  status     StockReservationStatus @default(ACTIVE)
+  createdAt  DateTime               @default(now()) @map("created_at")
+  updatedAt  DateTime               @updatedAt @map("updated_at")
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  cart    Cart?   @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([variantId, branchId, status])
+  @@index([status, expiresAt])
+  @@map("stock_reservations")
+}

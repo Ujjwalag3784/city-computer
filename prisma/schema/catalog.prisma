@@ -1,0 +1,558 @@
+// Catalogue — docs/06-DATA-MODEL.md §4.
+// Category, CategoryTranslation, Brand, BrandTranslation, Product,
+// ProductTranslation, ProductCategory, Variant, OptionType, OptionValue,
+// VariantOptionValue, ProductSpec, SpecTemplate, SpecField, Media,
+// ProductMedia, Review, ProductSlugHistory, CategorySlugHistory,
+// RelatedProduct.
+//
+// PostSlugHistory (documented in §4 alongside the other two *SlugHistory
+// tables) is declared in content.prisma instead, next to the Post model it
+// belongs to — see the comment there. ProductSlugHistory and
+// CategorySlugHistory stay here, next to Product/Category.
+
+/// JUDGMENT CALL: the doc's Category field table does not list a base
+/// `name` column (unlike Brand, which explicitly has one) — category names
+/// live only in `CategoryTranslation`. Followed literally as documented.
+model Category {
+  id              String    @id @default(cuid(2))
+  /// Unique, immutable once published.
+  slug            String    @unique
+  parentId        String?   @map("parent_id")
+  // TODO(raw-sql): trigger on insert/update to keep `path` consistent with
+  // ancestry (docs/06-DATA-MODEL.md §12 #8). See manual-constraints.sql.
+  /// Materialised path, e.g. `laptops/gaming`.
+  path            String
+  depth           Int
+  /// Admin drag-order.
+  position        Int       @default(0)
+  imageId         String?   @map("image_id")
+  iconName        String?   @map("icon_name")
+  specTemplateId  String?   @map("spec_template_id")
+  isActive        Boolean   @default(true) @map("is_active")
+  showInNav       Boolean   @default(true) @map("show_in_nav")
+  showInFooter    Boolean   @default(false) @map("show_in_footer")
+  metaTitle       String?   @map("meta_title")
+  metaDescription String?   @map("meta_description")
+  ogImageId       String?   @map("og_image_id")
+  deletedAt       DateTime? @map("deleted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  parent            Category?             @relation("CategoryToParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children          Category[]            @relation("CategoryToParent")
+  image             Media?                @relation("CategoryImage", fields: [imageId], references: [id], onDelete: SetNull)
+  ogImage           Media?                @relation("CategoryOgImage", fields: [ogImageId], references: [id], onDelete: SetNull)
+  /// The template currently driving this category's spec form. Not
+  /// necessarily the template "owned" by this category — see
+  /// SpecTemplate.categoryId below for that inverse, looser relationship.
+  specTemplate      SpecTemplate?         @relation("CategorySpecTemplate", fields: [specTemplateId], references: [id], onDelete: SetNull)
+  templatesOwned    SpecTemplate[]        @relation("SpecTemplateHomeCategory")
+  translations      CategoryTranslation[]
+  productCategories ProductCategory[]
+  productsPrimary   Product[]             @relation("ProductPrimaryCategory")
+  slugHistory       CategorySlugHistory[]
+  postCategories    PostCategory[]
+  menuItems         MenuItem[]
+  faqs              Faq[]
+
+  @@index([path])
+  @@index([parentId])
+  @@index([isActive, position])
+  @@map("categories")
+}
+
+/// Unique (categoryId, locale).
+model CategoryTranslation {
+  id              String   @id @default(cuid(2))
+  categoryId      String   @map("category_id")
+  locale          Locale
+  name            String
+  description     String?  @db.Text
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@map("category_translations")
+}
+
+/// JUDGMENT CALL: the doc's "SEO fields" for Brand is read as
+/// {metaTitle, metaDescription} only (no ogImageId), keeping Brand's only
+/// Media relation to `logoId` and avoiding a second Brand<->Media relation
+/// pair. Add `ogImageId` later if the storefront needs a distinct social
+/// share image per brand.
+model Brand {
+  id              String    @id @default(cuid(2))
+  slug            String    @unique
+  name            String
+  logoId          String?   @map("logo_id")
+  description     String?   @db.Text
+  website         String?
+  isActive        Boolean   @default(true) @map("is_active")
+  isFeatured      Boolean   @default(false) @map("is_featured")
+  metaTitle       String?   @map("meta_title")
+  metaDescription String?   @map("meta_description")
+  deletedAt       DateTime? @map("deleted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  logo         Media?             @relation(fields: [logoId], references: [id], onDelete: SetNull)
+  translations BrandTranslation[]
+  products     Product[]
+  menuItems    MenuItem[]
+
+  @@index([isActive])
+  @@map("brands")
+}
+
+/// Unique (brandId, locale).
+model BrandTranslation {
+  id              String   @id @default(cuid(2))
+  brandId         String   @map("brand_id")
+  locale          Locale
+  name            String
+  description     String?  @db.Text
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, locale])
+  @@map("brand_translations")
+}
+
+model Product {
+  id                 String        @id @default(cuid(2))
+  /// Unique. Immutable after publish; changes write to ProductSlugHistory.
+  slug               String        @unique
+  /// Full catalogue string (may be long).
+  name               String
+  /// <= 70 chars — the product-card title.
+  displayTitle       String        @map("display_title")
+  /// <= 70 chars — the page heading, derived from displayTitle by
+  /// stripping spec clauses; editable. Fixes audit defect 01 A.4 #13.
+  h1                 String
+  /// <= 200 chars.
+  shortDescription   String        @map("short_description")
+  /// Tiptap JSON.
+  description        Json
+  brandId            String        @map("brand_id")
+  /// Canonical category for breadcrumbs and URLs.
+  primaryCategoryId  String        @map("primary_category_id")
+  type               ProductType   @default(SIMPLE)
+  status             ProductStatus @default(DRAFT)
+  publishedAt        DateTime?     @map("published_at")
+  isFeatured         Boolean       @default(false) @map("is_featured")
+  isNew              Boolean       @default(false) @map("is_new")
+  warrantyMonths     Int?          @map("warranty_months")
+  warrantyText       String?       @map("warranty_text")
+  conditionType      ConditionType @default(NEW) @map("condition_type")
+  metaTitle          String?       @map("meta_title")
+  metaDescription    String?       @map("meta_description")
+  ogImageId          String?       @map("og_image_id")
+  canonicalOverride  String?       @map("canonical_override")
+  // TODO(raw-sql): `search_vector` tsvector column maintained by a trigger
+  // + GIN index, weighted A=displayTitle, B=brand.name+sku,
+  // C=shortDescription+category path, D=filterable spec values
+  // (docs/06-DATA-MODEL.md §11). See manual-constraints.sql. Modelled as
+  // `Unsupported("tsvector")` — Prisma's documented escape hatch for
+  // column types it cannot represent natively. Unsupported fields are
+  // excluded from Prisma Client's generated API and from migrate's drift
+  // detection, so the trigger-maintained contents are never fought over.
+  searchVector       Unsupported("tsvector")? @map("search_vector")
+  /// Denormalised from ProductViewDaily.
+  viewCount          Int           @default(0) @map("view_count")
+  /// Denormalised; ratingCount = 0 MUST suppress rating schema (see §11).
+  ratingAverage      Decimal?      @map("rating_average") @db.Decimal(3, 2)
+  ratingCount        Int           @default(0) @map("rating_count")
+  version            Int           @default(0)
+  deletedAt          DateTime?     @map("deleted_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  brand            Brand                 @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  primaryCategory  Category              @relation("ProductPrimaryCategory", fields: [primaryCategoryId], references: [id], onDelete: Restrict)
+  ogImage          Media?                @relation(fields: [ogImageId], references: [id], onDelete: SetNull)
+  translations     ProductTranslation[]
+  categories       ProductCategory[]
+  variants         Variant[]
+  optionTypes      OptionType[]
+  specs            ProductSpec[]
+  media            ProductMedia[]
+  reviews          Review[]
+  slugHistory      ProductSlugHistory[]
+  relatedFrom      RelatedProduct[]      @relation("RelatedProductSource")
+  relatedTo        RelatedProduct[]      @relation("RelatedProductTarget")
+  postProducts     PostProduct[]
+  buildTemplates   BuildTemplate[]
+  faqs             Faq[]
+  enquiries        Enquiry[]
+  viewsDaily       ProductViewDaily[]
+  searchClicks     SearchQueryLog[]
+
+  @@index([status])
+  @@index([brandId])
+  @@index([primaryCategoryId])
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([status, isFeatured])
+  @@index([status, primaryCategoryId, publishedAt(sort: Desc)])
+  @@index([status, updatedAt])
+  @@map("products")
+}
+
+/// Unique (productId, locale).
+model ProductTranslation {
+  id                String   @id @default(cuid(2))
+  productId         String   @map("product_id")
+  locale            Locale
+  displayTitle      String   @map("display_title")
+  shortDescription  String?  @map("short_description")
+  description       Json?
+  metaTitle         String?  @map("meta_title")
+  metaDescription   String?  @map("meta_description")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locale])
+  @@map("product_translations")
+}
+
+/// Many-to-many for cross-listing (a MacBook is in both Apple Store and
+/// Laptops, as today).
+model ProductCategory {
+  id         String   @id @default(cuid(2))
+  productId  String   @map("product_id")
+  categoryId String   @map("category_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
+  @@index([categoryId, productId])
+  @@map("product_categories")
+}
+
+/// The unit that is actually priced, stocked, and sold. Every product has
+/// at least one variant, even simple ones.
+model Variant {
+  id                     String   @id @default(cuid(2))
+  productId              String   @map("product_id")
+  /// Unique. Admin label: "Product Code".
+  sku                    String   @unique
+  barcode                String?
+  /// e.g. "16GB / 512GB".
+  title                  String?
+  // TODO(raw-sql): CHECK (price_paisa > 0) (docs/06-DATA-MODEL.md §12 #1).
+  pricePaisa             Int      @map("price_paisa")
+  // TODO(raw-sql): CHECK (compare_at_price_paisa IS NULL OR
+  // compare_at_price_paisa > price_paisa) (docs/06-DATA-MODEL.md §12 #2).
+  /// The struck-through original price.
+  compareAtPricePaisa    Int?     @map("compare_at_price_paisa")
+  /// Admin-only, drives margin reporting.
+  costPaisa              Int?     @map("cost_paisa")
+  weightGrams            Int?     @map("weight_grams")
+  // TODO(raw-sql): partial unique index ensuring exactly one isDefault=true
+  // row per product_id (docs/06-DATA-MODEL.md §12 #6):
+  //   CREATE UNIQUE INDEX variants_one_default_per_product
+  //     ON variants (product_id) WHERE is_default;
+  // Prisma's schema DSL has no filtered/partial unique index syntax.
+  isDefault              Boolean  @default(false) @map("is_default")
+  position               Int      @default(0)
+  isActive               Boolean  @default(true) @map("is_active")
+  lowStockThreshold      Int      @default(3) @map("low_stock_threshold")
+  allowBackorder         Boolean  @default(false) @map("allow_backorder")
+  version                Int      @default(0)
+  deletedAt              DateTime? @map("deleted_at")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  product            Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  optionValues       VariantOptionValue[]
+  stockLevels        StockLevel[]
+  // NOTE: no raw SQL needed here — StockMovement.variantId is intentionally
+  // Restrict (see inventory.prisma) so a Variant with movement history
+  // cannot be hard-deleted even though this FK is Cascade from Product —
+  // the Restrict on the child wins and blocks the whole chain, which is
+  // the intended defence-in-depth.
+  stockMovements     StockMovement[]
+  stockReservations  StockReservation[]
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
+  componentPart      ComponentPart?
+  priceHistory       PriceHistory[]
+  stockAlertRequests StockAlertRequest[]
+
+  @@index([productId])
+  @@index([productId, isDefault])
+  @@index([isActive])
+  @@index([productId, pricePaisa])
+  @@map("variants")
+}
+
+/// e.g. "Memory", "Storage". Admin label: "Product Options".
+model OptionType {
+  id        String   @id @default(cuid(2))
+  productId String   @map("product_id")
+  name      String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values  OptionValue[]
+
+  @@index([productId])
+  @@map("option_types")
+}
+
+/// e.g. "16GB", "512GB".
+model OptionValue {
+  id           String   @id @default(cuid(2))
+  optionTypeId String   @map("option_type_id")
+  value        String
+  position     Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  optionType      OptionType           @relation(fields: [optionTypeId], references: [id], onDelete: Cascade)
+  variantOptions  VariantOptionValue[]
+
+  @@index([optionTypeId])
+  @@map("option_values")
+}
+
+model VariantOptionValue {
+  variantId     String @map("variant_id")
+  optionValueId String @map("option_value_id")
+
+  variant     Variant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  optionValue OptionValue @relation(fields: [optionValueId], references: [id], onDelete: Cascade)
+
+  @@id([variantId, optionValueId])
+  @@index([optionValueId])
+  @@map("variant_option_values")
+}
+
+/// Denormalised, queryable specification rows — powers faceted filtering.
+/// See PartSpec (builder.prisma ComponentPart.specs) for why this is a
+/// separate, deliberately looser layer from the compatibility engine's
+/// strictly-validated data.
+model ProductSpec {
+  id            String   @id @default(cuid(2))
+  productId     String   @map("product_id")
+  /// Slug from SpecField, e.g. `processor`, `ram_gb`, `screen_size_in`.
+  key           String
+  /// Display label at time of entry.
+  label         String
+  valueText     String?  @map("value_text")
+  /// Enables range filters and sorting. Precision picked generously for
+  /// specs like screen size (inches), wattage, GB counts.
+  valueNumber   Decimal? @map("value_number") @db.Decimal(12, 2)
+  valueBool     Boolean? @map("value_bool")
+  /// `GB`, `inch`, `Hz`, `W`.
+  unit          String?
+  /// Spec-table section.
+  group         String?
+  position      Int      @default(0)
+  isFilterable  Boolean  @default(false) @map("is_filterable")
+  isComparable  Boolean  @default(false) @map("is_comparable")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, key])
+  @@index([key, valueText])
+  @@index([key, valueNumber])
+  @@map("product_specs")
+}
+
+/// Per-category templates that make the admin's Step 3 automatic. Seeded:
+/// Laptop, Desktop/Prebuilt, Monitor, CPU, GPU, Motherboard, RAM, Storage,
+/// PSU, Cooler, Case, Printer, Projector, CCTV, Accessory (docs/09 §5).
+model SpecTemplate {
+  id         String   @id @default(cuid(2))
+  /// The category this template was authored for. Optional and loose —
+  /// see the comment on Category.specTemplate for why this is not the
+  /// inverse of a single 1:1 relation.
+  categoryId String?  @map("category_id")
+  name       String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  homeCategory      Category?      @relation("SpecTemplateHomeCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  usedByCategories  Category[]     @relation("CategorySpecTemplate")
+  fields            SpecField[]
+
+  @@index([categoryId])
+  @@map("spec_templates")
+}
+
+model SpecField {
+  id           String       @id @default(cuid(2))
+  templateId   String       @map("template_id")
+  key          String
+  label        String
+  helpText     String?      @map("help_text")
+  dataType     SpecDataType @map("data_type")
+  unit         String?
+  /// Populated when dataType = SELECT.
+  options      String[]
+  isRequired   Boolean      @default(false) @map("is_required")
+  isFilterable Boolean      @default(false) @map("is_filterable")
+  isComparable Boolean      @default(false) @map("is_comparable")
+  group        String?
+  position     Int          @default(0)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  template SpecTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, key])
+  @@index([templateId])
+  @@map("spec_fields")
+}
+
+model Media {
+  id           String   @id @default(cuid(2))
+  /// S3 object key.
+  key          String
+  url          String
+  cdnUrl       String?  @map("cdn_url")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  width        Int?
+  height       Int?
+  /// Base64 LQIP.
+  blurDataUrl  String?  @map("blur_data_url")
+  /// Auto-generated from product + brand + variant, human-overridable.
+  /// Fixes audit defect 01 A.4 #15. Admin label: "Photo description".
+  altText      String?  @map("alt_text")
+  caption      String?
+  credit       String?
+  /// SHA-256 — deduplication and duplicate-receipt detection.
+  checksum     String
+  /// Generated derivative keys/sizes.
+  variants     Json?
+  uploadedById String?  @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  uploadedBy         User?             @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  productMedia        ProductMedia[]
+  categoriesAsImage    Category[]        @relation("CategoryImage")
+  categoriesAsOgImage  Category[]        @relation("CategoryOgImage")
+  brandsAsLogo         Brand[]
+  productsAsOgImage    Product[]
+  postsAsCover         Post[]
+  paymentsAsReceipt    Payment[]
+  fulfilmentsAsProof   Fulfilment[]
+  invoicesAsPdf        Invoice[]
+  ticketMedia          TicketMedia[]
+
+  @@unique([checksum])
+  @@index([uploadedById])
+  @@map("media")
+}
+
+/// role: GALLERY | THUMBNAIL | BANNER | SPEC_SHEET.
+/// Filename rule (stored objects, not this table):
+/// `{productSlug}-{role}-{index}-{hash8}.{ext}` — fixes audit defect
+/// 01 A.4 #16, see docs/06-DATA-MODEL.md §4 and §11 §7.1.
+model ProductMedia {
+  id        String    @id @default(cuid(2))
+  productId String    @map("product_id")
+  mediaId   String    @map("media_id")
+  position  Int       @default(0)
+  role      MediaRole @default(GALLERY)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  media   Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, mediaId])
+  @@index([productId, position])
+  @@map("product_media")
+}
+
+/// Unique (productId, orderId) — one review per product per order. Only
+/// APPROVED reviews count toward ratingAverage/ratingCount, and only those
+/// may be emitted in JSON-LD.
+model Review {
+  id                 String       @id @default(cuid(2))
+  productId          String       @map("product_id")
+  customerId         String?      @map("customer_id")
+  orderId            String?      @map("order_id")
+  authorName         String       @map("author_name")
+  // TODO(raw-sql): CHECK (rating BETWEEN 1 AND 5).
+  rating             Int
+  title              String?
+  body               String       @db.Text
+  isVerifiedPurchase Boolean      @default(false) @map("is_verified_purchase")
+  status             ReviewStatus @default(PENDING)
+  adminReply         String?      @map("admin_reply") @db.Text
+  helpfulCount       Int          @default(0) @map("helpful_count")
+  mediaIds           String[]     @map("media_ids")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  order    Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([productId, orderId])
+  @@index([productId, status])
+  @@index([customerId])
+  @@map("reviews")
+}
+
+/// Powers permanent 301s. Same pattern as CategorySlugHistory (here) and
+/// PostSlugHistory (content.prisma).
+model ProductSlugHistory {
+  id        String           @id @default(cuid(2))
+  productId String           @map("product_id")
+  oldSlug   String           @unique @map("old_slug")
+  changedAt DateTime         @default(now()) @map("changed_at")
+  source    SlugChangeSource
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_slug_history")
+}
+
+model CategorySlugHistory {
+  id         String           @id @default(cuid(2))
+  categoryId String           @map("category_id")
+  oldSlug    String           @unique @map("old_slug")
+  changedAt  DateTime         @default(now()) @map("changed_at")
+  source     SlugChangeSource
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@map("category_slug_history")
+}
+
+/// Manual curation plus a nightly job that proposes suggestions.
+model RelatedProduct {
+  id                String             @id @default(cuid(2))
+  productId         String             @map("product_id")
+  relatedProductId  String             @map("related_product_id")
+  type              RelatedProductType
+  position          Int                @default(0)
+  createdAt         DateTime           @default(now()) @map("created_at")
+
+  product        Product @relation("RelatedProductSource", fields: [productId], references: [id], onDelete: Cascade)
+  relatedProduct Product @relation("RelatedProductTarget", fields: [relatedProductId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, relatedProductId, type])
+  @@index([relatedProductId])
+  @@map("related_products")
+}

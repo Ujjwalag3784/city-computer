@@ -1,0 +1,565 @@
+// City Computer — Prisma schema entry point.
+// Multi-file schema (docs/04-REPOSITORY-STRUCTURE.md §4). Prisma 7 reads every
+// `.prisma` file in this directory as one logical schema — models, enums, and
+// relations are shared across files without any import statement.
+//
+// This file owns the datasource, the generator, and every enum. Enums are
+// grouped by domain purely for human navigation; Prisma has a single global
+// enum namespace regardless of which file declares them.
+//
+// Conventions applied throughout every file in this directory
+// (docs/06-DATA-MODEL.md §1):
+//   - Primary keys:      id String @id @default(cuid(2))
+//   - Money:              Int, paisa, field name ends "Paisa"
+//   - Timestamps:          createdAt/updatedAt on everything that has them
+//   - Soft delete:         deletedAt ONLY on Product, Variant, Category,
+//                          Brand, Post, Page, Customer, ComponentPart
+//   - Optimistic lock:     version Int @default(0) on Product, Variant,
+//                          StockLevel, Order
+//   - Naming:              PascalCase singular model, snake_case plural
+//                          table via @@map, snake_case column via @map
+//   - Enums:               PascalCase type, SCREAMING_SNAKE values
+//
+// Constraints Prisma's schema DSL cannot express (partial/filtered unique
+// indexes, CHECK constraints, generated tsvector columns + triggers) are
+// called out inline with `// TODO(raw-sql):` comments and collected into
+// `prisma/sql/manual-constraints.sql`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // DIRECT_DATABASE_URL exists in .env.example for connection-pooler setups
+  // (e.g. pgbouncer in front of DATABASE_URL). We are not using a pooler
+  // that requires a separate direct connection for migrations yet, so
+  // `directUrl` is left commented rather than wired to an env var Prisma
+  // would otherwise require to be non-empty at generate time. Uncomment
+  // when a pooler is introduced:
+  // directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ============================================================================
+// SHARED ENUMS
+// ============================================================================
+
+// ---- Identity & access -----------------------------------------------------
+
+/// User-facing locale. Also drives every `*Translation` sidecar table.
+enum Locale {
+  EN
+  NE
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+/// Nepal's 7 federal provinces (src/lib/nepal.ts NEPAL_PROVINCES — keep in sync).
+enum Province {
+  KOSHI
+  MADHESH
+  BAGMATI
+  GANDAKI
+  LUMBINI
+  KARNALI
+  SUDURPASHCHIM
+}
+
+enum AddressLabel {
+  HOME
+  OFFICE
+  OTHER
+}
+
+// ---- Catalogue --------------------------------------------------------------
+
+enum ProductType {
+  SIMPLE
+  VARIABLE
+  PREBUILT
+  SERVICE
+  BUNDLE
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum ConditionType {
+  NEW
+  REFURBISHED
+  OPEN_BOX
+}
+
+enum MediaRole {
+  GALLERY
+  THUMBNAIL
+  BANNER
+  SPEC_SHEET
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Shared by ProductSlugHistory, CategorySlugHistory, PostSlugHistory.
+enum SlugChangeSource {
+  MIGRATION
+  ADMIN_EDIT
+  MERGE
+}
+
+enum RelatedProductType {
+  SIMILAR
+  ACCESSORY
+  UPGRADE
+  BUNDLE
+}
+
+/// SpecField.dataType — drives the admin's auto-generated Step 3 form control.
+enum SpecDataType {
+  TEXT
+  NUMBER
+  BOOL
+  SELECT
+}
+
+// ---- Inventory ---------------------------------------------------------------
+
+enum StockMovementReason {
+  PURCHASE
+  SALE
+  RETURN
+  DAMAGE
+  CORRECTION
+  TRANSFER_IN
+  TRANSFER_OUT
+  INITIAL
+  RESERVATION_RELEASE
+}
+
+enum StockReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  EXPIRED
+}
+
+// ---- Commerce ------------------------------------------------------------
+
+/// Order.status — see docs/06-DATA-MODEL.md §6.1 for the full state machine
+/// diagram. Combines the summary table (§6.1 table) with the extra states
+/// that only appear in the transition diagram (PAYMENT_FAILED,
+/// RETURN_REQUESTED, RETURNED, REFUNDED).
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAYMENT_FAILED
+  CONFIRMED
+  PREPARING
+  PACKED
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  RETURN_REQUESTED
+  RETURNED
+  REFUNDED
+}
+
+/// Order.paymentStatus — distinct from Payment.status (a single payment
+/// attempt's lifecycle). Named OrderPaymentStatus to avoid confusion with
+/// `PaymentStatus` below.
+enum OrderPaymentStatus {
+  UNPAID
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  REFUNDED
+  PARTIALLY_REFUNDED
+  FAILED
+}
+
+enum FulfilmentType {
+  DELIVERY
+  PICKUP
+}
+
+enum OrderSourceChannel {
+  WEB
+  PHONE
+  WALK_IN
+  SOCIAL
+}
+
+enum OrderActorType {
+  CUSTOMER
+  ADMIN
+  SYSTEM
+  GATEWAY
+}
+
+enum PaymentProvider {
+  ESEWA
+  KHALTI
+  FONEPAY
+  CONNECTIPS
+  BANK_TRANSFER
+  COD
+  CARD
+}
+
+/// Payment.status — a single payment attempt's lifecycle.
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  AUTHORIZED
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentVerificationMethod {
+  CALLBACK
+  LOOKUP
+  WEBHOOK
+  MANUAL
+}
+
+enum PaymentEventType {
+  INITIATED
+  REDIRECTED
+  CALLBACK_RECEIVED
+  LOOKUP_PERFORMED
+  WEBHOOK_RECEIVED
+  STATUS_CHANGED
+  MANUAL_APPROVED
+  MANUAL_REJECTED
+  RECONCILED
+}
+
+enum RefundStatus {
+  REQUESTED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum RefundMethod {
+  GATEWAY
+  BANK_TRANSFER
+  CASH
+  STORE_CREDIT
+}
+
+/// JUDGMENT CALL: the doc describes Fulfilment.status without enumerating
+/// values. Modelled as a simple pack/dispatch/deliver lifecycle mirroring
+/// the timestamp fields (packedAt, dispatchedAt, deliveredAt) already
+/// specified in docs/06 §6.
+enum FulfilmentStatus {
+  PENDING
+  PACKED
+  DISPATCHED
+  DELIVERED
+  FAILED
+}
+
+/// Distinguishes the two OrderAddress rows per order (shipping vs billing)
+/// via a single relation to Order rather than two separate FK fields —
+/// see the comment on OrderAddress in commerce.prisma.
+enum OrderAddressType {
+  SHIPPING
+  BILLING
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
+enum CouponAppliesTo {
+  ALL
+  CATEGORY
+  PRODUCT
+  BRAND
+}
+
+enum PromotionType {
+  PERCENTAGE
+  FIXED
+  BUY_X_GET_Y
+  BUNDLE
+  TIERED
+}
+
+enum ShippingRateType {
+  FLAT
+  FREE_ABOVE
+  WEIGHT_BASED
+}
+
+// ---- PC Builder ------------------------------------------------------------
+
+enum PartType {
+  CPU
+  CPU_COOLER
+  MOTHERBOARD
+  RAM
+  GPU
+  STORAGE
+  PSU
+  CASE
+  CASE_FAN
+  MONITOR
+  OS
+  CAPTURE_CARD
+  SOUND_CARD
+  NETWORK_CARD
+  THERMAL_PASTE
+  ACCESSORY
+}
+
+enum PartDataSource {
+  MANUAL
+  IMPORT
+  VENDOR_FEED
+}
+
+enum PartDataConfidence {
+  VERIFIED
+  INFERRED
+  UNVERIFIED
+}
+
+enum ConnectorDirection {
+  PROVIDES
+  REQUIRES
+}
+
+enum ConnectorType {
+  ATX_24PIN
+  EPS_8PIN
+  PCIE_6PIN
+  PCIE_8PIN
+  PCIE_12VHPWR
+  PCIE_12V2X6
+  SATA_POWER
+  MOLEX
+  SATA_DATA
+  M2_M_KEY
+  M2_B_KEY
+  M2_E_KEY
+  USB2_HEADER
+  USB3_HEADER
+  USB_C_HEADER
+  FAN_4PIN
+  ARGB_3PIN
+  RGB_4PIN
+  FRONT_PANEL_AUDIO
+  HDMI
+  DISPLAYPORT
+  USB_C_DP
+}
+
+enum RuleSeverity {
+  ERROR
+  WARNING
+  INFO
+}
+
+enum AutoFixStrategy {
+  FILTER_SUBJECT
+  FILTER_OBJECT
+  SUGGEST_ALTERNATIVE
+  NONE
+}
+
+enum BuildMode {
+  GUIDED
+  STANDARD
+  EXPERT
+}
+
+/// One value (`3D_RENDERING` in the doc) is not a legal Prisma/GraphQL enum
+/// identifier because it starts with a digit. `@map` preserves the literal
+/// database value while giving it a valid Prisma-side name.
+enum BuildUseCase {
+  GAMING
+  CONTENT_CREATION
+  THREE_D_RENDERING @map("3D_RENDERING")
+  STREAMING
+  PROGRAMMING
+  AI_ML
+  OFFICE
+  GENERAL
+}
+
+enum BuildResolution {
+  FHD
+  QHD
+  UHD
+  ULTRAWIDE
+}
+
+enum BuildVisibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum BuildStatus {
+  DRAFT
+  COMPLETE
+  ORDERED
+}
+
+// ---- Content ---------------------------------------------------------------
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PageTemplate {
+  DEFAULT
+  FULL_WIDTH
+  POLICY
+  LANDING
+}
+
+enum MenuKey {
+  HEADER
+  FOOTER_COMPANY
+  FOOTER_CATEGORIES
+  MOBILE
+}
+
+enum HomeSectionType {
+  HERO_SLIDER
+  CATEGORY_BENTO
+  PRODUCT_CAROUSEL
+  BUILDER_TEASER
+  PROMO_BANNER
+  VALUE_PROPS
+  BRAND_STRIP
+  BLOG_STRIP
+  INSTAGRAM_FEED
+}
+
+// ---- Service desk ------------------------------------------------------------
+
+enum ServiceDeviceType {
+  LAPTOP
+  DESKTOP
+  MONITOR
+  PRINTER
+  OTHER
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  RECEIVED
+  DIAGNOSING
+  QUOTE_SENT
+  AWAITING_APPROVAL
+  APPROVED
+  DECLINED
+  IN_REPAIR
+  AWAITING_PARTS
+  READY_FOR_PICKUP
+  COLLECTED
+  CANCELLED
+}
+
+/// JUDGMENT CALL: TicketQuote.status values are not enumerated in the doc.
+/// Modelled as a minimal quote lifecycle consistent with `sentAt`/`respondedAt`.
+enum TicketQuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+// ---- Operations & analytics --------------------------------------------------
+
+/// JUDGMENT CALL: Setting.dataType values are not enumerated in the doc
+/// beyond "Typed accessor layer". Four primitive kinds cover every settings
+/// use case listed in docs/06 §10 (contact info, VAT rate, COD cap, tiers).
+enum SettingDataType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+/// JUDGMENT CALL: Job.status values are not enumerated in the doc.
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum RedirectSource {
+  MIGRATION
+  MANUAL
+  SLUG_CHANGE
+}
+
+enum EnquiryType {
+  GENERAL
+  BULK
+  SUPPORT
+  COMPLAINT
+}
+
+enum EnquiryStatus {
+  UNREAD
+  READ
+  REPLIED
+  CLOSED
+}
+
+/// JUDGMENT CALL: AbandonedCart.stage values are not enumerated in the doc.
+/// Modelled as the minimal funnel needed by the recovery-email job.
+enum AbandonedCartStage {
+  CART_CREATED
+  REMINDER_SENT
+  RECOVERED
+  EXPIRED
+}
+
+/// JUDGMENT CALL: StockAlertRequest.status values are not enumerated.
+enum StockAlertStatus {
+  PENDING
+  NOTIFIED
+  CANCELLED
+}
+
+/// JUDGMENT CALL: NewsletterSubscriber.status values are not enumerated
+/// beyond "Double opt-in", which implies an unconfirmed/confirmed split.
+enum NewsletterStatus {
+  PENDING
+  CONFIRMED
+  UNSUBSCRIBED
+}

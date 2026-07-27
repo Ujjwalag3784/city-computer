@@ -48,12 +48,21 @@ const config = [
           message:
             "dangerouslySetInnerHTML is prohibited. Rich text must be rendered from validated JSON (see docs/13-SECURITY.md §4).",
         },
+        {
+          selector: "NewExpression[callee.name='PrismaClient']",
+          message:
+            "Only src/server/db.ts may instantiate PrismaClient. Import the shared singleton instead: import { db } from '@/server/db' (docs/04-REPOSITORY-STRUCTURE.md §3).",
+        },
       ],
     },
   },
   {
     files: ["src/env.ts"],
     rules: { "no-restricted-properties": "off" },
+  },
+  {
+    files: ["src/server/db.ts"],
+    rules: { "no-restricted-syntax": "off" },
   },
   {
     files: ["src/components/**/*.{ts,tsx}"],

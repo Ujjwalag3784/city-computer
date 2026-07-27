@@ -1,0 +1,234 @@
+// Operations & analytics — docs/06-DATA-MODEL.md §10.
+// Setting, AuditLog, Job, Redirect, Enquiry, ProductViewDaily,
+// SearchQueryLog, AbandonedCart, BuilderSession, PriceHistory,
+// StockAlertRequest, NewsletterSubscriber.
+
+/// Typed accessor layer; never raw string lookups.
+model Setting {
+  id        String          @id @default(cuid(2))
+  key       String          @unique
+  value     Json
+  group     String
+  label     String
+  helpText  String?         @map("help_text")
+  dataType  SettingDataType @map("data_type")
+  isPublic  Boolean         @default(false) @map("is_public")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  @@index([group])
+  @@map("settings")
+}
+
+/// APPEND-ONLY; no update or delete grant on this table (enforced at the
+/// DB role level — see manual-constraints.sql). Admin label:
+/// "Activity History".
+model AuditLog {
+  id          String   @id @default(cuid(2))
+  actorId     String?  @map("actor_id")
+  /// Denormalised so the log reads correctly even if the actor is later
+  /// deleted or their email changes.
+  actorEmail  String?  @map("actor_email")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  before      Json?
+  after       Json?
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/// Backs the cron-table queue driver (docs/03 §9).
+model Job {
+  id           String    @id @default(cuid(2))
+  type         String
+  payload      Json
+  status       JobStatus @default(PENDING)
+  runAt        DateTime  @map("run_at")
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(3) @map("max_attempts")
+  lastError    String?   @map("last_error") @db.Text
+  lockedAt     DateTime? @map("locked_at")
+  lockedBy     String?   @map("locked_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, runAt])
+  @@index([type, status])
+  @@map("jobs")
+}
+
+/// Owns the WordPress migration map.
+model Redirect {
+  id         String         @id @default(cuid(2))
+  fromPath   String         @unique @map("from_path")
+  toPath     String         @map("to_path")
+  statusCode Int            @default(301) @map("status_code")
+  hitCount   Int            @default(0) @map("hit_count")
+  lastHitAt  DateTime?      @map("last_hit_at")
+  isActive   Boolean        @default(true) @map("is_active")
+  source     RedirectSource
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("redirects")
+}
+
+/// Drives "Unread Customer Enquiries" on the dashboard.
+model Enquiry {
+  id           String        @id @default(cuid(2))
+  name         String
+  email        String?
+  phone        String?
+  subject      String?
+  message      String        @db.Text
+  type         EnquiryType   @default(GENERAL)
+  status       EnquiryStatus @default(UNREAD)
+  assignedToId String?       @map("assigned_to_id")
+  productId    String?       @map("product_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  assignedTo User?    @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([assignedToId])
+  @@map("enquiries")
+}
+
+/// Unique (productId, date). Nightly rollup -> "Most Viewed Products".
+model ProductViewDaily {
+  id          String   @id @default(cuid(2))
+  productId   String   @map("product_id")
+  date        DateTime @db.Date
+  views       Int      @default(0)
+  uniqueViews Int      @default(0) @map("unique_views")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, date])
+  @@map("product_view_daily")
+}
+
+/// Zero-result queries are a merchandising instrument.
+model SearchQueryLog {
+  id                String   @id @default(cuid(2))
+  query             String
+  normalisedQuery   String   @map("normalised_query")
+  resultCount       Int      @map("result_count")
+  hasResults        Boolean  @map("has_results")
+  clickedProductId  String?  @map("clicked_product_id")
+  locale            Locale
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  clickedProduct Product? @relation(fields: [clickedProductId], references: [id], onDelete: SetNull)
+
+  @@index([hasResults, createdAt])
+  @@index([normalisedQuery])
+  @@map("search_query_log")
+}
+
+model AbandonedCart {
+  id                  String              @id @default(cuid(2))
+  cartId              String              @unique @map("cart_id")
+  customerId          String?             @map("customer_id")
+  email               String?
+  phone               String?
+  valuePaisa          Int                 @map("value_paisa")
+  itemCount           Int                 @map("item_count")
+  stage               AbandonedCartStage  @default(CART_CREATED)
+  recoveryEmailSentAt DateTime?           @map("recovery_email_sent_at")
+  recoveredOrderId    String?             @map("recovered_order_id")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  cart           Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  recoveredOrder Order?    @relation(fields: [recoveredOrderId], references: [id], onDelete: SetNull)
+
+  @@index([stage])
+  @@map("abandoned_carts")
+}
+
+/// Funnel analysis.
+model BuilderSession {
+  id                 String    @id @default(cuid(2))
+  sessionToken       String    @unique @map("session_token")
+  customerId         String?   @map("customer_id")
+  mode               BuildMode
+  useCase            BuildUseCase @map("use_case")
+  budgetPaisa        Int?      @map("budget_paisa")
+  stepsCompleted     Int       @default(0) @map("steps_completed")
+  slotsFilled        Int       @default(0) @map("slots_filled")
+  errorsEncountered  Int       @default(0) @map("errors_encountered")
+  completedAt        DateTime? @map("completed_at")
+  buildId            String?   @map("build_id")
+  convertedOrderId   String?   @map("converted_order_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  build          Build?    @relation(fields: [buildId], references: [id], onDelete: SetNull)
+  convertedOrder Order?    @relation(fields: [convertedOrderId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@map("builder_sessions")
+}
+
+/// Protects against fat-finger pricing and answers "why did this cost
+/// more last week".
+model PriceHistory {
+  id                  String   @id @default(cuid(2))
+  variantId           String   @map("variant_id")
+  pricePaisa           Int      @map("price_paisa")
+  compareAtPricePaisa  Int?     @map("compare_at_price_paisa")
+  changedById          String?  @map("changed_by_id")
+  reason               String?
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  changedBy User?   @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([variantId, createdAt])
+  @@map("price_history")
+}
+
+model StockAlertRequest {
+  id          String            @id @default(cuid(2))
+  variantId   String            @map("variant_id")
+  email       String?
+  phone       String?
+  notifiedAt  DateTime?         @map("notified_at")
+  status      StockAlertStatus  @default(PENDING)
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([variantId, status])
+  @@map("stock_alert_requests")
+}
+
+/// Double opt-in.
+model NewsletterSubscriber {
+  id              String            @id @default(cuid(2))
+  email           String            @unique
+  locale          Locale            @default(EN)
+  status          NewsletterStatus  @default(PENDING)
+  source          String?
+  confirmedAt     DateTime?         @map("confirmed_at")
+  unsubscribedAt  DateTime?         @map("unsubscribed_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  @@index([status])
+  @@map("newsletter_subscribers")
+}

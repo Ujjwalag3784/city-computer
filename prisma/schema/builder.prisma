@@ -1,0 +1,234 @@
+// PC Builder — docs/06-DATA-MODEL.md §7. Full behavioural spec in docs/08.
+// ComponentPart, PartConnector, CompatibilityRule, Build, BuildItem,
+// BuildRevision, BuildValidationSnapshot, BuildTemplate.
+
+/// Links a sellable Variant to the compatibility engine. Not every variant
+/// is a part; not every part must be a variant (a part may be catalogued
+/// before it is stocked).
+///
+/// Critical design rule, derived directly from the reference app's
+/// failure: `specs` is never regex-parsed from a product name at runtime.
+/// It is authored or imported, validated by Zod on write, and rejected if
+/// unparseable. `dataConfidence` makes the uncertainty explicit rather
+/// than silently wrong. Shape per partType is specified in docs/08 §3.
+model ComponentPart {
+  id                    String             @id @default(cuid(2))
+  /// Null means informational/not-for-sale.
+  variantId             String?            @unique @map("variant_id")
+  partType              PartType           @map("part_type")
+  manufacturer          String
+  model                 String
+  partNumber            String?            @map("part_number")
+  /// Zod-validated per partType at the application layer, see docs/08 §3.
+  specs                 Json
+  /// 1-10, drives balance/bottleneck scoring.
+  performanceTier       Int                @map("performance_tier")
+  /// Synthetic, for perf-per-rupee ranking.
+  benchmarkScore        Int?               @map("benchmark_score")
+  tdpWatts              Int?               @map("tdp_watts")
+  idleWatts             Int?               @map("idle_watts")
+  loadWatts             Int?               @map("load_watts")
+  transientMultiplier   Float?             @map("transient_multiplier")
+  lengthMm              Int?               @map("length_mm")
+  widthMm               Int?               @map("width_mm")
+  heightMm              Int?               @map("height_mm")
+  releaseYear           Int?               @map("release_year")
+  dataSource            PartDataSource     @default(MANUAL) @map("data_source")
+  /// Inferred data may never generate a blocking error, only a caveated
+  /// warning — enforced at the compatibility-engine layer, not the DB.
+  dataConfidence        PartDataConfidence @default(UNVERIFIED) @map("data_confidence")
+  isActive              Boolean            @default(true) @map("is_active")
+  deletedAt             DateTime?          @map("deleted_at")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+
+  variant     Variant?        @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  connectors  PartConnector[]
+  buildItems  BuildItem[]
+
+  @@index([partType])
+  @@index([partType, isActive])
+  @@index([specs], type: Gin)
+  @@map("component_parts")
+}
+
+/// PSU-provides vs GPU-requires, motherboard-provides vs case-requires:
+/// connector matching becomes a simple set comparison rather than a
+/// special-cased rule.
+model PartConnector {
+  id             String             @id @default(cuid(2))
+  partId         String             @map("part_id")
+  direction      ConnectorDirection
+  connectorType  ConnectorType      @map("connector_type")
+  quantity       Int                @default(1)
+  notes          String?
+
+  part ComponentPart @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@index([partId])
+  @@index([connectorType, direction])
+  @@map("part_connectors")
+}
+
+/// Rules are data, not code, so the owner (or a technician) can add a rule
+/// without a deploy. Admin label: "Build Rule".
+model CompatibilityRule {
+  id                 String          @id @default(cuid(2))
+  code               String          @unique
+  name               String
+  description        String?         @db.Text
+  severity           RuleSeverity    @default(ERROR)
+  subjectType        PartType        @map("subject_type")
+  objectType         PartType        @map("object_type")
+  /// Declarative condition tree — see docs/08 §4.
+  expression         Json
+  /// Plain-language, `{{subject.model}}`-interpolated.
+  messageTemplate    String          @map("message_template")
+  fixHintTemplate    String?         @map("fix_hint_template")
+  autoFixStrategy    AutoFixStrategy @default(NONE) @map("auto_fix_strategy")
+  /// Blocks add-to-cart.
+  isBlocking         Boolean         @default(true) @map("is_blocking")
+  /// Also used to filter the picker before selection.
+  isPreventive       Boolean         @default(true) @map("is_preventive")
+  isActive           Boolean         @default(true) @map("is_active")
+  priority           Int             @default(0)
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  @@index([subjectType, objectType])
+  @@index([isActive])
+  @@map("compatibility_rules")
+}
+
+/// The public URL `/build/[shortId]`. Anonymous builds are first-class.
+model Build {
+  id                     String           @id @default(cuid(2))
+  /// Unique, 8-char base58 — src/lib/ids.ts generateBuildShortId().
+  shortId                String           @unique @map("short_id")
+  customerId             String?          @map("customer_id")
+  sessionToken           String?          @map("session_token")
+  name                   String?
+  description            String?          @db.Text
+  mode                   BuildMode        @default(GUIDED)
+  useCase                BuildUseCase     @map("use_case")
+  targetResolution       BuildResolution  @map("target_resolution")
+  budgetPaisa            Int?             @map("budget_paisa")
+  /// Default UNLISTED. All shared builds are noindex,follow; only an
+  /// owner-curated build promoted to /prebuilt becomes an indexable
+  /// Product (docs/11 §4.11).
+  visibility             BuildVisibility  @default(UNLISTED)
+  status                 BuildStatus      @default(DRAFT)
+  totalPaisa             Int?             @map("total_paisa")
+  estimatedWatts         Int?             @map("estimated_watts")
+  recommendedPsuWatts    Int?             @map("recommended_psu_watts")
+  /// 0-100.
+  compatibilityScore     Int?             @map("compatibility_score")
+  /// -100 (CPU-bound) ... +100 (GPU-bound).
+  balanceScore           Int?             @map("balance_score")
+  /// Prices at save time, so a shared build shows what it cost then
+  /// alongside today's price.
+  snapshotPricesPaisa    Json?            @map("snapshot_prices_paisa")
+  viewCount              Int              @default(0) @map("view_count")
+  cloneCount             Int              @default(0) @map("clone_count")
+  /// JUDGMENT CALL: the doc lists `orderId?` on Build (§7 "If purchased")
+  /// *and* `buildId?` on Order (§6 "If the order originated from a PC
+  /// build") as two separate fields. Modelled literally as two
+  /// independent nullable FKs rather than collapsing them into one
+  /// physical column, since both are explicitly documented. In practice
+  /// the order-placement service should keep them in sync.
+  orderId                String?          @map("order_id")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+
+  customer  Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  order     Order?    @relation("BuildOrderId", fields: [orderId], references: [id], onDelete: SetNull)
+
+  items               BuildItem[]
+  revisions            BuildRevision[]
+  validationSnapshots  BuildValidationSnapshot[]
+  cartItems            CartItem[]
+  ordersReferencing    Order[]                   @relation("OrderFromBuild")
+  builderSessions      BuilderSession[]
+
+  @@index([customerId])
+  @@index([visibility, updatedAt(sort: Desc)])
+  @@map("builds")
+}
+
+/// Unique (buildId, slotKey), e.g. `storage_1`, `case_fan_3`.
+model BuildItem {
+  id                       String   @id @default(cuid(2))
+  buildId                  String   @map("build_id")
+  partId                   String   @map("part_id")
+  slotKey                  String   @map("slot_key")
+  quantity                 Int      @default(1)
+  position                 Int      @default(0)
+  unitPricePaisaSnapshot   Int      @map("unit_price_paisa_snapshot")
+  /// vs auto-recommended.
+  isUserSelected           Boolean  @default(true) @map("is_user_selected")
+
+  build Build         @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  part  ComponentPart @relation(fields: [partId], references: [id], onDelete: Restrict)
+
+  @@unique([buildId, slotKey])
+  @@index([partId])
+  @@map("build_items")
+}
+
+/// APPEND-ONLY history. Enables undo and "what changed".
+model BuildRevision {
+  id             String   @id @default(cuid(2))
+  buildId        String   @map("build_id")
+  revisionNumber Int      @map("revision_number")
+  itemsSnapshot  Json     @map("items_snapshot")
+  totalPaisa     Int      @map("total_paisa")
+  changeSummary  String?  @map("change_summary")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  build Build @relation(fields: [buildId], references: [id], onDelete: Cascade)
+
+  @@unique([buildId, revisionNumber])
+  @@map("build_revisions")
+}
+
+/// Stored so a shared build renders instantly without re-running the
+/// engine, and so we can detect when a rule change invalidates old builds.
+model BuildValidationSnapshot {
+  id             String   @id @default(cuid(2))
+  buildId        String   @map("build_id")
+  /// `{ruleCode, severity, slotKeys[], message, fixes[]}[]`.
+  issues         Json
+  validatedAt    DateTime @default(now()) @map("validated_at")
+  engineVersion  String   @map("engine_version")
+
+  build Build @relation(fields: [buildId], references: [id], onDelete: Cascade)
+
+  @@index([buildId, validatedAt(sort: Desc)])
+  @@map("build_validation_snapshots")
+}
+
+/// Curated presets and prebuilt PCs.
+model BuildTemplate {
+  id              String        @id @default(cuid(2))
+  name            String
+  slug            String        @unique
+  useCase         BuildUseCase  @map("use_case")
+  /// JUDGMENT CALL: doc names a `tier` field without an enum of values.
+  /// Kept as a free string (e.g. "entry", "mid", "high-end", "extreme")
+  /// so merchandising can add tiers without a migration.
+  tier            String
+  budgetBandPaisa Int?          @map("budget_band_paisa")
+  itemsJson       Json          @map("items_json")
+  isActive        Boolean       @default(true) @map("is_active")
+  position        Int           @default(0)
+  /// When sold as a prebuilt SKU.
+  productId       String?       @map("product_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([useCase])
+  @@index([isActive, position])
+  @@map("build_templates")
+}

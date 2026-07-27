@@ -1,0 +1,270 @@
+// Content — docs/06-DATA-MODEL.md §8.
+// Post, PostTranslation, PostCategory, PostTag, PostProduct, Author, Page,
+// PageTranslation, Menu, MenuItem, HomeSection, Faq.
+//
+// PostSlugHistory lives here (rather than catalog.prisma, where
+// ProductSlugHistory/CategorySlugHistory sit) so it stays next to the Post
+// model it belongs to — see the comment at the top of catalog.prisma.
+
+/// JUDGMENT CALL: the doc's "SEO fields" for Post is read as
+/// {metaTitle, metaDescription} only, matching the same call made for
+/// Brand — keeps Post's only Media relation on `coverMediaId`.
+model Post {
+  id               String     @id @default(cuid(2))
+  slug             String     @unique
+  title            String
+  excerpt          String?
+  /// Tiptap JSON.
+  content          Json
+  coverMediaId     String?    @map("cover_media_id")
+  authorId         String     @map("author_id")
+  status           PostStatus @default(DRAFT)
+  publishedAt      DateTime?  @map("published_at")
+  readingMinutes   Int?       @map("reading_minutes")
+  viewCount        Int        @default(0) @map("view_count")
+  metaTitle        String?    @map("meta_title")
+  metaDescription  String?    @map("meta_description")
+  // TODO(raw-sql): `search_vector` tsvector column + trigger + GIN index,
+  // same pattern as Product.searchVector (docs/06-DATA-MODEL.md §8, §11).
+  searchVector     Unsupported("tsvector")? @map("search_vector")
+  deletedAt        DateTime?  @map("deleted_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  coverMedia    Media?             @relation(fields: [coverMediaId], references: [id], onDelete: SetNull)
+  author        Author             @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  translations  PostTranslation[]
+  categories    PostCategory[]
+  tags          PostTag[]
+  products      PostProduct[]
+  slugHistory   PostSlugHistory[]
+
+  @@index([status])
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([status, updatedAt])
+  @@map("posts")
+}
+
+/// Unique (postId, locale).
+model PostTranslation {
+  id              String   @id @default(cuid(2))
+  postId          String   @map("post_id")
+  locale          Locale
+  title           String
+  excerpt         String?
+  content         Json?
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, locale])
+  @@map("post_translations")
+}
+
+model PostCategory {
+  id         String   @id @default(cuid(2))
+  postId     String   @map("post_id")
+  categoryId String   @map("category_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, categoryId])
+  @@index([categoryId])
+  @@map("post_categories")
+}
+
+/// JUDGMENT CALL: the doc lists `PostTag` without a separate `Tag` model
+/// elsewhere in the entity map. Modelled as a lightweight string tag
+/// directly on the join row rather than introducing an un-documented Tag
+/// entity — simplest reading consistent with the rest of the doc's
+/// minimalism (e.g. Customer.tags is also a plain string array).
+model PostTag {
+  id        String   @id @default(cuid(2))
+  postId    String   @map("post_id")
+  tag       String
+  position  Int      @default(0)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tag])
+  @@index([tag])
+  @@map("post_tags")
+}
+
+/// Products referenced in a buying guide -> internal links both ways.
+model PostProduct {
+  id         String   @id @default(cuid(2))
+  postId     String   @map("post_id")
+  productId  String   @map("product_id")
+  position   Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, productId])
+  @@index([productId])
+  @@map("post_products")
+}
+
+/// Modelled as its own entity (rather than reusing User directly) per the
+/// task brief, even though it is simple — 1:many with Post. `userId` is an
+/// optional link so a byline can belong to a staff member's login (for
+/// attribution/permissions) or be a purely editorial byline with no
+/// system account (e.g. a guest contributor).
+model Author {
+  id             String   @id @default(cuid(2))
+  userId         String?  @unique @map("user_id")
+  name           String
+  bio            String?  @db.Text
+  avatarMediaId  String?  @map("avatar_media_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  posts Post[]
+
+  @@map("authors")
+}
+
+/// Seeded: about, contact, privacy-policy, terms-conditions,
+/// refund-returns, shipping-policy, warranty, emi.
+model Page {
+  id               String       @id @default(cuid(2))
+  slug             String       @unique
+  title            String
+  /// Tiptap JSON.
+  content          Json
+  template         PageTemplate @default(DEFAULT)
+  status           PostStatus   @default(DRAFT)
+  metaTitle        String?      @map("meta_title")
+  metaDescription  String?      @map("meta_description")
+  deletedAt        DateTime?    @map("deleted_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  translations PageTranslation[]
+  menuItems    MenuItem[]
+
+  @@index([status])
+  @@map("pages")
+}
+
+/// Unique (pageId, locale).
+model PageTranslation {
+  id              String   @id @default(cuid(2))
+  pageId          String   @map("page_id")
+  locale          Locale
+  title           String
+  content         Json?
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, locale])
+  @@map("page_translations")
+}
+
+model Menu {
+  id    String  @id @default(cuid(2))
+  key   MenuKey @unique
+  name  String
+
+  items MenuItem[]
+
+  @@map("menus")
+}
+
+/// Fixes audit defect: footer "Webcams" pointing at motherboards — items
+/// link to entities (category/brand/page), not raw hand-typed URLs, except
+/// via the escape-hatch `url` field, and a nightly job flags any `url`
+/// item that 404s.
+model MenuItem {
+  id          String   @id @default(cuid(2))
+  menuId      String   @map("menu_id")
+  parentId    String?  @map("parent_id")
+  label       String
+  url         String?
+  categoryId  String?  @map("category_id")
+  brandId     String?  @map("brand_id")
+  pageId      String?  @map("page_id")
+  position    Int      @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+  iconName    String?  @map("icon_name")
+  badge       String?
+
+  menu     Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parent   MenuItem?  @relation("MenuItemToParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children MenuItem[] @relation("MenuItemToParent")
+  category Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  brand    Brand?     @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  page     Page?      @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@index([menuId, position])
+  @@index([parentId])
+  @@map("menu_items")
+}
+
+/// Typed content blocks. Hero slides carry targetType + targetId, so every
+/// CTA resolves to a real destination — fixing audit defects #10 and #11.
+model HomeSection {
+  id         String          @id @default(cuid(2))
+  type       HomeSectionType
+  position   Int             @default(0)
+  isActive   Boolean         @default(true) @map("is_active")
+  /// Validated per type at the application layer.
+  config     Json
+  startsAt   DateTime?       @map("starts_at")
+  endsAt     DateTime?       @map("ends_at")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+
+  @@index([isActive, position])
+  @@map("home_sections")
+}
+
+/// Feeds FAQPage schema.
+model Faq {
+  id          String   @id @default(cuid(2))
+  question    String
+  answer      String   @db.Text
+  /// Free-text grouping/tag (e.g. "Shipping", "Warranty") — distinct from
+  /// the `categoryId` FK below, which scopes the FAQ to a specific
+  /// catalogue Category per the doc's "optional productId/categoryId
+  /// scoping".
+  category    String?
+  position    Int      @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+  productId   String?  @map("product_id")
+  categoryId  String?  @map("category_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  product         Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  categoryScoped  Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([isActive, position])
+  @@map("faqs")
+}
+
+/// Same pattern as ProductSlugHistory/CategorySlugHistory (catalog.prisma).
+model PostSlugHistory {
+  id        String           @id @default(cuid(2))
+  postId    String           @map("post_id")
+  oldSlug   String           @unique @map("old_slug")
+  changedAt DateTime         @default(now()) @map("changed_at")
+  source    SlugChangeSource
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_slug_history")
+}

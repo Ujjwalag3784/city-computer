@@ -1,0 +1,104 @@
+// Service desk — docs/06-DATA-MODEL.md §9.
+// ServiceTicket, TicketEvent, TicketMedia, TicketQuote.
+//
+// Public lookup at /service/status/[ticketNumber] requires ticket number
+// plus the last 4 digits of the phone (src/lib/nepal.ts lastFourDigits) —
+// otherwise ticket numbers are enumerable. That check is service-layer,
+// not a schema concern.
+
+model ServiceTicket {
+  id                     String            @id @default(cuid(2))
+  /// Unique, `SVC-2607-0042` — src/lib/ids.ts formatTicketNumber().
+  ticketNumber           String            @unique @map("ticket_number")
+  customerId             String?           @map("customer_id")
+  name                   String
+  phone                  String
+  email                  String?
+  branchId               String            @map("branch_id")
+  deviceType             ServiceDeviceType @map("device_type")
+  brand                  String
+  model                  String?
+  serialNumber           String?           @map("serial_number")
+  issueCategory          String            @map("issue_category")
+  issueDescription       String            @map("issue_description") @db.Text
+  accessoriesReceived    String[]          @map("accessories_received")
+  status                 TicketStatus      @default(RECEIVED)
+  priority               TicketPriority    @default(NORMAL)
+  assignedToId           String?           @map("assigned_to_id")
+  estimatedCostPaisa     Int?              @map("estimated_cost_paisa")
+  finalCostPaisa         Int?              @map("final_cost_paisa")
+  estimatedReadyAt       DateTime?         @map("estimated_ready_at")
+  warrantyClaim          Boolean           @default(false) @map("warranty_claim")
+  underWarrantyOrderId   String?           @map("under_warranty_order_id")
+  receivedAt             DateTime          @default(now()) @map("received_at")
+  completedAt            DateTime?         @map("completed_at")
+  collectedAt            DateTime?         @map("collected_at")
+  internalNotes          String?           @map("internal_notes") @db.Text
+  createdAt              DateTime          @default(now()) @map("created_at")
+  updatedAt              DateTime          @updatedAt @map("updated_at")
+
+  customer            Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  branch               Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  assignedTo           User?     @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  underWarrantyOrder   Order?    @relation(fields: [underWarrantyOrderId], references: [id], onDelete: SetNull)
+
+  events TicketEvent[]
+  media  TicketMedia[]
+  quotes TicketQuote[]
+
+  @@index([status])
+  @@index([customerId])
+  @@index([assignedToId])
+  @@index([branchId, status])
+  @@map("service_tickets")
+}
+
+/// APPEND-ONLY, with isCustomerVisible so internal notes stay internal.
+model TicketEvent {
+  id                 String   @id @default(cuid(2))
+  ticketId           String   @map("ticket_id")
+  fromStatus         TicketStatus? @map("from_status")
+  toStatus           TicketStatus  @map("to_status")
+  note               String?  @db.Text
+  isCustomerVisible  Boolean  @default(true) @map("is_customer_visible")
+  actorId            String?  @map("actor_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor  User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_events")
+}
+
+model TicketMedia {
+  id        String   @id @default(cuid(2))
+  ticketId  String   @map("ticket_id")
+  mediaId   String   @map("media_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  media  Media         @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+
+  @@unique([ticketId, mediaId])
+  @@map("ticket_media")
+}
+
+model TicketQuote {
+  id            String            @id @default(cuid(2))
+  ticketId      String            @map("ticket_id")
+  /// `[{description, quantity, unitPricePaisa, totalPaisa}]`.
+  lineItems     Json              @map("line_items")
+  totalPaisa    Int               @map("total_paisa")
+  validUntil    DateTime          @map("valid_until")
+  status        TicketQuoteStatus @default(DRAFT)
+  sentAt        DateTime?         @map("sent_at")
+  respondedAt   DateTime?         @map("responded_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  ticket ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_quotes")
+}
