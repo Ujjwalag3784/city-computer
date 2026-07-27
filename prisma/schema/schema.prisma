@@ -25,20 +25,26 @@
 // called out inline with `// TODO(raw-sql):` comments and collected into
 // `prisma/sql/manual-constraints.sql`.
 
+// Prisma 7: the old "prisma-client-js" provider (generating into
+// node_modules/@prisma/client) is gone. "prisma-client" is the new
+// Rust-free generator and `output` is required — see prisma.config.ts and
+// docs/03-TECHNOLOGY-STACK.md for the rest of the v7 migration notes.
+// Generated into src/generated/prisma so it's reachable via the existing
+// `@/*` path alias: `import { PrismaClient } from "@/generated/prisma/client"`.
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../../src/generated/prisma"
 }
 
+// Prisma 7: `datasource.url` (and `directUrl`) are no longer read from the
+// schema file at all — the CLI (migrate/generate/studio) now gets its
+// connection string from `prisma.config.ts` at the project root, and
+// PrismaClient at runtime gets it via a driver adapter (see
+// src/server/db.ts, which uses @prisma/adapter-pg with DATABASE_URL from
+// the validated `env` in src/env.ts). Nothing needed here beyond the
+// provider name.
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-  // DIRECT_DATABASE_URL exists in .env.example for connection-pooler setups
-  // (e.g. pgbouncer in front of DATABASE_URL). We are not using a pooler
-  // that requires a separate direct connection for migrations yet, so
-  // `directUrl` is left commented rather than wired to an env var Prisma
-  // would otherwise require to be non-empty at generate time. Uncomment
-  // when a pooler is introduced:
-  // directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ============================================================================

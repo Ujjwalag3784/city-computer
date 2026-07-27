@@ -2,14 +2,12 @@
   "name": "citycomputer",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "City Computer Systems — e-commerce platform, PC builder, and admin console.",
   "engines": {
     "node": ">=22"
   },
   "packageManager": "pnpm@9.15.9",
-  "prisma": {
-    "seed": "tsx prisma/seed/index.ts"
-  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -23,16 +21,18 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prepare": "husky",
-    "db:generate": "prisma generate --schema=./prisma/schema",
-    "db:migrate": "prisma migrate dev --schema=./prisma/schema",
-    "db:deploy": "prisma migrate deploy --schema=./prisma/schema",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed/index.ts",
-    "db:reset": "prisma migrate reset --schema=./prisma/schema",
-    "db:studio": "prisma studio --schema=./prisma/schema"
+    "db:reset": "prisma migrate reset",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "7.9.1",
     "@prisma/client": "7.9.0",
     "next": "15.5.22",
+    "pg": "8.22.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "zod": "3.24.1",
@@ -43,11 +43,13 @@
     "@eslint/eslintrc": "3.2.0",
     "@eslint/js": "9.18.0",
     "@types/node": "22.10.7",
+    "@types/pg": "8.20.0",
     "@types/react": "19.0.7",
     "@types/react-dom": "19.0.3",
     "@typescript-eslint/eslint-plugin": "8.20.0",
     "@typescript-eslint/parser": "8.20.0",
     "@vitest/coverage-v8": "2.1.8",
+    "dotenv": "17.4.2",
     "eslint": "9.18.0",
     "eslint-config-next": "15.5.22",
     "eslint-config-prettier": "9.1.0",

@@ -13,7 +13,16 @@ const __dirname = path.dirname(__filename);
 const compat = new FlatCompat({ baseDirectory: __dirname });
 
 const config = [
-  { ignores: [".next/**", "node_modules/**", "coverage/**", "dist/**", "next-env.d.ts"] },
+  {
+    ignores: [
+      ".next/**",
+      "node_modules/**",
+      "coverage/**",
+      "dist/**",
+      "next-env.d.ts",
+      "src/generated/**",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...compat.extends("next/core-web-vitals"),

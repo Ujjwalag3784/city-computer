@@ -20,7 +20,12 @@
  */
 import { db } from "@/server/db";
 import { rupeesToPaisa } from "@/lib/money";
-import type { PartType, ConnectorType, ConnectorDirection, BuildUseCase } from "@prisma/client";
+import type {
+  PartType,
+  ConnectorType,
+  ConnectorDirection,
+  BuildUseCase,
+} from "@/generated/prisma/client";
 
 interface PartInput {
   variantSku?: string;

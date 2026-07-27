@@ -9,7 +9,7 @@
  */
 import { db } from "@/server/db";
 import { slugify } from "@/lib/slug";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
 export async function seedTaxonomy() {
   const categoriesBySlug = await seedCategories();

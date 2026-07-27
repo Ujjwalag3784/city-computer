@@ -1,5 +1,6 @@
 import "server-only";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { env } from "@/env";
 import { softDeleteExtension } from "./db/soft-delete-extension";
 
@@ -20,7 +21,12 @@ import { softDeleteExtension } from "./db/soft-delete-extension";
  */
 
 function createPrismaClient() {
+  // Prisma 7 requires a driver adapter for every database, including
+  // plain self-hosted Postgres — there is no more URL-only client
+  // construction (docs/03-TECHNOLOGY-STACK.md, Prisma's v7 upgrade guide).
+  const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
   const client = new PrismaClient({
+    adapter,
     log: env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
 
