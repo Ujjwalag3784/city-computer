@@ -12,15 +12,16 @@ import { cn } from "@/lib/utils";
 /**
  * MiniCartDrawer — docs/05-DESIGN-SYSTEM.md §6 component inventory: **bold**,
  * i.e. from-scratch, not present in the original Stitch exports. The small
- * slide-out cart preview typically triggered from `SiteHeader`'s cart icon.
- * Wiring that trigger up is a later integration step (a future client-side
- * cart-state provider owns `open`/`onOpenChange` and feeds `items`); this
- * component stays fully controlled and presentational, matching the "no real
- * cart/checkout state management exists yet" constraint for this batch —
- * `SiteHeader` itself is left untouched.
+ * slide-out cart preview triggered from `SiteHeader`'s cart icon — wired,
+ * as of docs/17 Phase 6, by `components/commerce/cart-drawer-host.tsx`
+ * (owns `open`/`onOpenChange` from `stores/cart-store.ts` and feeds
+ * `items` from the real cart). This component itself stays fully
+ * controlled and presentational — it still doesn't know a cart store or a
+ * Server Action exists, on purpose, so it stays trivially testable in
+ * isolation.
  *
  * `"use client"`: renders the Radix-backed `Sheet` and owns wiring
- * `onQuantityChange`/`onRemove` with each item's `productSlug` bound in
+ * `onQuantityChange`/`onRemove` with each item's `variantId` bound in
  * directly on native/`CartLineItem` elements — same class of requirement as
  * `mobile-filter-sheet.tsx` and `compare-table.tsx`.
  *
@@ -47,8 +48,8 @@ export interface MiniCartDrawerProps {
   items: CartLineItemData[];
   /** Integer paisa. */
   subtotal: number;
-  onQuantityChange: (productSlug: string, quantity: number) => void;
-  onRemove: (productSlug: string) => void;
+  onQuantityChange: (variantId: string, quantity: number) => void;
+  onRemove: (variantId: string) => void;
   className?: string;
 }
 
@@ -89,11 +90,11 @@ export function MiniCartDrawer({
           <div className="min-h-0 flex-1 overflow-y-auto px-6">
             <ul className="divide-y divide-glass-stroke">
               {items.map((item) => (
-                <li key={item.productSlug}>
+                <li key={item.variantId}>
                   <CartLineItem
                     item={item}
-                    onQuantityChange={(quantity) => onQuantityChange(item.productSlug, quantity)}
-                    onRemove={() => onRemove(item.productSlug)}
+                    onQuantityChange={(quantity) => onQuantityChange(item.variantId, quantity)}
+                    onRemove={() => onRemove(item.variantId)}
                   />
                 </li>
               ))}

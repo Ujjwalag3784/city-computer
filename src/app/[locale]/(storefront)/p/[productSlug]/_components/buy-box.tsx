@@ -6,6 +6,8 @@ import { StockBadge } from "@/components/commerce/stock-badge";
 import { AddToCartButton } from "@/components/commerce/add-to-cart-button";
 import { VariantSelector, type VariantAttribute } from "@/components/commerce/variant-selector";
 import type { ProductVariantDetail } from "@/server/services/catalog/product";
+import { addToCartAction } from "@/app/[locale]/(storefront)/_actions";
+import { useCartStore } from "@/stores/cart-store";
 
 /**
  * BuyBox — the client-interactive half of the PDP (docs/05
@@ -71,6 +73,8 @@ function findMatchingVariant(
 }
 
 export function BuyBox({ variants }: BuyBoxProps) {
+  const setCartView = useCartStore((state) => state.setView);
+  const openCartDrawer = useCartStore((state) => state.openDrawer);
   const attributes = useMemo(() => deriveAttributes(variants), [variants]);
   const defaultVariant = variants.find((variant) => variant.isDefault) ?? variants[0];
 
@@ -93,6 +97,25 @@ export function BuyBox({ variants }: BuyBoxProps) {
   }
 
   const outOfStock = activeVariant.availableQuantity <= 0 && !activeVariant.allowBackorder;
+  // Captured as a plain string here, not read off `activeVariant` inside
+  // `handleAddToCart` below — TypeScript's narrowing from the `!activeVariant`
+  // guard above doesn't carry into a nested function's own scope, so the
+  // closure would otherwise see `activeVariant` widened back to possibly
+  // `undefined`.
+  const activeVariantId = activeVariant.id;
+
+  async function handleAddToCart() {
+    const result = await addToCartAction({ variantId: activeVariantId, quantity: 1 });
+    if (!result.ok || !result.data) {
+      // `AddToCartButton` catches this rejection itself and shows its own
+      // "Couldn't add — try again" state (see that component's doc
+      // comment) — this is the one place that error surfaces, not a toast
+      // here too.
+      throw new Error(result.message ?? "Couldn't add to cart");
+    }
+    setCartView(result.data);
+    openCartDrawer();
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -118,13 +141,7 @@ export function BuyBox({ variants }: BuyBoxProps) {
       />
 
       <AddToCartButton
-        // Cart state doesn't exist yet — docs/17-ROADMAP-PHASES.md's Phase
-        // 6 ("Cart & Inventory"), not this pass. This resolves immediately
-        // so the button's own optimistic "Added" affordance still
-        // demonstrates correctly, but nothing is actually persisted
-        // anywhere yet; wiring this to a real `addToCart` Server Action is
-        // Phase 6's job, not silently faked here.
-        onAddToCart={() => Promise.resolve()}
+        onAddToCart={handleAddToCart}
         outOfStock={outOfStock}
         disabled={outOfStock}
         className="mt-2 sm:w-fit"

@@ -47,6 +47,14 @@ import { cn } from "@/lib/utils";
  * line *total*, so reaching for it here would be misleading.
  */
 export interface CartLineItemData {
+  /**
+   * The real cart-line identity. Added alongside `productSlug` (kept for
+   * the product link) once this component was actually wired to a live
+   * cart (docs/17 Phase 6): a product can have more than one of its
+   * variants in the cart at once, which `productSlug` alone can't
+   * disambiguate — every mutation callback is keyed by this, not the slug.
+   */
+  variantId: string;
   productSlug: string;
   imageUrl: string;
   imageAlt: string;

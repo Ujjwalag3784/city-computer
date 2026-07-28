@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Heart, Search, ShoppingCart, User } from "lucide-react";
+import { Heart, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { MobileNav, DEFAULT_NAV_ITEMS, type NavItem } from "@/components/layout/mobile-nav";
+import { CartHeaderButton } from "@/components/commerce/cart-header-button";
 
 /**
  * SiteHeader — docs/05-DESIGN-SYSTEM.md §6 component inventory:
@@ -27,10 +28,12 @@ import { MobileNav, DEFAULT_NAV_ITEMS, type NavItem } from "@/components/layout/
  * `aria-label` and a 44×44 hit target via `Button`'s `iconOnly` prop
  * (docs/05 §5 A2, A9).
  *
- * Cart/wishlist counts are plain optional number props, not derived from
- * any store — there is no cart/wishlist/auth state management wired into
- * the UI yet (that lands with a later data-layer phase). This component is
- * presentational only; a client provider will feed it real counts later.
+ * Wishlist count is still a plain optional number prop — no wishlist
+ * feature/store exists yet. The cart badge is different as of docs/17
+ * Phase 6: `CartHeaderButton` (the one Client Component this file renders)
+ * reads the real count from `stores/cart-store.ts`, falling back to
+ * `cartCount` only before that store has hydrated (or on the `/design`
+ * showcase route, which never hydrates it at all).
  */
 export interface SiteHeaderProps {
   /** Which chrome to render. Defaults to `"full"`. */
@@ -39,7 +42,7 @@ export interface SiteHeaderProps {
   navItems?: NavItem[];
   /** Shown on the wishlist badge when greater than 0. Defaults to 0 (badge hidden). */
   wishlistCount?: number;
-  /** Shown on the cart badge when greater than 0. Defaults to 0 (badge hidden). */
+  /** Fallback shown on the cart badge only before `stores/cart-store.ts` has hydrated a real count (see `CartHeaderButton`). Defaults to 0 (badge hidden). */
   cartCount?: number;
   /** Right-aligned slot rendered only in `variant="minimal"` (e.g. a "Secure checkout" label). */
   minimalActions?: ReactNode;
@@ -137,17 +140,7 @@ export function SiteHeader({
                   <User />
                 </Button>
 
-                <Button variant="ghost" size="md" iconOnly aria-label="Cart" className="relative">
-                  <ShoppingCart />
-                  {cartCount > 0 && (
-                    <Badge
-                      variant="primary"
-                      className="absolute -right-1 -top-1 min-w-4 justify-center px-1"
-                    >
-                      {cartCount}
-                    </Badge>
-                  )}
-                </Button>
+                <CartHeaderButton fallbackCount={cartCount} />
 
                 <div className="lg:hidden">
                   <MobileNav navItems={navItems} />

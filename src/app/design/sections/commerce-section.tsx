@@ -359,6 +359,7 @@ export function CommerceSection() {
   const [quantity, setQuantity] = React.useState(1);
 
   const [cartLineItem, setCartLineItem] = React.useState<CartLineItemData | null>({
+    variantId: "variant_demo_asus_tuf_1",
     productSlug: "asus-tuf-gaming-f15",
     imageUrl: "https://placehold.co/160x160?text=ASUS+TUF",
     imageAlt: "ASUS TUF Gaming F15 laptop",
@@ -372,6 +373,7 @@ export function CommerceSection() {
   const [miniCartOpen, setMiniCartOpen] = React.useState(false);
   const [miniCartItems, setMiniCartItems] = React.useState<CartLineItemData[]>([
     {
+      variantId: "variant_demo_asus_tuf_1",
       productSlug: "asus-tuf-gaming-f15",
       imageUrl: "https://placehold.co/160x160?text=ASUS+TUF",
       imageAlt: "ASUS TUF Gaming F15 laptop",
@@ -382,6 +384,7 @@ export function CommerceSection() {
       maxQuantity: 5,
     },
     {
+      variantId: "variant_demo_dell_inspiron_1",
       productSlug: "dell-inspiron-15-3520",
       imageUrl: "https://placehold.co/160x160?text=Dell+Inspiron",
       imageAlt: "Dell Inspiron 15 3520 laptop",
@@ -732,15 +735,15 @@ export function CommerceSection() {
             onOpenChange={setMiniCartOpen}
             items={miniCartItems}
             subtotal={miniCartSubtotal}
-            onQuantityChange={(productSlug, nextQuantity) =>
+            onQuantityChange={(variantId, nextQuantity) =>
               setMiniCartItems((prev) =>
                 prev.map((item) =>
-                  item.productSlug === productSlug ? { ...item, quantity: nextQuantity } : item,
+                  item.variantId === variantId ? { ...item, quantity: nextQuantity } : item,
                 ),
               )
             }
-            onRemove={(productSlug) =>
-              setMiniCartItems((prev) => prev.filter((item) => item.productSlug !== productSlug))
+            onRemove={(variantId) =>
+              setMiniCartItems((prev) => prev.filter((item) => item.variantId !== variantId))
             }
           />
         </ComponentDemo>
