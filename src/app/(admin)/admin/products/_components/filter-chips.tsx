@@ -1,15 +1,18 @@
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { AdminFilterChips } from "@/components/admin/admin-filter-chips";
 import type { ProductListFilter } from "@/lib/validation/admin/product";
 
 /**
  * docs/09-ADMIN-DAD-MODE.md §5.2: "Filter chips: All · Live · Not
  * published · Out of stock · Almost out of stock · No photo · On offer."
- * Plain links, not client-side state — each chip is just `?filter=...`,
- * so the active chip survives a page refresh/bookmark and this component
- * needs no `"use client"` boundary at all.
+ *
+ * A thin, product-list-specific instantiation of the shared
+ * `AdminFilterChips` (promoted to `components/admin/` on this
+ * component's second consumer, `admin/inventory/page.tsx`) — kept as a
+ * same-named, same-shaped wrapper so `admin/products/page.tsx` doesn't
+ * need to change, rather than deleted outright (this sandbox's mounted
+ * filesystem doesn't support deleting files).
  */
-const FILTERS: { value: ProductListFilter; label: string }[] = [
+const PRODUCT_FILTERS = [
   { value: "all", label: "All" },
   { value: "live", label: "Live" },
   { value: "draft", label: "Not published" },
@@ -21,29 +24,6 @@ const FILTERS: { value: ProductListFilter; label: string }[] = [
 
 export function FilterChips({ active, q }: { active: ProductListFilter; q?: string }) {
   return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Show only">
-      {FILTERS.map((filter) => {
-        const params = new URLSearchParams();
-        if (filter.value !== "all") params.set("filter", filter.value);
-        if (q) params.set("q", q);
-        const href = params.toString() ? `/admin/products?${params.toString()}` : "/admin/products";
-        const isActive = active === filter.value;
-        return (
-          <Link
-            key={filter.value}
-            href={href}
-            aria-current={isActive ? "true" : undefined}
-            className={cn(
-              "rounded-full border px-3 py-1.5 text-body-sm transition-colors",
-              isActive
-                ? "border-primary-container bg-primary-container text-on-primary-container"
-                : "border-glass-stroke text-on-surface-variant hover:border-primary-container hover:text-on-surface",
-            )}
-          >
-            {filter.label}
-          </Link>
-        );
-      })}
-    </div>
+    <AdminFilterChips options={PRODUCT_FILTERS} active={active} basePath="/admin/products" q={q} />
   );
 }
