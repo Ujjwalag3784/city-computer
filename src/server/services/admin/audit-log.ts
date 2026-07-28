@@ -110,6 +110,14 @@ export interface ListAuditLogInput {
   entityType?: string;
   entityId?: string;
   actorId?: string;
+  /**
+   * Narrows to one `action` string (e.g. `"stock.adjusted"`) — added for
+   * `admin/inventory.ts`'s "Stock history" timeline, which shares this
+   * same `entityType: "Variant"` with `quickUpdatePrice`'s
+   * `"product.priceChanged"` entries and needs to show only the stock
+   * ones, not both interleaved.
+   */
+  action?: string;
   page?: number;
   perPage?: number;
 }
@@ -140,6 +148,7 @@ export async function listAuditLog(input: ListAuditLogInput = {}): Promise<ListA
     ...(input.entityType ? { entityType: input.entityType } : {}),
     ...(input.entityId ? { entityId: input.entityId } : {}),
     ...(input.actorId ? { actorId: input.actorId } : {}),
+    ...(input.action ? { action: input.action } : {}),
   };
 
   const [rows, total] = await Promise.all([
