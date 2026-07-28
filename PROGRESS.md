@@ -340,10 +340,36 @@ rushing the big pieces (the product wizard, the photo library):
 
 **Not built yet, on purpose** (each is its own upcoming piece of work):
 adding/editing products (the four-step wizard), the product list with
-inline price/stock editing, categories and brands management, the photo
-library, stock adjustment screens, and the admin's own search box. None
-of the sidebar links to those sections do anything real yet if you click
-them — they 404, rather than showing a half-built page.
+inline price/stock editing, the photo library, stock adjustment screens,
+and the admin's own search box.
+
+## Phase 5 continued — Categories and Brands are now real screens
+
+- **`/admin/categories`** is a working screen, not a mockup. You can add a
+  category, edit its name and description, turn "Show in menu" and "Live
+  on the website" on or off, and drag categories up or down to reorder
+  them (including nesting one inside another). Trying to delete a
+  category that still has products or sub-categories in it is refused
+  with a plain explanation, rather than silently breaking something.
+- **`/admin/brands`** works the same way — add, edit, delete — as a
+  simple list rather than a tree, since brands aren't nested. One honest
+  limitation: brands can't be manually reordered. The database has no
+  column to remember a custom brand order (categories do, brands don't),
+  so rather than build a reorder control that would just forget its own
+  order every time the page reloads, I left it out and left a note in
+  the code explaining why. Brands are listed alphabetically instead.
+- **Every add/edit/delete on both screens writes to Activity History**,
+  as promised last time.
+- Two smaller, deliberate simplifications, both noted in the code: moving
+  a category to a _different_ parent category isn't supported yet
+  (renaming, describing, and hiding/showing it are); and a category or
+  brand's website address (its "slug") can't be changed after it's
+  created, to avoid quietly breaking a link someone may have already
+  shared.
+
+Still not built: the product wizard, the product list, stock screens,
+the photo library, and admin search — same list as above, just repeated
+so it's easy to find next time.
 
 ## Phase 6 onward: not started
 
