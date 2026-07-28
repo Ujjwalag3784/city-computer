@@ -84,7 +84,8 @@ export interface ProductDetail {
   /** Tiptap JSON — rendering is a client-component concern (docs/04's `components/content/RichText`), not this service's. */
   description: Prisma.JsonValue;
   brand: { slug: string; name: string };
-  primaryCategory: { slug: string; name: string };
+  /** `path` (not just `slug`) so the PDP breadcrumb can link straight to `/c/${path}` even for a nested category — `slug` alone (e.g. `"gaming"`) isn't a resolvable path for anything below the top level. */
+  primaryCategory: { slug: string; path: string; name: string };
   type: ProductType;
   conditionType: ConditionType;
   warrantyMonths: number | null;
@@ -503,7 +504,7 @@ export async function getProductSummariesByIds(
 
 const PRODUCT_DETAIL_INCLUDE = {
   brand: { select: { slug: true, name: true } },
-  primaryCategory: { select: { slug: true, translations: true } },
+  primaryCategory: { select: { slug: true, path: true, translations: true } },
   media: {
     orderBy: { position: "asc" },
     include: { media: true },
@@ -574,7 +575,11 @@ export async function getProductBySlug(
     shortDescription: product.shortDescription,
     description: product.description,
     brand: { slug: product.brand.slug, name: product.brand.name },
-    primaryCategory: { slug: product.primaryCategory.slug, name: categoryName },
+    primaryCategory: {
+      slug: product.primaryCategory.slug,
+      path: product.primaryCategory.path,
+      name: categoryName,
+    },
     type: product.type,
     conditionType: product.conditionType,
     warrantyMonths: product.warrantyMonths,

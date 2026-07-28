@@ -14,6 +14,7 @@ vi.mock("@/server/db", () => ({
 
 const { db } = await import("@/server/db");
 const {
+  getCategoryBreadcrumbTrail,
   getCategoryByPath,
   getCategoryDescendantIds,
   getCategoryDescendantIdsByPath,
@@ -170,5 +171,42 @@ describe("getCategoryDescendantIdsByPath", () => {
   it("throws NotFoundError when the path itself doesn't resolve", async () => {
     vi.mocked(db.category.findFirst).mockResolvedValue(null);
     await expect(getCategoryDescendantIdsByPath("nope")).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe("getCategoryBreadcrumbTrail", () => {
+  it("returns one segment per ancestor, in order, from the pre-computed cumulative paths", async () => {
+    vi.mocked(db.category.findMany).mockResolvedValue([
+      {
+        slug: "gaming",
+        path: "laptops/gaming",
+        translations: [translation(Locale.EN, "Gaming Laptops")],
+      },
+      { slug: "laptops", path: "laptops", translations: [translation(Locale.EN, "Laptops")] },
+    ] as never);
+
+    const trail = await getCategoryBreadcrumbTrail("laptops/gaming");
+
+    expect(db.category.findMany).toHaveBeenCalledWith({
+      where: { path: { in: ["laptops", "laptops/gaming"] }, isActive: true },
+      include: { translations: true },
+    });
+    expect(trail).toEqual([
+      { slug: "laptops", path: "laptops", name: "Laptops" },
+      { slug: "gaming", path: "laptops/gaming", name: "Gaming Laptops" },
+    ]);
+  });
+
+  it("skips a missing ancestor rather than throwing", async () => {
+    vi.mocked(db.category.findMany).mockResolvedValue([
+      {
+        slug: "gaming",
+        path: "laptops/gaming",
+        translations: [translation(Locale.EN, "Gaming Laptops")],
+      },
+    ] as never);
+
+    const trail = await getCategoryBreadcrumbTrail("laptops/gaming");
+    expect(trail).toEqual([{ slug: "gaming", path: "laptops/gaming", name: "Gaming Laptops" }]);
   });
 });

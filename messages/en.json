@@ -10,7 +10,11 @@
     "seeAll": "See all",
     "backToShop": "Back to shop",
     "noResults": "No results found",
-    "searchPlaceholder": "Search products, brands, categories…"
+    "searchPlaceholder": "Search products, brands, categories…",
+    "somethingWentWrong": "Something went wrong",
+    "tryAgain": "Try again",
+    "notFound": "We couldn't find that page.",
+    "page": "Page"
   },
   "home": {
     "featuredProducts": "Featured products",

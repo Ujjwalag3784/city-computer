@@ -158,3 +158,48 @@ export async function getCategoryDescendantIdsByPath(path: string): Promise<stri
   if (!category) throw new NotFoundError("Category");
   return getCategoryDescendantIds(category.id);
 }
+
+export interface CategoryBreadcrumbSegment {
+  slug: string;
+  path: string;
+  name: string;
+}
+
+/**
+ * The full ancestor chain for a category page's breadcrumb trail — e.g.
+ * `laptops/gaming` → `[{ path: "laptops", name: "Laptops" }, { path:
+ * "laptops/gaming", name: "Gaming Laptops" }]`. One query for every
+ * segment (a `path IN (...)` on the pre-computed cumulative prefixes),
+ * not one query per ancestor level.
+ *
+ * A missing ancestor (deactivated, or `path` drifted out of sync with
+ * `parentId` — see the `TODO(raw-sql)` on `Category.path` in
+ * `catalog.prisma`) is silently skipped rather than thrown: a breadcrumb
+ * with a gap in it is a cosmetic problem, not a reason to break the page
+ * it's decorating.
+ */
+export async function getCategoryBreadcrumbTrail(
+  path: string,
+  locale: Locale = Locale.EN,
+): Promise<CategoryBreadcrumbSegment[]> {
+  const segments = path.split("/");
+  const cumulativePaths = segments.map((_, index) => segments.slice(0, index + 1).join("/"));
+
+  const categories = await db.category.findMany({
+    where: { path: { in: cumulativePaths }, isActive: true },
+    include: { translations: true },
+  });
+  const categoryByPath = new Map(categories.map((category) => [category.path, category]));
+
+  return cumulativePaths
+    .map((cumulativePath) => {
+      const category = categoryByPath.get(cumulativePath);
+      if (!category) return null;
+      return {
+        slug: category.slug,
+        path: category.path,
+        name: resolveTranslated(category.translations, locale, "name", category.slug),
+      };
+    })
+    .filter((segment): segment is CategoryBreadcrumbSegment => segment !== null);
+}
