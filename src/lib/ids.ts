@@ -68,3 +68,28 @@ const TICKET_NUMBER_PATTERN = /^SVC-(\d{2})(\d{2})-(\d{4,})$/;
 export function isValidTicketNumber(value: string): boolean {
   return TICKET_NUMBER_PATTERN.test(value);
 }
+
+/**
+ * The deterministic `BRAND-MODEL` half of docs/09-ADMIN-DAD-MODE.md §5.1
+ * Step 1's "Product Code": "Auto-generated `BRAND-MODEL-NNN`; uniqueness
+ * checked live." This builds only the prefix — a pure function of the
+ * brand and product name, with no database access — because the `-NNN`
+ * suffix that makes the whole thing unique needs a live query against
+ * every `Variant.sku` already using this prefix, which is
+ * `server/services/admin/product.ts`'s job, not this file's (this module
+ * has no `"server-only"` guard and is unit-tested without a database on
+ * purpose — see `ids.test.ts`).
+ */
+export function buildProductCodePrefix(brandName: string, productName: string): string {
+  const brandPart =
+    brandName
+      .replace(/[^a-zA-Z0-9]+/g, "")
+      .slice(0, 10)
+      .toUpperCase() || "BRAND";
+  const modelPart =
+    productName
+      .replace(/[^a-zA-Z0-9]+/g, "")
+      .slice(0, 12)
+      .toUpperCase() || "MODEL";
+  return `${brandPart}-${modelPart}`;
+}

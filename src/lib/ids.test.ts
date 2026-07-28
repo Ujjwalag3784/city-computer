@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildProductCodePrefix,
   formatOrderNumber,
   formatTicketNumber,
   generateBuildShortId,
@@ -60,5 +61,21 @@ describe("isValidTicketNumber", () => {
   it("rejects malformed input", () => {
     expect(isValidTicketNumber("CC-2607-0042")).toBe(false);
     expect(isValidTicketNumber("")).toBe(false);
+  });
+});
+
+describe("buildProductCodePrefix", () => {
+  it("upper-cases and strips non-alphanumerics from both halves", () => {
+    expect(buildProductCodePrefix("HP", "Victus 15")).toBe("HP-VICTUS15");
+  });
+
+  it("truncates an overly long brand or product name", () => {
+    expect(buildProductCodePrefix("A Very Long Brand Name Indeed", "Product")).toBe(
+      "AVERYLONGB-PRODUCT",
+    );
+  });
+
+  it("falls back to a placeholder when a name has no alphanumeric characters at all", () => {
+    expect(buildProductCodePrefix("!!!", "???")).toBe("BRAND-MODEL");
   });
 });
