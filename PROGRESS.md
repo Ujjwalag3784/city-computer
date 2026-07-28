@@ -6,9 +6,16 @@ tracks against.
 
 ## Good morning — start here
 
-While you were asleep: the entire Phase 2 design system got built (every
-component in the blueprint, plus a `/design` page to see them all), and then
-the backend half of Phase 3 — accounts, passwords, two-factor login, and
+**Latest session:** Phase 4 got started — the site can now switch between
+English and Nepali (see "Phase 4 — Catalogue" below for what that does and
+doesn't cover yet), and all the database-querying logic a product listing
+or search page will need is built and tested. No new pages to click
+through yet; skip to "Phase 4 — Catalogue" below for the plain-language
+version, or keep reading for the fuller history.
+
+Before that: the entire Phase 2 design system got built (every component
+in the blueprint, plus a `/design` page to see them all), and then the
+backend half of Phase 3 — accounts, passwords, two-factor login, and
 who's-allowed-to-do-what — got built on top of it. Roughly 180 new files
 across 12 commits, all passing type-checking, linting, and the test suite.
 
@@ -182,10 +189,81 @@ permission" testing (what the blueprint calls the authorisation matrix)
 is also not done yet — same reasoning as the accessibility testing item
 below, it needs a real running app to test against.
 
-## Phase 4 onward: not started
+## Phase 4 — Catalogue: two pieces done (English/Nepali switching, and the
 
-Wiring the design system to real data (product pages, cart, checkout,
-payments), the PC-builder's actual compatibility-checking logic, the admin
-screens working against real orders/products, content/SEO, analytics,
-automated testing (see the Playwright/axe item above), performance tuning,
-and launch — per `docs/17-ROADMAP-PHASES.md`.
+data-fetching logic behind product pages); the actual pages not built yet
+
+**English/Nepali site switching (done):** the site can now serve pages in
+English at the normal URL (`/`) and in Nepali at `/ne/...`, with the
+plumbing in place to translate any piece of text going forward. A
+placeholder homepage proves the whole chain works — real locale, real
+translated strings, the header/footer around it — but it's still a
+placeholder, not the real homepage with hero banners and product carousels
+(that needs the next piece below, plus more).
+
+One thing worth knowing: the existing header/footer/navigation
+(built in Phase 2) link around the site using a plain link component, not
+the locale-aware one. In practice this means: browsing the English site
+is unaffected, but a visitor on the Nepali site who clicks a nav link
+today gets bounced back to the English version instead of staying on the
+Nepali one. Fixing every link is a mechanical but real chunk of work,
+lower priority until there's actual Nepali product content to show —
+right now nothing in the catalogue has Nepali translations yet either.
+
+**Product/category/brand/search data-fetching logic (done, with tests):**
+this is the "kitchen" work behind the counter — the actual database
+queries and business rules a product listing page, a category page, and
+a search box will call, none of which have a page to appear on yet:
+
+- Given a category (like "Laptops → Gaming"), find every product in it
+  and its sub-categories, in one query.
+- Given a list of filters (brand, price range, spec like "16GB RAM",
+  in-stock only, on sale), narrow down the product list correctly.
+- Work out "starting from" pricing when a product has multiple options
+  (sizes/colours/configurations) — always the cheapest one currently
+  available.
+- Build the filter sidebar's option lists and counts (e.g. "HP (12),
+  Dell (8)") from whatever products are currently showing.
+- Full-text search — type a few words, get ranked results.
+- The one rule from the security/SEO document that matters most here:
+  a product with zero reviews always shows "no rating" rather than a
+  fake-looking "0 out of 5 stars."
+
+51 new automated tests cover the trickier logic (translation fallbacks,
+pagination math, category-tree building, and the filter-sidebar
+counting logic). The two biggest files (the main product-listing
+function and the search function) are checked by the type-checker and
+linter but don't have dedicated automated tests yet — they're
+straightforward compositions of the smaller, already-tested pieces, and
+writing thorough tests for them is more valuable once there's a real
+page calling them to test against, rather than guessing at the shape of
+that call now.
+
+**Two things flagged rather than worked around:**
+
+- Search is fully built and ready, but won't return any results until a
+  piece of database setup (written back in the data-layer phase,
+  sitting in `prisma/sql/manual-constraints.sql`) actually gets applied
+  on your machine — this sandbox never had a real database connection
+  to apply it against. This is expected, not a bug to chase.
+- "In stock" filtering currently just checks "is there physical
+  quantity on the shelf," not the more precise "shelf quantity minus
+  anything currently reserved by someone else's cart." The precise
+  version is what actually protects against overselling at checkout
+  time (that part is unaffected) — this is only about what a browsing
+  filter shows before checkout, and the simpler version is accurate
+  enough for that.
+
+**Not done yet:** the actual pages someone would click through — the
+homepage with real content, category pages, product pages, the search
+results page. That's the next piece of this work, now that the data-
+fetching logic it needs exists.
+
+## Phase 4 remainder, and Phase 5 onward: not started
+
+The storefront pages themselves (home, category, brand, product, search —
+see above), then: cart, checkout, payments, the PC-builder's actual
+compatibility-checking logic, the admin screens working against real
+orders/products, content/SEO, analytics, automated testing (see the
+Playwright/axe item above), performance tuning, and launch — per
+`docs/17-ROADMAP-PHASES.md`.
