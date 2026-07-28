@@ -298,9 +298,56 @@ tonight's work kept trying `pnpm build` at every step even though it
 can't finish in this sandbox: it still catches real problems along the
 way that the other checks (type-checking, linting, tests) don't.
 
-## Phase 5 onward: not started
+## A correction to what I told you last time
+
+I'd said the next phase was "cart, checkout, payments." That was wrong —
+I re-read the roadmap's own dependency table (`docs/17-ROADMAP-PHASES.md`)
+more carefully and it's explicit: **Admin (Phase 5) comes before Cart &
+Inventory (Phase 6)**, because Phase 6 itself is listed as depending on
+Phase 5, not just Phase 4. Cart/checkout is still coming, just not next.
+Sorry for the confusion — flagging it here rather than quietly fixing the
+order without saying anything.
+
+## Phase 5 — Admin: just started tonight
+
+Phase 5 is the admin panel — the screens the shop owner actually uses day
+to day to add products, check stock, and see what needs attention.
+Docs/17 calls this phase "the one most likely to be under-scoped," so
+tonight was one deliberately small, foundational slice rather than
+rushing the big pieces (the product wizard, the photo library):
+
+- **The admin area now has a working shell.** Visit `/admin` and — once
+  signed in as staff — you get the real sidebar, a top bar, and (on a
+  phone-sized screen) the sidebar becomes a slide-out menu, exactly per
+  the "Dad Mode" spec. The sidebar only shows the sections your role can
+  actually use (a repair technician doesn't see "Customers"; shop staff
+  don't see "Settings") — nothing is shown and then denied.
+- **The "Today" page is real**, not a mockup. It shows actual counts from
+  the database: orders placed today, money taken in today (vs.
+  yesterday), and a "what to do next" list — e.g. "2 bank transfer
+  payments waiting for you to check," "3 orders are paid but not sent
+  yet," "7 products are almost out of stock" — each with a button that
+  will jump straight to the filtered list once that list page exists.
+  Rows further down the page (this week/month comparisons, top-selling
+  products, charts) are intentionally not built yet — the two rows that
+  actually answer "do I need to do something right now" came first.
+- **Every future admin change will have a paper trail.** Built the
+  "Activity History" write path (`AuditLog`) that every later admin
+  screen (adding a product, changing a price, adjusting stock) will
+  write to automatically — this is what makes "every mutation appears
+  in Activity History," one of the phase's own pass/fail requirements,
+  possible once those screens exist.
+
+**Not built yet, on purpose** (each is its own upcoming piece of work):
+adding/editing products (the four-step wizard), the product list with
+inline price/stock editing, categories and brands management, the photo
+library, stock adjustment screens, and the admin's own search box. None
+of the sidebar links to those sections do anything real yet if you click
+them — they 404, rather than showing a half-built page.
+
+## Phase 6 onward: not started
 
 Cart, checkout, payments, the PC-builder's actual compatibility-checking
-logic, the admin screens working against real orders/products, content/
-SEO, analytics, automated testing (see the Playwright/axe item above),
-performance tuning, and launch — per `docs/17-ROADMAP-PHASES.md`.
+logic, content/SEO, analytics, automated testing (see the Playwright/axe
+item above), performance tuning, and launch — per
+`docs/17-ROADMAP-PHASES.md`.
