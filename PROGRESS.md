@@ -6,43 +6,43 @@ tracks against.
 
 ## Good morning — start here
 
-While you were asleep, the entire Phase 2 design system got built: every
-primitive, every layout piece, every commerce/PC-builder/admin component in
-the blueprint, plus a single page where you can see all of it at once. That's
-roughly 165 new component files across 9 commits, all passing type-checking,
-linting, and the existing test suite.
+While you were asleep: the entire Phase 2 design system got built (every
+component in the blueprint, plus a `/design` page to see them all), and then
+the backend half of Phase 3 — accounts, passwords, two-factor login, and
+who's-allowed-to-do-what — got built on top of it. Roughly 180 new files
+across 12 commits, all passing type-checking, linting, and the test suite.
 
 ### What you need to do this morning
 
 1. **Pull the changes and reinstall.** From the `CityComputer` folder:
    ```bash
-   git log --oneline -15   # see everything that landed overnight
-   pnpm install             # picks up the new "recharts" chart library
+   git log --oneline -20   # see everything that landed overnight
+   pnpm install             # picks up recharts, next-auth, argon2, otplib, qrcode, ioredis
    ```
-2. **Look at the result.** Run `pnpm dev` and open:
-   - `http://localhost:3000/design` — this is the big one. It's a single
-     page showing every button, card, form, product card, cart, PC-builder
-     screen piece, and admin screen piece in the whole design system, all in
-     one scrollable page with a jump-menu at the top. Click things — most of
-     it actually works (sorting, filters, dialogs, the quantity steppers,
-     etc.), not just pictures.
-   - `http://localhost:3000/` — the small homepage checkpoint from earlier,
-     unchanged.
-3. **One naming decision for you.** The blueprint document calls this page
-   `/_design`. It turns out Next.js (the framework) treats any folder name
-   starting with an underscore as "private" and refuses to make it into a
-   real web page — so I built it at `/design` instead (no underscore) and
-   made sure it's marked "don't show this in Google search results." If you
-   want a different name, or want it protected behind a login later, just
-   say so — it's a five-minute rename.
-4. **Nothing is wired to real data yet.** Every single component you'll see
-   at `/design` (and everywhere else) is currently fed made-up example data
-   — fake product names, fake prices, fake orders. That's expected at this
-   stage. Connecting it to your real database is the next phase.
-5. **No action needed on the database.** That part was already finished in
-   an earlier session and doesn't change tonight's work.
+2. **Start Redis and Postgres if they aren't already running** — logins,
+   rate limiting, and two-factor all depend on Redis now, not just the
+   database:
+   ```bash
+   docker compose up -d
+   ```
+3. **Look at the design system.** Run `pnpm dev` and open:
+   - `http://localhost:3000/design` — every button, card, product card,
+     cart, PC-builder piece, and admin piece in one scrollable page. Click
+     things — most of it actually works, not just pictures.
+   - `http://localhost:3000/` — the small homepage checkpoint, unchanged.
+4. **There are no login/signup pages to click through yet.** Tonight's
+   Phase 3 work is the _backend_ only — password checking, two-factor
+   codes, session rules, who-can-do-what. The actual pages someone would
+   type their email and password into don't exist yet (see "what's left"
+   below). Nothing to click there today.
+5. **One naming decision from earlier, still true.** The blueprint calls
+   the showcase page `/_design`; it's built at `/design` instead because of
+   a Next.js naming rule. Say the word if you'd rather rename it.
+6. **Nothing is wired to real product/order data yet.** Every component at
+   `/design` still uses made-up example data. That's expected — connecting
+   it to your real database is a later phase.
 
-If anything at `/design` looks visually broken to you (not "unfinished," but
+If anything at `/design` looks visually broken (not "unfinished," but
 actually wrong — overlapping text, colours that don't match, something
 unreadable), that's the most useful thing to flag, since it's a full visual
 review in one place.
@@ -123,20 +123,60 @@ know about:
   follow-up once you have a sense of how many real parts you'll actually
   list.
 
-## Phase 3 — Data Layer & Auth: partly done
+## Phase 3 — Data Layer & Auth: schema done; auth backend done; auth pages not started
 
-**Done:** the full database design (`prisma/schema/*.prisma`, ~75 models),
-the manual SQL constraints, the one shared database-connection file, and the
-seed data (roles, branches, categories, ~10 demo products, ~22 PC-builder
-parts). This was finished in an earlier session, before tonight, and hasn't
-changed.
+**Database (done, from an earlier session, unchanged tonight):** the full
+database design (`prisma/schema/*.prisma`, ~75 models), the manual SQL
+constraints, the shared database-connection file, and the seed data (roles,
+branches, categories, demo products, PC-builder parts).
 
-**Not done:** logging in and creating accounts (Auth.js), password security,
-who's-allowed-to-do-what rules (RBAC), the extra security step for staff
-logins (two-factor), and the actual login/signup pages. This is real,
-security-sensitive work that's best done with fresh attention rather than
-tacked onto an overnight session — deliberately left for you to kick off
-when you're ready, rather than rushed.
+**Auth backend (done tonight):**
+
+- Passwords: hashed with Argon2id at the security-doc's minimum strength,
+  checked against a real breach database (Have I Been Pwned) when
+  registering or changing one, with a small offline backup list if that
+  check can't reach the internet.
+- Two-factor login: generates the QR code an authenticator app scans,
+  verifies the 6-digit codes, and enforces it for the two most powerful
+  staff roles (Owner, Manager) — anyone else can turn it on but isn't
+  forced to.
+- Login/signup/password-reset: the actual account-creation, email
+  verification, and "forgot password" logic — built to never reveal
+  whether a given email/phone is already registered (a real security
+  property, not just a nice-to-have).
+- Rate limiting: 5 login attempts per 15 minutes per IP address and per
+  account, matching the security document's limits.
+- Who's-allowed-to-do-what (RBAC): every admin action will check a
+  specific permission (like "can approve payments") rather than just "is
+  this person staff" — the building blocks for that check are done.
+- Staff session rules: staff logins expire after 8 hours no matter what,
+  and after 30 minutes of no activity — customer logins stay signed in for
+  30 days like a normal online shop.
+- The route-guarding logic (`middleware.ts`) that will block anyone
+  without the right role/2FA from ever reaching an admin page.
+
+**Not done — the actual pages:** there is no page yet where someone types
+an email and password, no signup form, no "forgot password" screen, no
+2FA setup screen. Everything above is the logic _behind_ those pages;
+building the pages themselves, and testing the whole login flow start to
+finish on a running app, is the next piece of this work.
+
+**Two things flagged rather than worked around, for you to know about:**
+
+- The "backup codes" you'd normally get when turning on two-factor login
+  (in case you lose your phone) aren't stored anywhere yet — there's
+  nowhere in the database for them to live, and adding that requires a
+  database change that needs internet access this working environment
+  didn't have. Turning on 2FA itself still works; the backup-code safety
+  net for it doesn't yet. Tracked so it isn't forgotten.
+- The two-factor secret key is stored as plain text in the database for
+  now — the security document asks for it to be encrypted, and that
+  encryption piece hasn't been built yet either.
+
+Automated "does the login page correctly block someone without
+permission" testing (what the blueprint calls the authorisation matrix)
+is also not done yet — same reasoning as the accessibility testing item
+below, it needs a real running app to test against.
 
 ## Phase 4 onward: not started
 
