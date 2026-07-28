@@ -33,6 +33,20 @@ export function generateBuildShortId(): string {
   return randomBase58(8, () => getRandomValues(8));
 }
 
+/**
+ * Generates a 32-character base58 guest-cart cookie value (docs/06-DATA-MODEL.md
+ * §6: `Cart.token`, "Cookie value"). Long enough (32 base58 chars is ~187
+ * bits of entropy) that it is not practically guessable/enumerable — a cart
+ * token doubles as the only credential a guest has for their own cart, so
+ * it needs the same "can't be brute-forced" property as the opaque session
+ * tokens in `lib/token.ts`, just generated locally instead of hashed for
+ * storage (a cart token is looked up directly, never hashed, since it
+ * carries no secret beyond "which cart is this browser's").
+ */
+export function generateCartToken(): string {
+  return randomBase58(32, () => getRandomValues(32));
+}
+
 function pad(n: number, width: number): string {
   return String(n).padStart(width, "0");
 }

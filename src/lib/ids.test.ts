@@ -4,6 +4,7 @@ import {
   formatOrderNumber,
   formatTicketNumber,
   generateBuildShortId,
+  generateCartToken,
   isValidOrderNumber,
   isValidTicketNumber,
 } from "./ids";
@@ -18,6 +19,19 @@ describe("generateBuildShortId", () => {
   it("generates different IDs across calls (probabilistically)", () => {
     const ids = new Set(Array.from({ length: 50 }, () => generateBuildShortId()));
     expect(ids.size).toBe(50);
+  });
+});
+
+describe("generateCartToken", () => {
+  it("generates a 32-character base58 string", () => {
+    const token = generateCartToken();
+    expect(token).toHaveLength(32);
+    expect(token).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32}$/);
+  });
+
+  it("generates different tokens across calls (probabilistically)", () => {
+    const tokens = new Set(Array.from({ length: 50 }, () => generateCartToken()));
+    expect(tokens.size).toBe(50);
   });
 });
 
