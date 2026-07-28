@@ -6,24 +6,26 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session: the product wizard, product list, photo library, and admin
-search are all real now.** You can add a product start to finish
-(`/admin/products/new`), the four steps the blueprint asked for, and it lands
-in a working product list (`/admin/products`) where you can change the price
-or stock number right in the row without opening anything. Photos really
-upload to storage now (there's a working "Photos" screen too,
-`/admin/media`), and typing into the search box in the admin top bar
-(`Ctrl/⌘K`) returns real matching products, brands, and categories as you
-type. See "Phase 5 continued — the product wizard..." below for the full,
-honest rundown, including what's simplified and what's still missing (bulk
-actions on the product list, the dedicated stock screens, a real photo-
-resizing pipeline).
+**Latest session: the dedicated stock screens landed, and so did the whole
+cart.** `/admin/inventory` now exists — search, an "almost out of stock" /
+"out of stock" filter, the real `+/−`/"Set…" stock control with its
+mandatory reason dialog, a plain-language stock history timeline per
+product, and a bulk-update dialog. Right after that: a real shopping cart.
+Add something to cart on any product page and it actually persists now — as
+a cookie for a browser that isn't signed in, in the database once someone
+is — the little cart icon in the header shows a real count, clicking it
+opens a real slide-out cart, and there's a real `/cart` page with a working
+quantity stepper, remove button, and coupon box. See "Phase 5e" and "Phase
+6" below for the full, honest rundown of what's simplified and what's
+still missing (mainly: nothing calls any of this at actual checkout time
+yet, because there is no checkout screen yet).
 
-Before that: Phase 4 (the whole storefront — homepage, category pages, brand
-pages, product pages, search) finished, and further back, the entire Phase 2
-design system and the backend half of Phase 3 (accounts, passwords,
-two-factor login, who's-allowed-to-do-what) got built. See the phase sections
-below for the fuller history.
+Before that: the product wizard, product list, photo library, and admin
+search all landed, and before that, Phase 4 (the whole storefront —
+homepage, category pages, brand pages, product pages, search) finished, and
+further back, the entire Phase 2 design system and the backend half of
+Phase 3 (accounts, passwords, two-factor login, who's-allowed-to-do-what)
+got built. See the phase sections below for the fuller history.
 
 ### What you need to do this morning
 
@@ -466,15 +468,95 @@ recording a reason, and the product list's filter buttons. 296 tests
 pass in total now (up from 271 this morning), alongside a clean
 type-check and lint.
 
-Still not built: the dedicated stock-adjustment screens (the `+/−`
-buttons, the "why did stock change" dialog, bulk stock updates from a
-spreadsheet) and the Activity History page itself (the write side is
-done — every change above already gets recorded — just not yet a screen
-to browse and search that history).
+Still not built as of that session: the dedicated stock-adjustment
+screens and the Activity History page itself (the write side is done —
+every change above already gets recorded — just not yet a screen to
+browse and search that history). The stock screens are done now — see
+the next section. The Activity History browsing page is still not built.
 
-## Phase 6 onward: not started
+## Phase 5e — the dedicated stock screens are real now
 
-Cart, checkout, payments, the PC-builder's actual compatibility-checking
-logic, content/SEO, analytics, automated testing (see the Playwright/axe
-item above), performance tuning, and launch — per
-`docs/17-ROADMAP-PHASES.md`.
+`/admin/inventory` — the screen the product list's inline price/stock
+quick-edit was always meant to be a smaller, faster sibling of, not a
+replacement for:
+
+- **Search and filter.** Type a product name or product code, or click
+  "Almost out of stock" / "Out of stock" to narrow the list.
+- **The real `+/−`/"Set…" stock control**, wired for the first time — it
+  was built earlier as a showcase piece but never connected to anything
+  real. Every single change, even clicking `+1`, opens the same
+  "why did this change?" dialog (Received new stock / Sold in shop /
+  Damaged / Correction / Returned) and writes a permanent record — there
+  is still no way to change a stock number without a reason, exactly as
+  the security document requires.
+- **"Stock history"** — click it on any row and see a plain-language
+  timeline: "27 Jul, 10:14 — Ramesh added 5 (Received new stock). Now
+  12," reading from the same Activity History log every other admin
+  change already writes to, not a separate record-keeping system.
+- **Bulk update** — select several rows, pick one reason and an optional
+  note, and change all of their stock numbers in one save. If one row
+  fails (e.g. someone deleted that product moments earlier), the rest
+  still go through — you're told exactly which one didn't.
+
+**Not built, flagged rather than faked:** uploading a spreadsheet to
+bulk-update stock (needs real spreadsheet-reading and a background job,
+both separate pieces of work), and the daily 9am "you're running low on
+these" email (there's no scheduled-job runner in the project yet to
+trigger it — the "Almost out of stock" filter and the dashboard tile
+are the low-stock warning that exists today).
+
+307 tests pass now (up from 296), including new ones for the stock
+history timeline and the bulk-update failure handling.
+
+## Phase 6 — Cart & Inventory: the cart is real; checkout is not next
+
+`docs/17-ROADMAP-PHASES.md` calls this phase's defining risk
+"overselling under concurrency" — two people trying to buy the last unit
+at the same time. That real, hard part (the reservation system) is built
+and tested; it just isn't switched on yet, because switching it on needs
+a checkout screen this project doesn't have.
+
+**What actually works right now, for real:**
+
+- **Add something to your cart on any product page** and it's genuinely
+  remembered — as a cookie if you're just browsing, or in the database
+  once you're signed in. Sign in after adding a few things as a guest
+  and everything you added is still there, combined with anything
+  already in your signed-in cart.
+- **The cart icon in the header shows a real count** and opens a real
+  slide-out cart preview — not the mockup version from the design
+  showcase.
+- **A real `/cart` page** — every item, a working "how many" stepper, a
+  remove button, and a coupon code box. Change the quantity or remove
+  something and it saves immediately, no separate "update cart" button.
+- **Prices and stock are always rechecked, live, every time you look at
+  your cart** — never trusted from whenever you first added the item.
+  If a price went up (or down) since you added something, or there's
+  suddenly less in stock than you have in your cart, you're told, right
+  there on the cart page — this is the exact "surface warnings if price
+  or stock changed" requirement from the plan.
+- **Coupon codes work** — percentage off, a fixed rupee amount off, or
+  free shipping, each checked against expiry dates, minimum order
+  amounts, and usage limits before it's accepted.
+
+**What's built and tested, but deliberately not switched on yet:** the
+system that actually holds stock aside once an order is placed (so two
+shoppers can't both "win" the last unit), and the job that would release
+that hold if someone abandons their order without paying. Both are real,
+correct, and covered by tests — they're just not called by anything yet,
+because there is no "place order" button anywhere in the project. Adding
+one is later work; wiring these two systems to it at that point is a
+small step, not a rebuild.
+
+**Two smaller things worth knowing:**
+
+- Coupons that are restricted to one category only match a product's
+  main category for now, not every category it happens to also be
+  listed under (a product can appear in more than one). A reasonable
+  first cut, noted in the code.
+- "Proceed to checkout" is on the cart page but greyed out — there's
+  genuinely nowhere for it to go yet.
+
+357 tests pass now (up from 307), and a clean type-check and lint.
+Checkout, payments, and the PC-builder's compatibility-checking logic
+are next, per `docs/17-ROADMAP-PHASES.md`.
