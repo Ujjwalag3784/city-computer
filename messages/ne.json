@@ -1,0 +1,45 @@
+{
+  "common": {
+    "siteName": "City Computer",
+    "addToCart": "कार्टमा थप्नुहोस्",
+    "viewDetails": "विवरण हेर्नुहोस्",
+    "outOfStock": "स्टकमा छैन",
+    "inStock": "स्टकमा छ",
+    "price": "मूल्य",
+    "loading": "लोड हुँदैछ…",
+    "seeAll": "सबै हेर्नुहोस्",
+    "backToShop": "पसलमा फर्कनुहोस्",
+    "noResults": "कुनै नतिजा फेला परेन",
+    "searchPlaceholder": "उत्पादन, ब्रान्ड, वा श्रेणी खोज्नुहोस्…"
+  },
+  "home": {
+    "featuredProducts": "विशेष उत्पादनहरू",
+    "shopByCategory": "श्रेणी अनुसार किन्नुहोस्",
+    "newArrivals": "नयाँ आइपुगेका"
+  },
+  "catalog": {
+    "filters": "फिल्टरहरू",
+    "sort": "क्रमबद्ध गर्नुहोस्",
+    "sortRelevance": "सान्दर्भिकता",
+    "sortPriceAsc": "मूल्य: कमबाट बढी",
+    "sortPriceDesc": "मूल्य: बढीबाट कम",
+    "sortNewest": "नयाँ",
+    "sortDiscount": "सबैभन्दा बढी छुट",
+    "resultsCount": "{count, plural, =0 {कुनै उत्पादन छैन} one {# उत्पादन} other {# उत्पादनहरू}}",
+    "clearFilters": "फिल्टरहरू हटाउनुहोस्",
+    "brand": "ब्रान्ड",
+    "availability": "उपलब्धता",
+    "priceRange": "मूल्य दायरा"
+  },
+  "product": {
+    "specifications": "स्पेसिफिकेसनहरू",
+    "relatedProducts": "तपाईंलाई यो पनि मन पर्न सक्छ",
+    "branchAvailability": "शाखामा उपलब्धता",
+    "warranty": "वारेन्टी",
+    "condition": "अवस्था"
+  },
+  "search": {
+    "resultsFor": "\"{query}\" को नतिजा",
+    "zeroResultsHint": "फरक खोज शब्द प्रयोग गर्नुहोस् वा श्रेणीहरू ब्राउज गर्नुहोस्।"
+  }
+}

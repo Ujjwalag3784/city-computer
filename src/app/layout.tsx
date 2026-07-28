@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
+import { getLocale } from "next-intl/server";
 import "./globals.css";
 
 // docs/05-DESIGN-SYSTEM.md §2 — three families, self-hosted via next/font
@@ -34,10 +35,32 @@ export const metadata: Metadata = {
   description: "Genuine Products. Best Prices. Laptops, PCs, components and repairs in Kathmandu.",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+/**
+ * This is the *true* Next.js root layout (owns `<html>`/`<body>`, the only
+ * place in the tree allowed to) — `src/app/[locale]/layout.tsx` nests
+ * inside it and adds the `NextIntlClientProvider`. Kept separate rather
+ * than merged because non-localized routes exist as siblings of
+ * `[locale]/` (`/design`, `/api/*`), and Next.js's App Router requires
+ * exactly one `<html>`/`<body>` pair for the whole tree — it has to live
+ * here, above the `[locale]` split, not inside it.
+ *
+ * `getLocale()` resolves correctly even from outside the `[locale]`
+ * segment: `middleware.ts`'s `next-intl` middleware sets the request-scoped
+ * locale for every matched path (including this root layout's render),
+ * and `src/i18n/request.ts` falls back to `routing.defaultLocale` for the
+ * few paths middleware doesn't touch (`/design`, `/api/*`).
+ *
+ * `dir` is intentionally omitted: neither `en` nor `ne` (Devanagari) is a
+ * right-to-left script, so there is no `dir="rtl"` case to branch on —
+ * unlike docs/04's "locale provider, direction, hreflang" comment might
+ * suggest, "direction" is a no-op for this specific locale pair.
+ */
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = await getLocale();
+
   return (
     <html
-      lang="en"
+      lang={locale}
       className={`dark ${GeistSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body>{children}</body>

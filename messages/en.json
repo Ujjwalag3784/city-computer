@@ -1,0 +1,45 @@
+{
+  "common": {
+    "siteName": "City Computer",
+    "addToCart": "Add to cart",
+    "viewDetails": "View details",
+    "outOfStock": "Out of stock",
+    "inStock": "In stock",
+    "price": "Price",
+    "loading": "Loading…",
+    "seeAll": "See all",
+    "backToShop": "Back to shop",
+    "noResults": "No results found",
+    "searchPlaceholder": "Search products, brands, categories…"
+  },
+  "home": {
+    "featuredProducts": "Featured products",
+    "shopByCategory": "Shop by category",
+    "newArrivals": "New arrivals"
+  },
+  "catalog": {
+    "filters": "Filters",
+    "sort": "Sort",
+    "sortRelevance": "Relevance",
+    "sortPriceAsc": "Price: low to high",
+    "sortPriceDesc": "Price: high to low",
+    "sortNewest": "Newest",
+    "sortDiscount": "Biggest discount",
+    "resultsCount": "{count, plural, =0 {No products} one {# product} other {# products}}",
+    "clearFilters": "Clear filters",
+    "brand": "Brand",
+    "availability": "Availability",
+    "priceRange": "Price range"
+  },
+  "product": {
+    "specifications": "Specifications",
+    "relatedProducts": "You may also like",
+    "branchAvailability": "Branch availability",
+    "warranty": "Warranty",
+    "condition": "Condition"
+  },
+  "search": {
+    "resultsFor": "Results for \"{query}\"",
+    "zeroResultsHint": "Try a different search term or browse categories instead."
+  }
+}
