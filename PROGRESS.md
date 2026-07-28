@@ -6,21 +6,24 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session: Phase 4 is now finished.** There are real pages to click
-through for the first time since the `/design` showcase: a homepage, category
-pages, brand pages, individual product pages, and a search results page — all
-showing live data from the database (the 20 dev-seed demo products, since
-that's all that's in there right now), with working filters, sorting, and
-pagination, and all switchable between English and Nepali. See "Phase 4 —
-Catalogue" below for the plain-language version and what's still missing
-(there's no "Add to cart" yet — that button exists but doesn't do anything
-real), or keep reading for the fuller history.
+**Latest session: the product wizard, product list, photo library, and admin
+search are all real now.** You can add a product start to finish
+(`/admin/products/new`), the four steps the blueprint asked for, and it lands
+in a working product list (`/admin/products`) where you can change the price
+or stock number right in the row without opening anything. Photos really
+upload to storage now (there's a working "Photos" screen too,
+`/admin/media`), and typing into the search box in the admin top bar
+(`Ctrl/⌘K`) returns real matching products, brands, and categories as you
+type. See "Phase 5 continued — the product wizard..." below for the full,
+honest rundown, including what's simplified and what's still missing (bulk
+actions on the product list, the dedicated stock screens, a real photo-
+resizing pipeline).
 
-Before that: the entire Phase 2 design system got built (every component
-in the blueprint, plus a `/design` page to see them all), and then the
-backend half of Phase 3 — accounts, passwords, two-factor login, and
-who's-allowed-to-do-what — got built on top of it. Roughly 180 new files
-across 12 commits, all passing type-checking, linting, and the test suite.
+Before that: Phase 4 (the whole storefront — homepage, category pages, brand
+pages, product pages, search) finished, and further back, the entire Phase 2
+design system and the backend half of Phase 3 (accounts, passwords,
+two-factor login, who's-allowed-to-do-what) got built. See the phase sections
+below for the fuller history.
 
 ### What you need to do this morning
 
@@ -367,9 +370,107 @@ and the admin's own search box.
   created, to avoid quietly breaking a link someone may have already
   shared.
 
-Still not built: the product wizard, the product list, stock screens,
-the photo library, and admin search — same list as above, just repeated
-so it's easy to find next time.
+Still not built (as of that session): the product wizard, the product
+list, stock screens, the photo library, and admin search. All but the
+dedicated stock screens are done now — see the next section.
+
+## Phase 5 continued — the product wizard, product list, photo library, and admin search are now real
+
+Tonight's session tackled the biggest piece of Phase 5: the four-step
+product wizard the blueprint calls the phase's centrepiece, plus the
+product list, the photo library, and wiring up the admin's search box.
+
+- **Adding a product is now a real, working four-step flow**
+  (`/admin/products/new`, or `/admin/products/[id]/edit` to come back to
+  one later):
+  1. **Basics** — name, a shorter title for product cards (with a
+     one-click "use this" suggestion), a description, brand, category,
+     "also show in" other categories, price and offer price (with a live
+     "Save 12%" badge), stock, a product code (auto-generated if left
+     blank), condition, and warranty. Typing a product name that's very
+     similar to one you already have shows a warning with a link to the
+     existing one — the exact "did you mean the MacBook you already
+     added?" protection the blueprint asked for.
+  2. **Photos** — drag and drop, or click to choose. Photos really upload
+     to storage now (not a placeholder), with each one getting an
+     editable description field.
+  3. **Details** — the spec sheet (Processor, RAM, Storage, etc.) fills
+     in automatically based on the category you picked in step 1, plus a
+     "+ Add another detail" button for anything the template doesn't
+     cover.
+  4. **Search info** — the page title and description Google will show,
+     pre-filled sensibly, with a live preview of what the Google result
+     will actually look like and a plain-language hint on whether it
+     looks good.
+  - **"Save as draft" works from any step**, and the whole thing
+    autosaves every 20 seconds while you're working, plus warns you if
+    you try to close the tab with unsaved changes.
+  - **Publishing checks itself first.** Click "Publish" and, if
+    something's missing (no photos yet, description a bit short), you
+    get a plain checklist and a choice — fix it now, or publish anyway.
+    A complete product just publishes immediately, no extra dialog in
+    the way.
+- **The product list (`/admin/products`) is a real screen.** Search,
+  seven filter buttons (All / Live / Not published / Out of stock /
+  Almost out of stock / No photo / On offer), and — the part people will
+  use daily — you can change a product's price or stock number right in
+  the table, no separate page needed. A price change of more than 50%
+  gets a friendly "are you sure?" warning after saving, not before.
+- **The photo library (`/admin/media`) is a working screen** — every
+  photo you've ever uploaded, in one place, each with an editable
+  description. Upload photos here ahead of time if you want, or add them
+  straight from a product's own Photos step.
+- **The search box in the top bar actually searches now.** Press
+  `Ctrl/⌘K` or click it, type "HP," and real matching products, brands,
+  and categories show up grouped, as you type — not the empty box it was
+  before tonight.
+- **Every save above writes to Activity History**, same promise as every
+  other admin screen so far.
+
+**Simplifications made tonight, each flagged in the code, not hidden:**
+
+- The category and brand pickers in step 1 are a searchable list, not the
+  fancier expandable tree the blueprint pictured — there's no tree-picker
+  building block in the project yet, and a searchable list still finds
+  things fast.
+- Prices are typed as plain numbers with a रु sign in front and a
+  formatted preview underneath ("रु 1,54,900"), rather than the number
+  reformatting itself with commas while you're still typing it — that
+  live reformatting needs a specialised input the project doesn't have
+  yet.
+- Photos really upload and get stored for real, but the automatic
+  resizing/format-conversion/blurry-placeholder step the blueprint
+  describes isn't built yet — that needs a separate image-processing
+  tool and a background job. Photo descriptions are also a simple
+  placeholder ("HP Victus 15 photo") rather than software actually
+  looking at the picture and describing it — you're expected to edit it.
+- "Change many products at once" (bulk price changes, bulk publish, etc.)
+  on the product list isn't built yet — every row is edited one at a
+  time for now.
+- The duplicate-product-name warning and the storefront's search box both
+  depend on the same piece of database setup mentioned in earlier
+  sessions (`prisma/sql/manual-constraints.sql`) that still hasn't been
+  applied on a real database from this sandbox — both are built to use
+  it for real and will start working the moment that setup runs; until
+  then they quietly skip the check rather than erroring.
+- The search box's brand and category results currently take you to the
+  Brands/Categories list pages rather than jumping straight to that one
+  brand or category — those are edited via a pop-up on the list page
+  itself, and there's no way yet to link straight to "open this one's
+  edit pop-up." Product results do jump straight to the right page.
+
+Automated tests were added for the trickier logic behind tonight's work:
+the duplicate-name check's fallback behaviour, the publish checklist's
+pass/fail logic, the 50%-price-change warning, stock changes always
+recording a reason, and the product list's filter buttons. 296 tests
+pass in total now (up from 271 this morning), alongside a clean
+type-check and lint.
+
+Still not built: the dedicated stock-adjustment screens (the `+/−`
+buttons, the "why did stock change" dialog, bulk stock updates from a
+spreadsheet) and the Activity History page itself (the write side is
+done — every change above already gets recorded — just not yet a screen
+to browse and search that history).
 
 ## Phase 6 onward: not started
 
