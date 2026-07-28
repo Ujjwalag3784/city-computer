@@ -6,12 +6,15 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session:** Phase 4 got started — the site can now switch between
-English and Nepali (see "Phase 4 — Catalogue" below for what that does and
-doesn't cover yet), and all the database-querying logic a product listing
-or search page will need is built and tested. No new pages to click
-through yet; skip to "Phase 4 — Catalogue" below for the plain-language
-version, or keep reading for the fuller history.
+**Latest session: Phase 4 is now finished.** There are real pages to click
+through for the first time since the `/design` showcase: a homepage, category
+pages, brand pages, individual product pages, and a search results page — all
+showing live data from the database (the 20 dev-seed demo products, since
+that's all that's in there right now), with working filters, sorting, and
+pagination, and all switchable between English and Nepali. See "Phase 4 —
+Catalogue" below for the plain-language version and what's still missing
+(there's no "Add to cart" yet — that button exists but doesn't do anything
+real), or keep reading for the fuller history.
 
 Before that: the entire Phase 2 design system got built (every component
 in the blueprint, plus a `/design` page to see them all), and then the
@@ -189,17 +192,11 @@ permission" testing (what the blueprint calls the authorisation matrix)
 is also not done yet — same reasoning as the accessibility testing item
 below, it needs a real running app to test against.
 
-## Phase 4 — Catalogue: two pieces done (English/Nepali switching, and the
-
-data-fetching logic behind product pages); the actual pages not built yet
+## Phase 4 — Catalogue: done — English/Nepali switching, the data-fetching logic, and now real pages people can click through
 
 **English/Nepali site switching (done):** the site can now serve pages in
 English at the normal URL (`/`) and in Nepali at `/ne/...`, with the
-plumbing in place to translate any piece of text going forward. A
-placeholder homepage proves the whole chain works — real locale, real
-translated strings, the header/footer around it — but it's still a
-placeholder, not the real homepage with hero banners and product carousels
-(that needs the next piece below, plus more).
+plumbing in place to translate any piece of text going forward.
 
 One thing worth knowing: the existing header/footer/navigation
 (built in Phase 2) link around the site using a plain link component, not
@@ -213,7 +210,7 @@ right now nothing in the catalogue has Nepali translations yet either.
 **Product/category/brand/search data-fetching logic (done, with tests):**
 this is the "kitchen" work behind the counter — the actual database
 queries and business rules a product listing page, a category page, and
-a search box will call, none of which have a page to appear on yet:
+a search box call:
 
 - Given a category (like "Laptops → Gaming"), find every product in it
   and its sub-categories, in one query.
@@ -254,16 +251,56 @@ that call now.
   filter shows before checkout, and the simpler version is accurate
   enough for that.
 
-**Not done yet:** the actual pages someone would click through — the
-homepage with real content, category pages, product pages, the search
-results page. That's the next piece of this work, now that the data-
-fetching logic it needs exists.
+**The actual pages (done tonight):** every storefront page now exists and
+shows real data pulled live from the database — not mock data, not a
+placeholder:
 
-## Phase 4 remainder, and Phase 5 onward: not started
+- **Homepage** (`/`) — the top-level categories and a row of featured
+  products, both real.
+- **Category pages** (e.g. `/c/laptops/gaming`) — every product in that
+  category and its sub-categories, with a working filter sidebar (brand,
+  price range, spec filters like "16GB RAM"), sort dropdown, and page
+  numbers. Change a filter or the sort order and the page URL updates too
+  — so a filtered/sorted view can be bookmarked or shared, not just
+  clicked into from scratch each time.
+- **Brand pages** (e.g. `/b/hp`) — same filtering/sorting, scoped to one
+  brand instead of one category.
+- **Product pages** (e.g. `/p/hp-victus-15-...`) — photo gallery, pick a
+  configuration if the product has more than one (e.g. "16GB / 512GB" vs
+  "32GB / 1TB"), price and stock status for whichever one is picked, the
+  full spec sheet, and a "you may also like" row of related products.
+- **Search results page** (`/search?q=...`) — ranked results for whatever
+  someone typed, with the "no exact matches, try browsing instead"
+  message when nothing comes back.
 
-The storefront pages themselves (home, category, brand, product, search —
-see above), then: cart, checkout, payments, the PC-builder's actual
-compatibility-checking logic, the admin screens working against real
-orders/products, content/SEO, analytics, automated testing (see the
-Playwright/axe item above), performance tuning, and launch — per
-`docs/17-ROADMAP-PHASES.md`.
+Everything above is now genuinely clickable if you run `pnpm dev` on your
+own machine (this sandbox still can't run a full build far enough to try it
+itself — see "How to check any of this yourself" below).
+
+**Two things worth knowing about what's on the product page specifically:**
+
+- **"Add to cart" doesn't actually do anything yet.** The button is there
+  and behaves like a real button (it shows "Adding…" then "Added" when
+  clicked), but there's no shopping cart behind it yet — that's a later
+  phase (Cart & Inventory). Nothing is broken; it's just not wired to
+  anything real yet, on purpose.
+- **No customer reviews show up yet**, even for products that might have
+  some — reading reviews out of the database wasn't part of tonight's
+  scope (only products/categories/brands/search/filters were). Adding
+  that is a small, separate piece of follow-up work.
+
+One more small thing a careful reviewer might notice: while testing this,
+a real bug was caught (and fixed) by actually trying to build the site —
+four small files needed one extra line each to satisfy a Next.js
+technical requirement that only shows up at build time, not while writing
+or type-checking the code. Mentioned here mainly as a reminder of why
+tonight's work kept trying `pnpm build` at every step even though it
+can't finish in this sandbox: it still catches real problems along the
+way that the other checks (type-checking, linting, tests) don't.
+
+## Phase 5 onward: not started
+
+Cart, checkout, payments, the PC-builder's actual compatibility-checking
+logic, the admin screens working against real orders/products, content/
+SEO, analytics, automated testing (see the Playwright/axe item above),
+performance tuning, and launch — per `docs/17-ROADMAP-PHASES.md`.
