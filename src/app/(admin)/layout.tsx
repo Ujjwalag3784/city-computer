@@ -7,6 +7,7 @@ import { requireAdminSession } from "@/server/auth/guards";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { getTodayDashboardForRequest } from "@/server/services/admin/dashboard";
 import { badgeCountsFromDashboard, buildAdminNavItems } from "./_lib/nav";
+import { globalAdminSearchAction } from "./_actions";
 
 /**
  * `(admin)/layout.tsx` — docs/04-REPOSITORY-STRUCTURE.md: "role guard,
@@ -54,5 +55,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     badgeCountsFromDashboard(dashboard),
   );
 
-  return <AdminShell navItems={navItems}>{children}</AdminShell>;
+  return (
+    <AdminShell navItems={navItems} onSearch={globalAdminSearchAction}>
+      {children}
+    </AdminShell>
+  );
 }

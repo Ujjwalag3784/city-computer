@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -13,7 +14,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CommandDialog, CommandEmpty, CommandInput, CommandList } from "@/components/ui/command";
+import { GlobalSearch, type GlobalSearchGroup } from "@/components/admin/global-search";
 import { cn } from "@/lib/utils";
+
+/** Docs/09 §9: "Debounced 200ms, p95 < 150ms." */
+const SEARCH_DEBOUNCE_MS = 200;
 
 /**
  * AdminTopBar — docs/05-DESIGN-SYSTEM.md §8: "256px sidebar (sheet below
@@ -24,13 +29,22 @@ import { cn } from "@/lib/utils";
  * requires knowing whether focus is already in a text field elsewhere on
  * the page, which is out of scope for this isolated component).
  *
- * This is a shell, not live search: §9 goes on to describe grouped result
- * rows, but there is no backend search endpoint wired yet, so the
- * `CommandDialog` here renders a single `CommandEmpty` state. Debounced
- * result wiring is a later, data-layer phase.
+ * Live search: when a caller passes `onSearch` (`(admin)/layout.tsx` passes
+ * `globalAdminSearchAction` down through `AdminShell`, per that action's
+ * own header comment on the `components/` <-> `app/`/`server/` boundary),
+ * this debounces the `CommandInput` value by `SEARCH_DEBOUNCE_MS` and
+ * renders real grouped results via `<GlobalSearch>`. `shouldFilter={false}`
+ * is passed to `CommandDialog` because the results are already
+ * server-ranked per keystroke — a second client-side fuzzy pass on top
+ * would just hide server hits that don't happen to fuzzy-match `cmdk`'s
+ * own scorer (see `ui/command.tsx`'s `shouldFilter` doc comment). When
+ * `onSearch` is omitted, this falls back to the original static
+ * `CommandEmpty` placeholder — no caller is broken by the new prop being
+ * optional.
  *
- * Must be a Client Component: it owns the ⌘K dialog's open state and
- * attaches a global `keydown` listener to `window`.
+ * Must be a Client Component: it owns the ⌘K dialog's open state, the
+ * in-flight query/results state, and attaches a global `keydown` listener
+ * to `window`.
  *
  * Accessibility: the mobile hamburger and the "Back to site" affordance are
  * both real controls with visible or `aria-label`led text; the hamburger is
@@ -46,10 +60,18 @@ import { cn } from "@/lib/utils";
 export interface AdminTopBarProps {
   onMobileMenuClick?: () => void;
   userName?: string;
+  /** See the header comment above for why this is optional and what it wires up. */
+  onSearch?: (query: string) => Promise<GlobalSearchGroup[]>;
 }
 
-export function AdminTopBar({ onMobileMenuClick, userName = "Owner" }: AdminTopBarProps) {
+export function AdminTopBar({ onMobileMenuClick, userName = "Owner", onSearch }: AdminTopBarProps) {
+  const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [groups, setGroups] = useState<GlobalSearchGroup[]>([]);
+  // Guards against an older, slower request overwriting a newer one's
+  // results if responses arrive out of order.
+  const latestRequestId = useRef(0);
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
 
@@ -63,6 +85,46 @@ export function AdminTopBar({ onMobileMenuClick, userName = "Owner" }: AdminTopB
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!onSearch) return;
+    const trimmed = query.trim();
+    if (trimmed.length === 0) {
+      setGroups([]);
+      return;
+    }
+    const requestId = ++latestRequestId.current;
+    const timer = setTimeout(() => {
+      onSearch(trimmed)
+        .then((result) => {
+          if (requestId === latestRequestId.current) setGroups(result);
+        })
+        .catch(() => {
+          if (requestId === latestRequestId.current) setGroups([]);
+        });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [query, onSearch]);
+
+  const handleOpenChange = useCallback((open: boolean) => {
+    setSearchOpen(open);
+    if (!open) {
+      // Fresh box every time it's reopened, per docs/09 §9's example — it
+      // never shows a stale previous search.
+      setQuery("");
+      setGroups([]);
+    }
+  }, []);
+
+  const handleSelect = useCallback(
+    (href: string) => {
+      setSearchOpen(false);
+      setQuery("");
+      setGroups([]);
+      router.push(href);
+    },
+    [router],
+  );
 
   const initial = userName.charAt(0).toUpperCase() || "?";
 
@@ -99,10 +161,26 @@ export function AdminTopBar({ onMobileMenuClick, userName = "Owner" }: AdminTopB
         </button>
       </div>
 
-      <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
-        <CommandInput placeholder="Search orders, products, customers..." />
+      <CommandDialog open={searchOpen} onOpenChange={handleOpenChange} shouldFilter={false}>
+        <CommandInput
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Search orders, products, customers..."
+        />
         <CommandList>
-          <CommandEmpty>Type to search orders, products, and customers.</CommandEmpty>
+          {onSearch ? (
+            <GlobalSearch
+              groups={groups}
+              onSelect={handleSelect}
+              emptyMessage={
+                query.trim().length === 0
+                  ? "Type to search orders, products, and customers."
+                  : "No results found."
+              }
+            />
+          ) : (
+            <CommandEmpty>Type to search orders, products, and customers.</CommandEmpty>
+          )}
         </CommandList>
       </CommandDialog>
 

@@ -9,6 +9,7 @@ import {
   type AdminNavItem,
 } from "@/components/admin/admin-sidebar";
 import { AdminTopBar } from "@/components/admin/admin-topbar";
+import type { GlobalSearchGroup } from "@/components/admin/global-search";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,15 +41,20 @@ import { cn } from "@/lib/utils";
  * navigation` hook, not the locale-aware wrapper storefront components use.
  * A caller that already knows the active route (e.g. a test) can still
  * override it explicitly.
+ *
+ * `onSearch` is a pure passthrough to `AdminTopBar` (see that file's own
+ * doc comment) — `AdminShell` has no search state of its own to own.
  */
 
 export interface AdminShellProps {
   children: ReactNode;
   navItems?: AdminNavItem[];
   activeHref?: string;
+  /** Forwarded to `AdminTopBar` — see that component's own doc comment. */
+  onSearch?: (query: string) => Promise<GlobalSearchGroup[]>;
 }
 
-export function AdminShell({ children, navItems, activeHref }: AdminShellProps) {
+export function AdminShell({ children, navItems, activeHref, onSearch }: AdminShellProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const pathname = usePathname();
   const resolvedActiveHref = activeHref ?? pathname ?? undefined;
@@ -69,7 +75,7 @@ export function AdminShell({ children, navItems, activeHref }: AdminShellProps) 
       <AdminSidebar items={navItems} activeHref={resolvedActiveHref} />
 
       <div className="flex min-h-screen flex-1 flex-col">
-        <AdminTopBar onMobileMenuClick={() => setMobileSidebarOpen(true)} />
+        <AdminTopBar onMobileMenuClick={() => setMobileSidebarOpen(true)} onSearch={onSearch} />
         <main id="main-content" className="flex-1 overflow-y-auto bg-background p-4 lg:p-6">
           {children}
         </main>

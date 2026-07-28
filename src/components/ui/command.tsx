@@ -37,6 +37,19 @@ export interface CommandDialogProps extends React.ComponentPropsWithoutRef<typeo
    */
   title?: string;
   description?: string;
+  /**
+   * `cmdk`'s own `Command` root defaults to `true` — client-side fuzzy
+   * filtering of whatever `CommandItem`s happen to be rendered, against
+   * `CommandInput`'s current value. That's right for a static command
+   * list, but wrong for the admin global search box (docs/09-ADMIN-DAD-
+   * MODE.md §9): its results are already relevance-ranked server-side per
+   * keystroke, so a second client-side substring/fuzzy pass on top would
+   * just hide server results that don't happen to fuzzy-match `cmdk`'s own
+   * scorer. Callers doing remote/async search should pass `false`; the
+   * default stays `undefined` (i.e. `cmdk`'s own `true`) so the existing
+   * static-list usages (`/_design`'s command-palette demo) are unaffected.
+   */
+  shouldFilter?: boolean;
 }
 
 /**
@@ -48,6 +61,7 @@ export function CommandDialog({
   children,
   title = "Command palette",
   description = "Search for a command or admin page, then press Enter to run it.",
+  shouldFilter,
   ...props
 }: CommandDialogProps) {
   return (
@@ -57,7 +71,10 @@ export function CommandDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-label-mono-xs [&_[cmdk-group-heading]]:text-on-surface-variant">
+        <Command
+          shouldFilter={shouldFilter}
+          className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-label-mono-xs [&_[cmdk-group-heading]]:text-on-surface-variant"
+        >
           {children}
         </Command>
       </DialogContent>
