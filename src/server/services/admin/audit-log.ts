@@ -28,6 +28,20 @@ import "server-only";
 import { db } from "@/server/db";
 import type { Prisma } from "@/generated/prisma/client";
 
+/**
+ * The `{ id, email }` shape every admin mutation service needs to stamp
+ * an `AuditLog` row with who did it — deliberately just the two fields
+ * `recordAuditLog` actually stores (`actorId`/`actorEmail`), not a full
+ * `Session["user"]`, so a service function's signature doesn't imply it
+ * can read roles/permissions off this parameter (it can't — that check
+ * already happened before the actor got this far; see
+ * `server/auth/require-admin-permission.ts`).
+ */
+export interface AuditActor {
+  id: string;
+  email: string | null;
+}
+
 export interface RecordAuditLogInput {
   /** Null for system-initiated changes (jobs, webhooks) with no human actor. */
   actorId: string | null;
