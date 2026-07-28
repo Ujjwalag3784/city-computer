@@ -123,14 +123,14 @@ know about:
   follow-up once you have a sense of how many real parts you'll actually
   list.
 
-## Phase 3 — Data Layer & Auth: schema done; auth backend done; auth pages not started
+## Phase 3 — Data Layer & Auth: schema done; auth backend done and tested; auth pages not started
 
 **Database (done, from an earlier session, unchanged tonight):** the full
 database design (`prisma/schema/*.prisma`, ~75 models), the manual SQL
 constraints, the shared database-connection file, and the seed data (roles,
 branches, categories, demo products, PC-builder parts).
 
-**Auth backend (done tonight):**
+**Auth backend (done tonight, including tests):**
 
 - Passwords: hashed with Argon2id at the security-doc's minimum strength,
   checked against a real breach database (Have I Been Pwned) when
@@ -154,6 +154,10 @@ branches, categories, demo products, PC-builder parts).
   30 days like a normal online shop.
 - The route-guarding logic (`middleware.ts`) that will block anyone
   without the right role/2FA from ever reaching an admin page.
+- 187 automated tests covering all of the above (including "does
+  registering with an email that's already taken behave exactly like a
+  brand-new signup" and "does a wrong 2FA code get rejected without
+  marking the session verified") — up from 111 before tonight.
 
 **Not done — the actual pages:** there is no page yet where someone types
 an email and password, no signup form, no "forgot password" screen, no
