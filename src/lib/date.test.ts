@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   endOfKathmanduDay,
   formatKathmanduDate,
+  formatKathmanduDateTime,
   formatRelativeTime,
   isSameKathmanduDay,
   isTodayInKathmandu,
@@ -65,6 +66,20 @@ describe("formatKathmanduDate", () => {
   it("formats as DD Mon YYYY", () => {
     const date = new Date("2026-07-27T10:00:00.000Z");
     expect(formatKathmanduDate(date)).toBe("27 Jul 2026");
+  });
+});
+
+describe("formatKathmanduDateTime", () => {
+  it("formats as 'DD Mon, HH:mm' — docs/09 §6/§13's timeline examples", () => {
+    // 10:00 UTC == 15:45 Kathmandu
+    const date = new Date("2026-07-27T10:00:00.000Z");
+    expect(formatKathmanduDateTime(date)).toBe("27 Jul, 15:45");
+  });
+
+  it("uses 24-hour time, not 12-hour with am/pm", () => {
+    // 19:00 UTC == 00:45 Kathmandu the next day
+    const date = new Date("2026-07-27T19:00:00.000Z");
+    expect(formatKathmanduDateTime(date)).toBe("28 Jul, 00:45");
   });
 });
 

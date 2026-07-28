@@ -48,6 +48,22 @@ export function formatKathmanduDate(date: Date): string {
   }).format(date);
 }
 
+/** Formats a UTC instant as a Kathmandu-local `DD Mon, HH:mm` string, e.g. "27 Jul, 10:14" — docs/09-ADMIN-DAD-MODE.md §6/§13's timeline examples ("27 Jul, 10:14 — Ramesh added 5..."), which need the time of day `formatKathmanduDate` deliberately omits. */
+export function formatKathmanduDateTime(date: Date): string {
+  const datePart = new Intl.DateTimeFormat("en-GB", {
+    timeZone: KATHMANDU_TIME_ZONE,
+    day: "2-digit",
+    month: "short",
+  }).format(date);
+  const timePart = new Intl.DateTimeFormat("en-GB", {
+    timeZone: KATHMANDU_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+  return `${datePart}, ${timePart}`;
+}
+
 /** Formats a UTC instant as a relative "N minutes/hours/days ago" string, Kathmandu-aware only via wall time. */
 export function formatRelativeTime(date: Date, now: Date = new Date()): string {
   const diffMs = now.getTime() - date.getTime();
