@@ -88,6 +88,20 @@ export interface AdminSidebarProps {
 }
 
 /**
+ * `/admin` itself is matched exactly (every other route also starts with
+ * `/admin`, so a naive prefix match would light up "Today" everywhere).
+ * Every other row prefix-matches so a sub-route like `/admin/products/new`
+ * or `/admin/builder/rules` still highlights its parent row ("Products",
+ * "PC Builder") even though the row's own `href` points at that section's
+ * landing page, not every page under it.
+ */
+function isNavItemActive(itemHref: string, activeHref: string | undefined): boolean {
+  if (!activeHref) return false;
+  if (itemHref === "/admin") return activeHref === "/admin";
+  return activeHref === itemHref || activeHref.startsWith(`${itemHref}/`);
+}
+
+/**
  * The actual nav markup, shared by the desktop `<aside>` (`AdminSidebar`
  * below) and the mobile `Sheet` composed in `AdminShell`.
  */
@@ -107,7 +121,7 @@ export function AdminSidebarContent({
 
       <ul className="flex flex-1 flex-col gap-1 overflow-y-auto">
         {items.map((item) => {
-          const isActive = item.href === activeHref;
+          const isActive = isNavItemActive(item.href, activeHref);
           const Icon = item.icon;
           return (
             <li key={item.href}>
@@ -131,8 +145,11 @@ export function AdminSidebarContent({
 
       <Link
         href={HELP_ITEM.href}
-        aria-current={HELP_ITEM.href === activeHref ? "page" : undefined}
-        className={cn(navRowClasses, HELP_ITEM.href === activeHref && navRowActiveClasses)}
+        aria-current={isNavItemActive(HELP_ITEM.href, activeHref) ? "page" : undefined}
+        className={cn(
+          navRowClasses,
+          isNavItemActive(HELP_ITEM.href, activeHref) && navRowActiveClasses,
+        )}
       >
         <HELP_ITEM.icon className="size-5 shrink-0" />
         <span className="flex-1">{HELP_ITEM.label}</span>

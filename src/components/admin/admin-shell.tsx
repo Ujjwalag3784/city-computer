@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AdminSidebar,
@@ -31,6 +32,14 @@ import { cn } from "@/lib/utils";
  * heading would be redundant; the title still exists (not omitted) so Radix
  * has an accessible name for the dialog (docs/05 §5 A11-adjacent "every
  * dialog needs a name" rule, same as `MobileNav`'s `SheetTitle`).
+ *
+ * `activeHref` is optional: `(admin)/layout.tsx` (a Server Component, one
+ * level up) has no `usePathname()` of its own to hand down, so when the
+ * prop is omitted this falls back to reading the live pathname itself —
+ * admin is not localized (docs/04 §3), so this is the plain `next/
+ * navigation` hook, not the locale-aware wrapper storefront components use.
+ * A caller that already knows the active route (e.g. a test) can still
+ * override it explicitly.
  */
 
 export interface AdminShellProps {
@@ -41,6 +50,8 @@ export interface AdminShellProps {
 
 export function AdminShell({ children, navItems, activeHref }: AdminShellProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const pathname = usePathname();
+  const resolvedActiveHref = activeHref ?? pathname ?? undefined;
 
   return (
     <div className="flex min-h-screen">
@@ -55,7 +66,7 @@ export function AdminShell({ children, navItems, activeHref }: AdminShellProps) 
         Skip to content
       </a>
 
-      <AdminSidebar items={navItems} activeHref={activeHref} />
+      <AdminSidebar items={navItems} activeHref={resolvedActiveHref} />
 
       <div className="flex min-h-screen flex-1 flex-col">
         <AdminTopBar onMobileMenuClick={() => setMobileSidebarOpen(true)} />
@@ -69,7 +80,7 @@ export function AdminShell({ children, navItems, activeHref }: AdminShellProps) 
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation</SheetTitle>
           </SheetHeader>
-          <AdminSidebarContent items={navItems} activeHref={activeHref} />
+          <AdminSidebarContent items={navItems} activeHref={resolvedActiveHref} />
         </SheetContent>
       </Sheet>
     </div>
