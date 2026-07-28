@@ -110,6 +110,29 @@ export class ValidationError extends AppError {
   }
 }
 
+/** Minimal shape of a Zod v4 `ZodError["issues"]` entry — avoids importing the `zod` type just for this. */
+interface ZodLikeIssue {
+  path: (string | number)[];
+  code: string;
+  message: string;
+}
+
+/**
+ * Every service function that does `schema.safeParse(input)` converts a
+ * failure the same way: one `ValidationError` with one `AppErrorFieldIssue`
+ * per Zod issue, so the RFC 9457 body's `errors` array always has the same
+ * shape regardless of which schema produced it.
+ */
+export function validationErrorFromZodIssues(issues: readonly ZodLikeIssue[]): ValidationError {
+  return new ValidationError(
+    issues.map((issue) => ({
+      field: issue.path.join(".") || "root",
+      code: issue.code,
+      message: issue.message,
+    })),
+  );
+}
+
 export class NotFoundError extends AppError {
   constructor(entity: string) {
     super("NOT_FOUND", `${entity} not found`);

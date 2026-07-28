@@ -18,6 +18,7 @@ import { loginSchema } from "@/lib/validation/auth";
 import { verifyPassword } from "@/lib/password";
 import { normalizeNepalPhone } from "@/lib/nepal";
 import { rateLimit } from "@/server/rate-limit-store";
+import { getRequestIp } from "@/lib/request-ip";
 import { isAdminRoleKey, loadUserRoleAndPermissionKeys } from "@/server/auth/permissions";
 import {
   ADMIN_SESSION_ABSOLUTE_TTL_SECONDS,
@@ -146,15 +147,6 @@ function withAdminSessionPolicy(adapter: Adapter): Adapter {
  */
 const DUMMY_HASH_FOR_TIMING =
   "$argon2id$v=19$m=19456,t=2,p=1$MDAwMDAwMDAwMDAwMDAwMA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-
-function getRequestIp(request: Request): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const [first] = forwardedFor.split(",");
-    if (first?.trim()) return first.trim();
-  }
-  return request.headers.get("x-real-ip") ?? "unknown";
-}
 
 export const authConfig: NextAuthConfig = {
   adapter: wrapPrismaAdapter(),

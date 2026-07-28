@@ -1,0 +1,105 @@
+/**
+ * TOTP 2FA enrollment and per-session verification — docs/13-SECURITY.md
+ * §2: "TOTP mandatory for OWNER and MANAGER, enforced in middleware."
+ *
+ * KNOWN GAP, deliberately not worked around: the ten single-use recovery
+ * codes docs/13 §2 also calls for ("hashed at rest, shown once") have
+ * nowhere to live. The schema (`prisma/schema/auth.prisma`) has no
+ * `RecoveryCode` model, and adding one needs `prisma generate`, which
+ * needs network access to Prisma's engine-binary CDN that this sandbox's
+ * policy blocks (see PROGRESS.md, and `session-state.ts`'s header for the
+ * same constraint hit for a different reason). Unlike the admin-session
+ * timing problem, this one genuinely isn't solvable with Redis instead —
+ * recovery codes are a durable secret a user might not use for months;
+ * Redis is a cache, not the right place to be the *only* copy of the one
+ * thing that gets someone back into their account. `lib/totp.ts`'s
+ * `generateRecoveryCodes`/`matchRecoveryCode` are already written and
+ * unit-tested, so wiring this up is a small, well-tested addition once
+ * that migration exists — tracked as a follow-up rather than faked here.
+ * Enrollment below only persists the TOTP secret; no recovery codes are
+ * generated or shown yet.
+ */
+import "server-only";
+import { db } from "@/server/db";
+import { totpVerifySchema } from "@/lib/validation/auth";
+import {
+  buildTotpKeyUri,
+  generateTotpQrCodeDataUrl,
+  generateTotpSecret,
+  verifyTotpToken,
+} from "@/lib/totp";
+import { AppError, NotFoundError, validationErrorFromZodIssues } from "@/lib/errors";
+import { markTwoFactorVerified } from "@/server/auth/session-state";
+
+export interface TwoFactorEnrollmentStart {
+  /** Not persisted until `confirmTwoFactorEnrollment` succeeds — an abandoned setup never leaves `twoFactorSecret` set-but-unverified. */
+  secret: string;
+  qrCodeDataUrl: string;
+}
+
+/** Step 1: generate a candidate secret and its scannable QR code. Caller must hold the secret (e.g. in a short-lived signed form field) to pass back into `confirmTwoFactorEnrollment`. */
+export async function startTwoFactorEnrollment(userId: string): Promise<TwoFactorEnrollmentStart> {
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundError("User");
+
+  const secret = generateTotpSecret();
+  const keyUri = buildTotpKeyUri(secret, user.email ?? user.phone ?? userId);
+  const qrCodeDataUrl = await generateTotpQrCodeDataUrl(keyUri);
+  return { secret, qrCodeDataUrl };
+}
+
+/** Step 2: the user enters a live code from their app, proving they actually scanned it before this account is committed to requiring 2FA going forward. */
+export async function confirmTwoFactorEnrollment(
+  userId: string,
+  secret: string,
+  input: unknown,
+): Promise<void> {
+  const parsed = totpVerifySchema.safeParse(input);
+  if (!parsed.success) {
+    throw validationErrorFromZodIssues(parsed.error.issues);
+  }
+
+  const valid = await verifyTotpToken(secret, parsed.data.token);
+  if (!valid) {
+    throw new AppError("VALIDATION_FAILED", "That code didn't match. Please try again.");
+  }
+
+  // docs/13 §15: "twoFactorSecret additionally application-encrypted." No
+  // application-layer encryption helper exists yet in this codebase —
+  // flagged rather than silently stored in cleartext-in-column without
+  // comment. Everything downstream (verifyTwoFactorForSession) reads this
+  // same column, so wiring encryption in later is a single-file change.
+  await db.user.update({ where: { id: userId }, data: { twoFactorSecret: secret } });
+}
+
+/**
+ * The per-login "second step": called after a password (or OAuth) sign-in
+ * succeeds but before `guards.ts`'s `requireAdminSession` will let an
+ * OWNER/MANAGER session through. Marks `session-state.ts`'s Redis flag on
+ * success — nothing else about the session changes.
+ */
+export async function verifyTwoFactorForSession(
+  sessionToken: string,
+  userId: string,
+  input: unknown,
+): Promise<void> {
+  const parsed = totpVerifySchema.safeParse(input);
+  if (!parsed.success) {
+    throw validationErrorFromZodIssues(parsed.error.issues);
+  }
+
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user?.twoFactorSecret) {
+    throw new AppError(
+      "VALIDATION_FAILED",
+      "Two-factor authentication is not enabled for this account.",
+    );
+  }
+
+  const valid = await verifyTotpToken(user.twoFactorSecret, parsed.data.token);
+  if (!valid) {
+    throw new AppError("VALIDATION_FAILED", "That code didn't match. Please try again.");
+  }
+
+  await markTwoFactorVerified(sessionToken);
+}
