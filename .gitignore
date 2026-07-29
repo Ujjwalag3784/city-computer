@@ -12,7 +12,14 @@ out/
 next-env.d.ts
 
 # production
+# Not `/build` at the repo root only — this is meant for a top-level build
+# output directory, but a bare `build/` pattern matches *any* directory
+# named "build" anywhere in the tree, which also swallows the real,
+# intentional PC Builder route source at `src/app/[locale]/(storefront)/build/`.
+# The two negations below carve that specific source path back out.
 build/
+!src/app/**/build/
+!src/app/**/build/**
 dist/
 
 # env
