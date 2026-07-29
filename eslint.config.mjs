@@ -66,11 +66,18 @@ const config = [
     },
   },
   {
-    files: ["src/env.ts"],
+    // src/env-core.ts holds the same process.env read, split out (with no
+    // `server-only` guard) so tsx-run scripts like `pnpm db:seed` can read
+    // validated config too — see that file's header comment.
+    files: ["src/env.ts", "src/env-core.ts"],
     rules: { "no-restricted-properties": "off" },
   },
   {
-    files: ["src/server/db.ts"],
+    // src/server/db/create-client.ts holds the same `new PrismaClient(...)`
+    // call, split out of db.ts so both the guarded app singleton and the
+    // unguarded seed-script client (src/server/db/seed-client.ts) can share
+    // one factory — see create-client.ts's header comment.
+    files: ["src/server/db.ts", "src/server/db/create-client.ts"],
     rules: { "no-restricted-syntax": "off" },
   },
   {

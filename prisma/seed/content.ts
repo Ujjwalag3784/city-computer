@@ -10,7 +10,7 @@
  * sign-off before go-live, per docs/06 §13.2 step 3's spirit ("owner
  * sign-off") even though that step is about the taxonomy, not policy text.
  */
-import { db } from "@/server/db";
+import { db } from "@/server/db/seed-client";
 
 function tiptapDoc(paragraphs: string[]) {
   return {

@@ -7,7 +7,7 @@
  * lists for 13 of the 15 templates — Projector is not itemised there; see
  * the judgment-call comment near its definition below).
  */
-import { db } from "@/server/db";
+import { db } from "@/server/db/seed-client";
 import { slugify } from "@/lib/slug";
 import type { Prisma } from "@/generated/prisma/client";
 

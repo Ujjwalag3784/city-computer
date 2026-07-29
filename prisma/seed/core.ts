@@ -23,7 +23,7 @@
  * or `@/server/...` imports, add a `tsconfig-paths/register` import or an
  * explicit `--tsconfig` flag to the `db:seed` script in package.json.
  */
-import { db } from "@/server/db";
+import { db } from "@/server/db/seed-client";
 import { rupeesToPaisa } from "@/lib/money";
 
 export async function seedCore() {

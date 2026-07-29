@@ -1,4 +1,11 @@
-import "server-only";
+// No `import "server-only"` here (deliberately — see
+// `../db/create-client.ts`'s header comment): this file is only ever
+// imported by `create-client.ts`, which is itself shared by both the
+// guarded app singleton (`@/server/db`) and the unguarded seed-script
+// client (`@/server/db/seed-client`, used by `tsx`-run `pnpm db:seed`).
+// Guarding this file too would make it impossible for the seed client to
+// use it at all, since `server-only` throws outside Next.js's bundler
+// regardless of which file in the chain carries the import.
 import { Prisma } from "@/generated/prisma/client";
 
 /**

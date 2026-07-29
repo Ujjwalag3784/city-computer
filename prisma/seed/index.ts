@@ -13,7 +13,7 @@
  * `pnpm db:seed` twice against the same database updates rather than
  * duplicates.
  */
-import { db } from "@/server/db";
+import { db } from "@/server/db/seed-client";
 import { seedCore } from "./core";
 import { seedTaxonomy } from "./taxonomy";
 import { seedCatalog } from "./catalog";

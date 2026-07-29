@@ -10,7 +10,7 @@
  * category's SpecTemplate.
  */
 import { createHash } from "node:crypto";
-import { db } from "@/server/db";
+import { db } from "@/server/db/seed-client";
 import { slugify } from "@/lib/slug";
 import { rupeesToPaisa } from "@/lib/money";
 

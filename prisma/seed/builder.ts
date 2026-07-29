@@ -37,7 +37,7 @@
  * of docs §4.2's 50 named checks are DB rows here vs. subsumed by the
  * generic connector pass vs. deferred.
  */
-import { db } from "@/server/db";
+import { db } from "@/server/db/seed-client";
 import { rupeesToPaisa } from "@/lib/money";
 import { parsePartSpecs, type BuilderPartType } from "@/lib/validation/builder/part-specs";
 import { RULE_CATALOGUE } from "@/server/services/builder/rule-catalogue";
