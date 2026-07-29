@@ -58,6 +58,8 @@ export const RATE_LIMIT_PRESETS = {
   otpVerify: { windowMs: 5 * 60 * 1000, max: 3 },
   cartMutation: { windowMs: 60 * 1000, max: 60 },
   checkoutPlace: { windowMs: 10 * 60 * 1000, max: 5 },
+  /** Guest order-tracking phone-verification guesses — docs/07 §3.5's `POST /api/v1/track`: "Rate limited 10/hour/IP." */
+  orderLookup: { windowMs: 60 * 60 * 1000, max: 10 },
   builderValidate: { windowMs: 60 * 1000, max: 120 },
   /** Media/receipt uploads — docs/13 §5 "20 uploads/hour/user". */
   upload: { windowMs: 60 * 60 * 1000, max: 20 },
