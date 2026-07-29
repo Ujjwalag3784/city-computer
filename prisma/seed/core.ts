@@ -109,33 +109,70 @@ async function seedSettings() {
       dataType: "NUMBER",
       isPublic: false,
     },
-    // Phase 9 (docs/17): EMI rates and feature switches — admin-configurable
-    // settings, not new gateway integration work. `payments.emiEnabled`
-    // gates whether the storefront should offer to show these at all;
-    // nothing reads it yet (no checkout EMI UI exists), same "flagged, not
-    // wired everywhere it could be" honesty as every other Phase 9 setting
-    // added ahead of its consumer.
+    // Phase 9 (docs/17) seeded these `isPublic: false`, since nothing read
+    // them yet (no EMI UI existed at all). Phase 10 builds the public
+    // `/emi-calculator` route against these same two keys, so both flip to
+    // `isPublic: true` here, and `emiRates`' shape changes from a single
+    // flat schedule to a per-bank tenure list — docs/17 Phase 10's own
+    // deliverable is "EMI calculator with per-bank tenures from settings
+    // (editable without deploy)," which a single shared schedule can't
+    // represent (real Nepali bank EMI terms genuinely differ by issuer, not
+    // just by tenure — docs/10-PAYMENTS-NEPAL.md §10's own bank table).
+    // Figures below are illustrative starting values seeded from that
+    // table; §10 itself warns "commercial terms that change without
+    // notice — reconfirm before publishing any figure on the site," which
+    // is exactly why they live here instead of in code.
     {
       key: "payments.emiEnabled",
-      value: false,
+      value: true,
       group: "payments",
-      label: "Offer instalment (EMI) plans",
-      helpText: "Shows instalment options to customers at checkout.",
+      label: "Show the EMI calculator to customers",
+      helpText: "Turns the public /emi-calculator page and its bank list on or off.",
       dataType: "BOOLEAN",
-      isPublic: false,
+      isPublic: true,
     },
     {
       key: "payments.emiRates",
       value: [
-        { months: 3, interestRatePercent: 0 },
-        { months: 6, interestRatePercent: 5 },
-        { months: 12, interestRatePercent: 9 },
+        {
+          bank: "Himalayan Bank",
+          tenures: [
+            { months: 12, interestRatePercent: 6.99, processingFeePercent: 0 },
+            { months: 24, interestRatePercent: 6.99, processingFeePercent: 0 },
+            { months: 36, interestRatePercent: 6.99, processingFeePercent: 0 },
+          ],
+        },
+        {
+          bank: "NIC Asia Bank (Insta Buy)",
+          tenures: [
+            { months: 3, interestRatePercent: 0, processingFeePercent: 1 },
+            { months: 12, interestRatePercent: 0, processingFeePercent: 2 },
+            { months: 24, interestRatePercent: 0, processingFeePercent: 3 },
+          ],
+        },
+        {
+          bank: "Siddhartha Bank",
+          tenures: [
+            { months: 6, interestRatePercent: 0, processingFeePercent: 1 },
+            { months: 12, interestRatePercent: 0, processingFeePercent: 1 },
+            { months: 18, interestRatePercent: 0, processingFeePercent: 1 },
+          ],
+        },
+        {
+          bank: "Nabil Bank",
+          tenures: [
+            { months: 3, interestRatePercent: 0, processingFeePercent: 0 },
+            { months: 6, interestRatePercent: 0, processingFeePercent: 0 },
+            { months: 9, interestRatePercent: 0, processingFeePercent: 0 },
+            { months: 12, interestRatePercent: 0, processingFeePercent: 0 },
+          ],
+        },
       ],
       group: "payments",
-      label: "Instalment plans",
-      helpText: "How many months, and the extra percentage charged for each.",
+      label: "Instalment plans by bank",
+      helpText: "Per-bank tenures, interest, and processing fee — edit any time, no deploy needed.",
       dataType: "JSON",
-      isPublic: false,
+      isPublic: true,
     },
     {
       key: "features.enableReviews",

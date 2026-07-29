@@ -71,6 +71,8 @@ export const RATE_LIMIT_PRESETS = {
   serviceBooking: { windowMs: 60 * 60 * 1000, max: 5 },
   /** Public ticket-status lookup by ticket number + phone digits (Phase 10) — mirrors `orderLookup`'s "guest guesses" limit exactly, since it's the same enumeration-resistance shape (docs/07 §3.5). */
   ticketStatusLookup: { windowMs: 60 * 60 * 1000, max: 10 },
+  /** Public EMI-calculator lead capture (Phase 10) — same reasoning as `contactForm`. */
+  emiLead: { windowMs: 60 * 60 * 1000, max: 5 },
 } as const satisfies Record<string, RateLimitConfig>;
 
 export type RateLimitPresetName = keyof typeof RATE_LIMIT_PRESETS;
