@@ -6,7 +6,22 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session: checkout is real. You can place an actual order now.**
+**Latest session: the PC Builder's brain is real — build, save, and share
+a build, and it actually checks compatibility.** A build can be created
+and saved part-by-part, and `/build/[shortId]` is a real page anyone with
+the link can open: parts list, price then-vs-now, a compatibility score,
+a power meter, a balance meter, every issue in plain language, and a
+working "Add to cart." Underneath, there's a genuine rule engine — 37
+database-driven compatibility rules plus a generic connector-satisfaction
+check — not a hardcoded checklist, tested against 19 golden builds
+including the specific "Micro-ATX board + 420mm cooler + flagship GPU in
+a Mini-ITX case" bad-build case this session asked for by name. What's
+still missing: the actual interactive builder screen (Guided/Standard/
+Expert modes, a live part picker, fix drawers) and the admin
+parts/rule-tester screen — see "Phase 8" below for the full, honest
+rundown.
+
+**Before that: checkout is real. You could place an actual order.**
 `/checkout` exists — a 3-step address / payment / review flow — and
 finishing it creates a real `Order` in the database, holds the stock aside
 (the reservation system Phase 6 built and tested but never switched on),
@@ -670,3 +685,113 @@ are built this pass, and nothing here pretends otherwise.
 394 tests pass now (up from 357), and a clean type-check and lint. The PC
 builder's compatibility-checking logic and the remaining online payment
 gateways are next, per `docs/17-ROADMAP-PHASES.md`.
+
+## Phase 8 — PC Builder Engine: the compatibility brain is real; the interactive builder screen isn't built yet
+
+This phase's own instruction scoped it to six things: the rule engine, the
+power/balance model, three builder modes with virtualized pickers, fix
+drawers and power warnings, a shareable build page with "Add to cart", and
+an admin parts/rule-tester screen. Payment gateways (eSewa/Khalti/Fonepay/
+connectIPS) stay deliberately deferred to the very end of the whole
+project, per this session's own instruction — not touched this pass.
+
+**What actually works right now, for real:**
+
+- **A real compatibility rule engine.** 37 `CompatibilityRule` rows,
+  covering CPU↔motherboard, RAM↔motherboard/CPU, GPU↔motherboard/case/PSU,
+  storage↔motherboard/case, cooler↔CPU/case, case↔motherboard/PSU, and
+  cross-build checks (bottleneck, budget, upgrade headroom, use-case fit).
+  Every rule is a declarative JSON expression row in the database, not
+  hardcoded `if` statements — an admin (or a future rule-tester screen)
+  could add a 38th rule without a code deploy. Five more real checks
+  (GPU/PSU connectors, storage/PSU SATA power, PSU/board EPS connectors,
+  case front-panel headers, cooler fan headers) are enforced by a separate
+  generic connector-satisfaction pass rather than one-rule-per-connector,
+  matching how the spec itself describes that part. One more (flagging
+  parts with unverified/inferred specs) is computed directly rather than
+  needing 16 near-identical rule rows. Six checks from the full spec are
+  genuinely not implemented yet (see below), not faked.
+- **A real power model**, with the "peak load can spike well above typical
+  draw" transient-headroom math (not just `CPU + GPU + 100W`), and a real
+  balance/bottleneck score comparing CPU and GPU strength, weighted by
+  what resolution you're targeting.
+- **19 golden-build tests**, including the specific one this session asked
+  for by name: a Micro-ATX motherboard with a 420mm liquid cooler and a
+  flagship graphics card crammed into a Mini-ITX case correctly produces
+  several real errors (wrong case size, GPU too long, radiator won't fit,
+  wrong PSU shape) rather than silently seeming fine. Plus 11 tests for
+  saving/editing a build and 413 tests total pass.
+- **You can build, save, and share a build.** A build can be created,
+  parts can be set slot-by-slot (each save re-runs the whole engine and
+  refreshes the build's compatibility score/power/balance figures), and
+  `/build/[shortId]` is a real, working shareable page — anyone with the
+  link sees the parts list, the price then-vs-now, the compatibility
+  score, power meter, balance meter, every issue in plain language, and a
+  working "Add to cart" button that adds every purchasable part and tells
+  you plainly which parts (if any) you'll need to source separately. An
+  anonymous shopper's build is protected by a cookie so only they can keep
+  editing it; a shared link is viewable and purchasable by anyone, like a
+  product page.
+- **The seed data was rewritten from scratch** to actually match a real
+  schema — the previous pass's placeholder parts used inconsistent,
+  made-up field names that didn't line up with any validation, and one of
+  its two case parts was missing the field a rule needed to check GPU
+  length against, meaning that rule silently never worked. Every part's
+  specs now go through the same real Zod validation the engine reads from,
+  so a typo in the seed data fails loudly instead of quietly breaking a
+  rule.
+
+**What's deliberately simplified or deferred, flagged rather than faked:**
+
+- **There's no interactive builder screen yet** — no `/build/new`, no
+  Guided/Standard/Expert mode switcher, no virtualized part-picker
+  (`@tanstack/react-virtual` isn't installed), no drag-through slot
+  workspace. The Server Actions and service layer everything like that
+  would call already exist and are tested; the screen that calls them
+  slot-by-slot with a live picker is the single biggest piece of this
+  phase still ahead.
+- **No Fix drawers wired up yet.** The `IssueRow`/`FixDrawer` components
+  from Phase 2 exist and the share page shows every issue in plain
+  language, but nothing yet opens a drawer of specific alternative parts
+  when you tap "Fix this" — that needs the picker/catalogue browsing UI
+  above to exist first.
+- **No admin "Buildable Parts" or "Rule Tester" screen yet.** Parts and
+  rules can only be added/edited by hand in the seed file or directly in
+  the database right now — there's no `/admin/builder` screen to manage
+  either one, and no UI for an admin to pick sample parts and see which
+  rules fire before saving a rule change.
+- **Six named checks from the spec's own rule list aren't implemented**,
+  each for a real, specific reason rather than being skipped for time:
+  two need tracking exactly which physical M.2 slot a drive occupies
+  (this pass's slot model doesn't go that granular yet); one needs
+  matching a GPU's video outputs against a monitor's inputs (monitors are
+  explicitly out of scope this pass); one needs knowing which case
+  position — front, top, rear — a radiator was actually mounted at
+  (nothing records that); and two need a live stock/price lookup at
+  validation time that this pass's engine doesn't make (it only reads the
+  part catalogue and the build's own saved snapshot).
+- **A build's price/stock never gets rechecked against what's live** once
+  saved — "the price changed since you saved this" and "a part in your
+  build just sold out" are both real, described checks that need that
+  live lookup wired in, which didn't happen this pass.
+- **No "Clone this build" button** on the share page yet, and no
+  versioned validation-snapshot history (`BuildRevision`/
+  `BuildValidationSnapshot` exist as database tables but nothing writes to
+  them) — every page read always re-runs the live engine instead, which
+  is correct but means there's no "undo" or "what changed" history yet.
+- **No per-resolution GPU benchmark data.** The balance model's formula is
+  implemented exactly as specified, but the GPU-strength figure it
+  compares against the CPU currently falls back to the same coarse 1-10
+  tier used everywhere else, not a real "this card's benchmark score at
+  1080p vs. 4K" figure — no such benchmark data has been sourced yet.
+- Only ~25 parts are seeded (a handful of CPUs/GPUs/motherboards/etc.,
+  plus three parts added specifically to make the mandatory bad-build test
+  above possible), well short of a real catalogue — same reduced-for-review
+  approach every earlier phase's placeholder seed data has taken.
+
+424 tests pass now (up from 394), and a clean type-check and lint. The
+interactive builder screen (three modes, virtualized pickers, fix drawers)
+and the admin parts/rule-tester screen are next, per
+`docs/17-ROADMAP-PHASES.md` — followed by the still-deferred payment
+gateways once every other feature area is complete, per this session's own
+instruction.
