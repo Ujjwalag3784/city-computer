@@ -99,12 +99,16 @@ export function ProductGrid({
 
   return (
     <div className={layoutClassName}>
-      {products.map((product) => (
+      {products.map((product, index) => (
         <ProductCard
           key={product.slug}
           product={product}
           variant={variant}
           onAddToCart={() => onAddToCart?.(product)}
+          // First row only (docs/11 §7's image-SEO item) — `next/image`
+          // itself warns against marking every image `priority`, which
+          // would defeat the point.
+          priority={index < 3}
         />
       ))}
     </div>

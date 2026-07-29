@@ -49,6 +49,14 @@ export interface ProductCardProps {
   variant?: "grid" | "list" | "compact";
   onAddToCart?: () => void | Promise<void>;
   className?: string;
+  /**
+   * docs/11-SEO-STRATEGY.md §7's image-SEO acceptance item: the first
+   * handful of above-the-fold cards in a grid/rail should set `priority`
+   * on their `<Image>` so LCP doesn't wait on a lazy-loaded image. Callers
+   * (`ProductGrid`, `CatalogListing`) set this for roughly the first row;
+   * defaults to `false` so every existing call site is unaffected.
+   */
+  priority?: boolean;
 }
 
 /** Shared focus ring for the plain, non-`Button` `Link`s below (docs/05 §5 A9). */
@@ -60,6 +68,7 @@ export function ProductCard({
   variant = "grid",
   onAddToCart,
   className,
+  priority = false,
 }: ProductCardProps) {
   const href = `/p/${product.slug}`;
   const outOfStock = product.stockStatus === "out-of-stock";
@@ -80,6 +89,7 @@ export function ProductCard({
             fill
             sizes="(min-width: 1024px) 200px, 40vw"
             className="object-contain"
+            priority={priority}
           />
         </div>
         <span className="line-clamp-2 text-body-sm font-medium text-on-surface">
@@ -106,6 +116,7 @@ export function ProductCard({
               fill
               sizes="128px"
               className="object-contain"
+              priority={priority}
             />
           </div>
         </Link>
@@ -146,6 +157,7 @@ export function ProductCard({
             fill
             sizes="(min-width: 1024px) 33vw, 50vw"
             className="object-contain"
+            priority={priority}
           />
         </div>
         <CardContent className="flex flex-1 flex-col gap-1.5 pt-3">
