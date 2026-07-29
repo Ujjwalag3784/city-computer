@@ -17,6 +17,7 @@ import { db } from "@/server/db";
 import { TicketStatus } from "@/generated/prisma/client";
 import { NotFoundError, AppError } from "@/lib/errors";
 import { recordAuditLog, type AuditActor } from "@/server/services/admin/audit-log";
+import { buildTicketStatusMessage, queueTicketNotification } from "./ticket-notifications";
 
 const TICKET_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   [TicketStatus.RECEIVED]: [TicketStatus.DIAGNOSING, TicketStatus.CANCELLED],
@@ -93,4 +94,18 @@ export async function applyTicketTransition(
     before: { status: ticket.status },
     after: { status: to },
   });
+
+  // Ticket notifications (docs/17 Phase 10) — queued, never blocking this
+  // transition on a slow/failed notification write; see
+  // `ticket-notifications.ts`'s own doc comment for why this queues a real
+  // `Job` row rather than sending anything directly (no SMS/email provider
+  // exists in this codebase). Prefers email when the customer gave one,
+  // same "email if we have it, else SMS" precedent as every other guest
+  // contact-preference fallback in this codebase.
+  const message = buildTicketStatusMessage(ticket.ticketNumber, to, ticket.name);
+  if (ticket.email) {
+    await queueTicketNotification(ticketId, "email", ticket.email, message);
+  } else {
+    await queueTicketNotification(ticketId, "sms", ticket.phone, message);
+  }
 }

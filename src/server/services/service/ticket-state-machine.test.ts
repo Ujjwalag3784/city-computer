@@ -6,6 +6,7 @@ vi.mock("@/server/db", () => ({
   db: {
     serviceTicket: { findUnique: vi.fn(), update: vi.fn() },
     ticketEvent: { create: vi.fn() },
+    job: { create: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
@@ -26,6 +27,9 @@ beforeEach(() => {
   vi.mocked(db.serviceTicket.findUnique).mockReset();
   vi.mocked(db.serviceTicket.update).mockReset();
   vi.mocked(db.ticketEvent.create).mockReset();
+  vi.mocked(db.job.create)
+    .mockReset()
+    .mockResolvedValue({} as never);
   vi.mocked(db.$transaction).mockReset();
   vi.mocked(recordAuditLog).mockClear();
 });
@@ -100,6 +104,63 @@ describe("applyTicketTransition", () => {
     );
     expect(recordAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "service_ticket.status_changed" }),
+    );
+  });
+
+  it("queues an email notification when the ticket has an email address", async () => {
+    vi.mocked(db.serviceTicket.findUnique).mockResolvedValue({
+      id: "t1",
+      ticketNumber: "SVC-2607-0001",
+      status: TicketStatus.RECEIVED,
+      name: "Ramesh",
+      phone: "+9779800000000",
+      email: "ramesh@example.com",
+      completedAt: null,
+      collectedAt: null,
+    } as never);
+    vi.mocked(db.$transaction).mockImplementation((fn: unknown) =>
+      (fn as (tx: typeof db) => Promise<unknown>)(db),
+    );
+    vi.mocked(db.serviceTicket.update).mockResolvedValue({} as never);
+    vi.mocked(db.ticketEvent.create).mockResolvedValue({} as never);
+
+    await applyTicketTransition("t1", TicketStatus.DIAGNOSING, ACTOR);
+
+    expect(db.job.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: "ticket_notification",
+          payload: expect.objectContaining({ channel: "email", recipient: "ramesh@example.com" }),
+        }),
+      }),
+    );
+  });
+
+  it("falls back to SMS when the ticket has no email address", async () => {
+    vi.mocked(db.serviceTicket.findUnique).mockResolvedValue({
+      id: "t1",
+      ticketNumber: "SVC-2607-0001",
+      status: TicketStatus.RECEIVED,
+      name: "Ramesh",
+      phone: "+9779800000000",
+      email: null,
+      completedAt: null,
+      collectedAt: null,
+    } as never);
+    vi.mocked(db.$transaction).mockImplementation((fn: unknown) =>
+      (fn as (tx: typeof db) => Promise<unknown>)(db),
+    );
+    vi.mocked(db.serviceTicket.update).mockResolvedValue({} as never);
+    vi.mocked(db.ticketEvent.create).mockResolvedValue({} as never);
+
+    await applyTicketTransition("t1", TicketStatus.DIAGNOSING, ACTOR);
+
+    expect(db.job.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.objectContaining({ channel: "sms", recipient: "+9779800000000" }),
+        }),
+      }),
     );
   });
 });
