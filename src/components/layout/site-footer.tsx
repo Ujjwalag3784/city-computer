@@ -153,10 +153,18 @@ const COMPANY_LINKS: FooterLink[] = [
   { label: "Contact us", href: "/contact" },
 ];
 
+// Slugs match the real seeded `Page` rows (`prisma/seed/content.ts`) exactly
+// — these three previously pointed at slugs ("privacy"/"terms"/"returns")
+// that don't exist, a leftover from when this footer was presentational-only
+// (Phase 2). Fixed here now that `/pages/[slug]` (Phase 10) is a real route,
+// since it's exactly the kind of dead link the new menu broken-link checker
+// (`admin/menus.ts`) is meant to catch — this static footer isn't wired to
+// that checker, but there's no reason to leave a known-broken link sitting
+// next to it.
 const LEGAL_LINKS: FooterLink[] = [
-  { label: "Privacy policy", href: "/pages/privacy" },
-  { label: "Terms of service", href: "/pages/terms" },
-  { label: "Returns policy", href: "/pages/returns" },
+  { label: "Privacy policy", href: "/pages/privacy-policy" },
+  { label: "Terms of service", href: "/pages/terms-conditions" },
+  { label: "Returns policy", href: "/pages/refund-returns" },
 ];
 
 export function SiteFooter({ className }: SiteFooterProps) {

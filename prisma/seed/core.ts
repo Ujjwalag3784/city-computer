@@ -287,6 +287,8 @@ const PERMISSIONS = [
   "promotion:write",
   "post:write",
   "page:write",
+  "menu:write",
+  "faq:write",
   "builder-part:write",
   "builder-rule:write",
   "builder-build:view",
@@ -325,6 +327,8 @@ const ROLE_GRANTS: Record<string, PermissionKey[]> = {
     "promotion:write",
     "post:write",
     "page:write",
+    "menu:write",
+    "faq:write",
     "builder-build:view",
     "service-ticket:write",
     "enquiry:reply",
@@ -347,7 +351,7 @@ const ROLE_GRANTS: Record<string, PermissionKey[]> = {
     // No price:update, no product:create/delete, no coupon/promotion —
     // "No price editing, no deletes" (docs/09 §12).
   ],
-  CONTENT_EDITOR: ["media:write", "post:write", "page:write"],
+  CONTENT_EDITOR: ["media:write", "post:write", "page:write", "menu:write", "faq:write"],
   SUPPORT: ["order:view", "customer:view", "enquiry:reply"],
   TECHNICIAN: ["service-ticket:write", "builder-part:write", "builder-rule:write"],
   CUSTOMER: [],
