@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -9,10 +10,10 @@ import { cn } from "@/lib/utils";
 
 /**
  * PartPickerDrawer — docs/08-PC-BUILDER-ENGINE.md §9 "Part picker": "a drawer
- * (not a dropdown)... with thumbnails, a spec column set per part type,
- * debounced tokenised fuzzy search, faceted filters, sort including
- * performance-per-rupee, a 2–4 way compare, stock status, and full keyboard
- * + ARIA support."
+ * (not a dropdown)... virtualised (a 513-row case list must not lag), with
+ * thumbnails, a spec column set per part type, debounced tokenised fuzzy
+ * search, faceted filters, sort including performance-per-rupee, a 2–4 way
+ * compare, stock status, and full keyboard + ARIA support."
  *
  * Deliberate simplifications, called out rather than silently skipped:
  * - Fuzzy search, facets, and performance-per-rupee sort are all
@@ -22,16 +23,18 @@ import { cn } from "@/lib/utils";
  *   search-input + results-list *shell* only: a controlled-or-uncontrolled
  *   text input and a plain list of whatever `parts` it's handed. No fuzzy
  *   matching, faceting, sorting, or compare-selection logic lives here.
- * - **Virtualization**: §9 calls the picker "virtualised". At the time of
- *   writing, `package.json` has no list-virtualization dependency installed
- *   (no `react-window`, `@tanstack/react-virtual`, etc.), and installing a
- *   new dependency is out of scope for this component. The results list
- *   below is therefore a plain scrollable `map()` over `parts` — correct for
- *   small-to-medium result sets, but it will re-render every row and mount
- *   every `<Image>` regardless of scroll position for a large catalogue.
- *   This is an intentional, temporary stand-in: swap the list body for
- *   `@tanstack/react-virtual` (or similar) once real catalogue sizes per
- *   slot type are known, without changing this component's props.
+ *
+ * **Virtualization**: now real, via `@tanstack/react-virtual`'s
+ * `useVirtualizer` — this is the swap-in the file's own JSDoc previously
+ * flagged as a future step, landed without changing any of this
+ * component's exported props (`PartPickerDrawerProps` is untouched).
+ * `getScrollElement` points at the results container (`parentRef`); each
+ * row is measured dynamically via `measureElement` rather than assuming a
+ * fixed height, since `PartRow` can render a taller "incompatible" variant
+ * (an extra reason line) — `estimateSize` only seeds the initial guess
+ * before the real DOM heights are known. `overscan` renders a handful of
+ * off-screen rows above/below the viewport so fast scrolling doesn't show
+ * blank frames.
  *
  * Search is controlled via `searchQuery`/`onSearchChange` when the caller
  * supplies both; otherwise the `Input` falls back to local, uncontrolled
@@ -44,8 +47,9 @@ import { cn } from "@/lib/utils";
  * (`sm:max-w-lg`) since a part row needs room for a thumbnail, spec column,
  * stock badge, and price — more than the primitive's default `sm:max-w-sm`.
  *
- * `"use client"` — owns local search state (when uncontrolled) and renders
- * `PartRow`s, itself a Client Component with its own `onClick` handlers.
+ * `"use client"` — owns local search state (when uncontrolled), the
+ * virtualizer's scroll-container ref, and renders `PartRow`s, itself a
+ * Client Component with its own `onClick` handlers.
  */
 export interface PartPickerDrawerProps {
   open: boolean;
@@ -57,6 +61,11 @@ export interface PartPickerDrawerProps {
   onSearchChange?: (query: string) => void;
   className?: string;
 }
+
+/** Seed height (px) for a not-yet-measured row — a plain `PartRow` is ~72px (min-h-11 thumbnail + padding); the real height is measured per-row once mounted, so this only affects the very first paint's scrollbar estimate. */
+const ESTIMATED_ROW_HEIGHT_PX = 80;
+/** Rows rendered outside the visible viewport in each direction, so fast scrolling/keyboard paging doesn't flash blank space before the next row mounts. */
+const OVERSCAN_ROWS = 6;
 
 export function PartPickerDrawer({
   open,
@@ -76,6 +85,14 @@ export function PartPickerDrawer({
   const isControlled = typeof searchQuery === "string" && typeof onSearchChange === "function";
   const query = isControlled ? searchQuery : localQuery;
 
+  const scrollParentRef = useRef<HTMLDivElement | null>(null);
+  const virtualizer = useVirtualizer({
+    count: parts.length,
+    getScrollElement: () => scrollParentRef.current,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT_PX,
+    overscan: OVERSCAN_ROWS,
+  });
+
   function handleQueryChange(value: string) {
     if (isControlled) {
       onSearchChange?.(value);
@@ -86,7 +103,10 @@ export function PartPickerDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className={cn("w-full gap-4 sm:max-w-lg", className)}>
+      <SheetContent
+        side="right"
+        className={cn("flex w-full flex-col gap-4 sm:max-w-lg", className)}
+      >
         <SheetHeader>
           <SheetTitle>Choose a {slotLabel}</SheetTitle>
         </SheetHeader>
@@ -106,23 +126,39 @@ export function PartPickerDrawer({
           />
         </div>
 
-        {/*
-         * Plain scrollable list — see the virtualization note in this file's
-         * top-level JSDoc. Swap for a virtualized list body once catalogue
-         * sizes per slot are known; the surrounding drawer/search shell
-         * above does not need to change.
-         */}
-        <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
-          {parts.length === 0 ? (
-            <p className="py-8 text-center text-body-sm text-on-surface-variant">
-              No parts match your search.
-            </p>
-          ) : (
-            parts.map((part) => (
-              <PartRow key={part.id} part={part} onSelect={() => onSelect(part)} />
-            ))
-          )}
-        </div>
+        {parts.length === 0 ? (
+          <p className="py-8 text-center text-body-sm text-on-surface-variant">
+            No parts match your search.
+          </p>
+        ) : (
+          <div ref={scrollParentRef} className="flex-1 overflow-y-auto">
+            <div
+              style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}
+            >
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const part = parts[virtualRow.index];
+                if (!part) return null;
+                return (
+                  <div
+                    key={part.id}
+                    ref={virtualizer.measureElement}
+                    data-index={virtualRow.index}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    className="pb-2"
+                  >
+                    <PartRow part={part} onSelect={() => onSelect(part)} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
