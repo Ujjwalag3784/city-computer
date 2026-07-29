@@ -8,11 +8,13 @@ import { getTodayDashboardForRequest } from "@/server/services/admin/dashboard";
 
 /**
  * `/admin` — "Today" (docs/09-ADMIN-DAD-MODE.md §3/§4). Row 1 (four
- * `MetricTile`s) and Row 2 (the "what to do next" task list) only, per
- * the JUDGMENT CALL noted on `server/services/admin/dashboard.ts`: Rows
- * 3–5 (weekly/monthly comparisons, top-seller/recent lists, and the
- * optional collapsible charts) are a separate, later pass, not silently
- * dropped — flagged here and in PROGRESS.md.
+ * `MetricTile`s), Row 2 (the "what to do next" task list), Row 3 (this
+ * week/this month vs. the period before), and Row 4 (best sellers, most
+ * viewed, new customers, recent orders). Row 5 (the optional collapsible
+ * 30-day charts) is deliberately not built — see
+ * `server/services/admin/dashboard.ts`'s top-of-file note and
+ * PROGRESS.md's Phase 9 section for why that's a flagged deferral, not an
+ * oversight.
  *
  * §1's "section explainer" rule ("One short paragraph at the top of
  * every screen") is the `<p>` under the heading below.
@@ -22,7 +24,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminTodayPage() {
-  const { tiles, tasks } = await getTodayDashboardForRequest();
+  const { tiles, tasks, trends, lists } = await getTodayDashboardForRequest();
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,6 +83,94 @@ export default async function AdminTodayPage() {
           </ul>
         )}
       </Card>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {[trends.thisWeek, trends.thisMonth].map((trend) => (
+          <MetricTile
+            key={trend.label}
+            label={trend.label}
+            value={formatNPR(trend.revenuePaisa)}
+            helperLine={`${trend.ordersCount} order${trend.ordersCount === 1 ? "" : "s"} · Average order value ${formatNPR(trend.aovPaisa)}`}
+            href={trend.href}
+            trend={
+              trend.trendDirection
+                ? { direction: trend.trendDirection, label: trend.comparisonLabel }
+                : undefined
+            }
+          />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <DashboardListCard
+          title="Best sellers this week"
+          items={lists.bestSellers}
+          emptyMessage="Nothing has sold yet this week."
+        />
+        <DashboardListCard
+          title="Most viewed this week"
+          items={lists.mostViewed}
+          emptyMessage="No view data yet."
+        />
+        <DashboardListCard
+          title="New customers"
+          items={lists.recentCustomers}
+          emptyMessage="No customers yet."
+        />
+        <DashboardListCard
+          title="Recent orders"
+          items={lists.recentOrders}
+          emptyMessage="No orders yet."
+        />
+      </div>
     </div>
+  );
+}
+
+/**
+ * One Row-4 card — a title, a short plain-language list, and a
+ * "See all" link. `amountPaisa` is formatted here (`formatNPR`), never in
+ * the service, per `lib/money.ts`'s "formatting happens only at the edge"
+ * rule.
+ */
+function DashboardListCard({
+  title,
+  items,
+  emptyMessage,
+}: {
+  title: string;
+  items: {
+    id: string;
+    primaryLabel: string;
+    secondaryLabel: string;
+    amountPaisa?: number;
+    href: string;
+  }[];
+  emptyMessage: string;
+}) {
+  return (
+    <Card className="flex flex-col gap-3 p-[--space-card-padding]">
+      <h2 className="text-title text-on-surface">{title}</h2>
+      {items.length === 0 ? (
+        <p className="text-body-sm text-on-surface-variant">{emptyMessage}</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {items.map((item) => (
+            <li key={item.id}>
+              <Link
+                href={item.href}
+                className="flex flex-col gap-0.5 rounded px-1 py-1 text-body-sm hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container"
+              >
+                <span className="text-on-surface">{item.primaryLabel}</span>
+                <span className="text-body-sm text-on-surface-variant">
+                  {item.secondaryLabel}
+                  {typeof item.amountPaisa === "number" ? ` · ${formatNPR(item.amountPaisa)}` : ""}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }

@@ -2,13 +2,31 @@
  * The "Today" dashboard — docs/09-ADMIN-DAD-MODE.md §4. "Charts do not
  * answer a shop owner's questions. The dashboard answers them in words
  * and numbers, and charts come further down." This file builds Row 1
- * (four `MetricTile`s) and Row 2 (the "what to do next" task list) —
- * the two rows docs/09 §4 treats as the actual point of the page. Rows
- * 3–5 (this week/month comparisons, top-sellers/recent lists, and the
- * optional collapsible charts) are a deliberately separate, later pass:
- * every number on Row 1/2 answers a "do I need to act right now"
- * question with a single, cheap query; Row 3–5 are retrospective
- * reporting that can layer on top without changing this shape.
+ * (four `MetricTile`s), Row 2 (the "what to do next" task list), Row 3
+ * (this week/this month, compared like-for-like against the period
+ * before), and Row 4 (best sellers, most viewed, recent customers, recent
+ * orders). Row 5 (the optional collapsible 30-day charts) is NOT built —
+ * docs/17's own Phase 9 acceptance bar explicitly reads "with no chart
+ * required," so it's a real, flagged deferral rather than a silent one;
+ * every question the dashboard must answer is already covered in words
+ * and numbers above it.
+ *
+ * docs/12-ANALYTICS-MARKETING.md §9's rule — "raw events are rolled up
+ * nightly; dashboards query rollups, never raw events" — is honoured two
+ * different ways here, deliberately: money/order counts (Rows 1–3) read
+ * `Order`/`OrderItem` directly, because those ARE the first-party system
+ * of record, not a raw high-volume event stream, and every read is a
+ * single indexed range scan (the same "cheap, narrow, independent query"
+ * discipline Row 1 already established) — there is no separate
+ * `Order` rollup table to build here. "Most viewed products" (Row 4),
+ * by contrast, reads the real `ProductViewDaily` rollup table doc 12 §9
+ * defines for exactly this — nothing here computes it from raw page-view
+ * events. **Flagged, not faked:** nothing in this codebase writes to
+ * `ProductViewDaily` yet (product-page view tracking is doc 12/Phase 12
+ * scope, not built this pass), so this tile will show its real, honest
+ * empty state ("No view data yet") until that instrumentation exists —
+ * the query and the table are both genuinely wired, just currently fed
+ * by nothing.
  *
  * All money is integer paisa in, integer paisa out — `formatNPR` runs in
  * the page component, never here (`lib/money.ts`'s "formatting happens
@@ -24,7 +42,13 @@ import {
   PaymentStatus,
   TicketStatus,
 } from "@/generated/prisma/client";
-import { endOfKathmanduDay, startOfKathmanduDay } from "@/lib/date";
+import {
+  endOfKathmanduDay,
+  formatRelativeTime,
+  startOfKathmanduDay,
+  startOfKathmanduMonth,
+  startOfKathmanduWeek,
+} from "@/lib/date";
 
 /** Order statuses that mean "paid, but the shop hasn't shipped it yet" — the middle of the docs/09 §7 status tracker, before `SHIPPED`. */
 const AWAITING_SHIPMENT_STATUSES: OrderStatus[] = [
@@ -60,9 +84,45 @@ export interface TodayTask {
   count: number;
 }
 
+/**
+ * Row 3 — "This week"/"This month", each compared against the same
+ * number of days from the period immediately before it (not the whole
+ * prior period), so a Wednesday reading never gets unfairly compared
+ * against a full 7-day prior week — that would always read as a
+ * misleadingly large "down" swing early in the week.
+ */
+export interface PeriodTrend {
+  label: string;
+  ordersCount: number;
+  revenuePaisa: number;
+  aovPaisa: number;
+  comparisonLabel: string;
+  trendDirection: "up" | "down" | null;
+  href: string;
+}
+
+/** One row of Row 4's four lists. `amountPaisa`, when present, is formatted by the page (`formatNPR`) — never here. */
+export interface DashboardListItem {
+  id: string;
+  primaryLabel: string;
+  secondaryLabel: string;
+  amountPaisa?: number;
+  href: string;
+}
+
 export interface TodayDashboardData {
   tiles: TodayDashboardTiles;
   tasks: TodayTask[];
+  trends: {
+    thisWeek: PeriodTrend;
+    thisMonth: PeriodTrend;
+  };
+  lists: {
+    bestSellers: DashboardListItem[];
+    mostViewed: DashboardListItem[];
+    recentCustomers: DashboardListItem[];
+    recentOrders: DashboardListItem[];
+  };
 }
 
 interface LowStockCountRow {
@@ -132,6 +192,191 @@ async function countTicketsReadyForPickup(): Promise<number> {
 }
 
 /**
+ * Turns a current/previous paisa pair into the plain-language comparison
+ * docs/09 §2 asks for ("up 12%", never a bare number or a coloured arrow
+ * with no words). A previous period with nothing in it is a real,
+ * distinct case, not a divide-by-zero to hide — "more than before" and
+ * "the same as before" are both honestly worded rather than a fake "up
+ * ∞%" or a silently-skipped tile.
+ */
+export function formatPeriodComparison(
+  currentPaisa: number,
+  previousPaisa: number,
+): { label: string; direction: "up" | "down" | null } {
+  if (previousPaisa <= 0) {
+    return currentPaisa > 0
+      ? { label: "more than the period before (which had none)", direction: "up" }
+      : { label: "the same as the period before", direction: null };
+  }
+  const percent = Math.round(((currentPaisa - previousPaisa) / previousPaisa) * 100);
+  if (percent === 0) return { label: "about the same as the period before", direction: null };
+  return percent > 0
+    ? { label: `up ${percent}% from the period before`, direction: "up" }
+    : { label: `down ${Math.abs(percent)}% from the period before`, direction: "down" };
+}
+
+/** "CONFIRMED" -> "Confirmed", "PENDING_PAYMENT" -> "Pending payment" — same small transform `/admin/orders`'s own list page already uses locally, duplicated here rather than shared per this codebase's own precedent (see `orders.ts`'s doc comment) for keeping a Row-4 preview list decoupled from the full order-list page. */
+function titleCaseStatus(status: string): string {
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/** Same-length, immediately-preceding window: e.g. "this week so far" (Mon 00:00 -> now) compared against "last week, the same number of days in" (last Mon 00:00 -> last Mon + that many days). */
+function likeForLikePriorRange(periodStart: Date, priorPeriodStart: Date, now: Date) {
+  const elapsedMs = now.getTime() - periodStart.getTime();
+  return { start: priorPeriodStart, end: new Date(priorPeriodStart.getTime() + elapsedMs) };
+}
+
+async function getPeriodTrend(
+  label: string,
+  periodStart: Date,
+  priorPeriodStart: Date,
+  now: Date,
+  href: string,
+): Promise<PeriodTrend> {
+  const prior = likeForLikePriorRange(periodStart, priorPeriodStart, now);
+
+  const [currentAgg, currentCount, priorAgg, priorCount] = await Promise.all([
+    db.order.aggregate({
+      _sum: { paidPaisa: true },
+      where: { placedAt: { gte: periodStart, lte: now }, paymentStatus: { in: PAID_STATUSES } },
+    }),
+    db.order.count({ where: { placedAt: { gte: periodStart, lte: now } } }),
+    db.order.aggregate({
+      _sum: { paidPaisa: true },
+      where: {
+        placedAt: { gte: prior.start, lte: prior.end },
+        paymentStatus: { in: PAID_STATUSES },
+      },
+    }),
+    db.order.count({ where: { placedAt: { gte: prior.start, lte: prior.end } } }),
+  ]);
+  void priorCount;
+
+  const revenuePaisa = currentAgg._sum.paidPaisa ?? 0;
+  const priorRevenuePaisa = priorAgg._sum.paidPaisa ?? 0;
+  const comparison = formatPeriodComparison(revenuePaisa, priorRevenuePaisa);
+
+  return {
+    label,
+    ordersCount: currentCount,
+    revenuePaisa,
+    aovPaisa: currentCount > 0 ? Math.round(revenuePaisa / currentCount) : 0,
+    comparisonLabel: comparison.label,
+    trendDirection: comparison.direction,
+    href,
+  };
+}
+
+/** Orders that should never count toward "best sellers" — money that never actually changed hands. */
+const EXCLUDED_FROM_SALES_STATUSES: OrderStatus[] = [
+  OrderStatus.CANCELLED,
+  OrderStatus.PAYMENT_FAILED,
+];
+
+/** Row 4, "Best sellers this week" — summed `OrderItem.quantity` over the last 7 days, grouped by variant, then resolved to the parent product for display/link. A real, bounded (one week) aggregation over the actual sales ledger, not a guess. */
+async function listBestSellers(sevenDaysAgo: Date, now: Date): Promise<DashboardListItem[]> {
+  const rows = await db.orderItem.groupBy({
+    by: ["variantId"],
+    where: {
+      variantId: { not: null },
+      order: {
+        placedAt: { gte: sevenDaysAgo, lte: now },
+        status: { notIn: EXCLUDED_FROM_SALES_STATUSES },
+      },
+    },
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: "desc" } },
+    take: 5,
+  });
+  const variantIds = rows.map((row) => row.variantId).filter((id): id is string => id !== null);
+  if (variantIds.length === 0) return [];
+
+  const variants = await db.variant.findMany({
+    where: { id: { in: variantIds } },
+    select: { id: true, product: { select: { id: true, name: true } } },
+  });
+  const productByVariantId = new Map(variants.map((v) => [v.id, v.product]));
+
+  return rows
+    .map((row) => {
+      const product = row.variantId ? productByVariantId.get(row.variantId) : null;
+      if (!product) return null;
+      const qty = row._sum.quantity ?? 0;
+      return {
+        id: product.id,
+        primaryLabel: product.name,
+        secondaryLabel: `${qty} sold this week`,
+        href: `/admin/products/${product.id}/edit`,
+      } satisfies DashboardListItem;
+    })
+    .filter((item): item is DashboardListItem => item !== null);
+}
+
+/** Row 4, "Most viewed this week" — reads the `ProductViewDaily` rollup table (doc 12 §9), never raw page-view events. Returns `[]` (a real, honest empty state) until something writes to that table — see this file's own top-of-file note. */
+async function listMostViewed(sevenDaysAgo: Date): Promise<DashboardListItem[]> {
+  const rows = await db.productViewDaily.groupBy({
+    by: ["productId"],
+    where: { date: { gte: startOfKathmanduDay(sevenDaysAgo) } },
+    _sum: { views: true },
+    orderBy: { _sum: { views: "desc" } },
+    take: 5,
+  });
+  if (rows.length === 0) return [];
+
+  const products = await db.product.findMany({
+    where: { id: { in: rows.map((row) => row.productId) } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(products.map((p) => [p.id, p.name]));
+
+  return rows
+    .map((row) => {
+      const name = nameById.get(row.productId);
+      if (!name) return null;
+      return {
+        id: row.productId,
+        primaryLabel: name,
+        secondaryLabel: `${row._sum.views ?? 0} views this week`,
+        href: `/admin/products/${row.productId}/edit`,
+      } satisfies DashboardListItem;
+    })
+    .filter((item): item is DashboardListItem => item !== null);
+}
+
+async function listRecentCustomers(now: Date): Promise<DashboardListItem[]> {
+  const customers = await db.customer.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { id: true, name: true, phone: true, email: true, createdAt: true },
+  });
+  return customers.map((customer) => ({
+    id: customer.id,
+    primaryLabel: customer.name ?? customer.phone ?? customer.email ?? "Customer",
+    secondaryLabel: `Joined ${formatRelativeTime(customer.createdAt, now)}`,
+    href: `/admin/customers/${customer.id}`,
+  }));
+}
+
+async function listRecentOrders(): Promise<DashboardListItem[]> {
+  const orders = await db.order.findMany({
+    orderBy: { placedAt: "desc" },
+    take: 5,
+    select: { id: true, orderNumber: true, status: true, totalPaisa: true },
+  });
+  return orders.map((order) => ({
+    id: order.id,
+    primaryLabel: order.orderNumber,
+    secondaryLabel: titleCaseStatus(order.status),
+    amountPaisa: order.totalPaisa,
+    href: `/admin/orders/${order.id}`,
+  }));
+}
+
+/**
  * The full Today page in one call — every count below is deliberately a
  * separate, narrow query rather than one giant join, so a slow query on
  * one tile can't block the rest of the page and each count independently
@@ -177,6 +422,22 @@ export async function getTodayDashboard(now: Date = new Date()): Promise<TodayDa
     countUnreadEnquiries(),
     countTicketsReadyForPickup(),
   ]);
+
+  const weekStart = startOfKathmanduWeek(now);
+  const priorWeekStart = new Date(weekStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const monthStart = startOfKathmanduMonth(now);
+  const priorMonthStart = startOfKathmanduMonth(new Date(monthStart.getTime() - 1));
+  const sevenDaysAgo = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+
+  const [thisWeek, thisMonth, bestSellers, mostViewed, recentCustomers, recentOrders] =
+    await Promise.all([
+      getPeriodTrend("This week", weekStart, priorWeekStart, now, "/admin/orders"),
+      getPeriodTrend("This month", monthStart, priorMonthStart, now, "/admin/orders"),
+      listBestSellers(sevenDaysAgo, now),
+      listMostViewed(sevenDaysAgo),
+      listRecentCustomers(now),
+      listRecentOrders(),
+    ]);
 
   const ordersNeedingAttention = pendingBankTransfers + ordersPaidNotSent;
 
@@ -254,6 +515,8 @@ export async function getTodayDashboard(now: Date = new Date()): Promise<TodayDa
       almostOutOfStockCount,
     },
     tasks,
+    trends: { thisWeek, thisMonth },
+    lists: { bestSellers, mostViewed, recentCustomers, recentOrders },
   };
 }
 

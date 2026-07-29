@@ -20,6 +20,27 @@ function dashboardWithTasks(counts: Record<string, number>): TodayDashboardData 
       href: "/admin",
       count,
     })),
+    trends: {
+      thisWeek: {
+        label: "This week",
+        ordersCount: 0,
+        revenuePaisa: 0,
+        aovPaisa: 0,
+        comparisonLabel: "the same as the period before",
+        trendDirection: null,
+        href: "/admin/orders",
+      },
+      thisMonth: {
+        label: "This month",
+        ordersCount: 0,
+        revenuePaisa: 0,
+        aovPaisa: 0,
+        comparisonLabel: "the same as the period before",
+        trendDirection: null,
+        href: "/admin/orders",
+      },
+    },
+    lists: { bestSellers: [], mostViewed: [], recentCustomers: [], recentOrders: [] },
   };
 }
 
