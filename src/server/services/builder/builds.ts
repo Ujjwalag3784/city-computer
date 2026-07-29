@@ -69,14 +69,36 @@ interface OwnershipRow {
   sessionToken: string | null;
 }
 
-async function assertCanEditBuild(build: OwnershipRow, identity: CartIdentity): Promise<void> {
+/**
+ * The non-throwing half of the ownership check — exported so a page (e.g.
+ * `/build/[shortId]/edit`) can branch on "is this visitor allowed to edit"
+ * *before* rendering (redirecting a non-owner to the read-only
+ * `/build/[shortId]` share view instead of erroring), rather than only
+ * being able to find out by calling a mutation and catching
+ * `ForbiddenError`. `assertCanEditBuild` below is a thin wrapper of this
+ * for every mutation in this file, so the two can never drift on what
+ * "owns" means.
+ *
+ * NOTE: this reads (never writes) the `city_build_owner` cookie via
+ * `readBuildOwnerToken`, unlike `assertCanEditBuild`'s siblings which
+ * mutate through `ensureBuildOwnerToken` elsewhere — a page merely
+ * *checking* ownership must never mint a new anonymous-owner cookie for a
+ * build it doesn't actually own.
+ */
+export async function isBuildOwner(build: OwnershipRow, identity: CartIdentity): Promise<boolean> {
   if (identity.userId) {
     const customerId = await findOrCreateCustomerId(identity);
-    if (build.customerId === customerId) return;
-  } else if (build.sessionToken) {
-    const ownerToken = await readBuildOwnerToken();
-    if (ownerToken && ownerToken === build.sessionToken) return;
+    return build.customerId === customerId;
   }
+  if (build.sessionToken) {
+    const ownerToken = await readBuildOwnerToken();
+    return Boolean(ownerToken && ownerToken === build.sessionToken);
+  }
+  return false;
+}
+
+async function assertCanEditBuild(build: OwnershipRow, identity: CartIdentity): Promise<void> {
+  if (await isBuildOwner(build, identity)) return;
   throw new ForbiddenError("You can't edit this build.");
 }
 
@@ -241,6 +263,28 @@ export async function shareBuild(
   if (!build) throw new NotFoundError("Build");
   await assertCanEditBuild(build, identity);
   await db.build.update({ where: { id: buildId }, data: { visibility } });
+}
+
+/**
+ * Switches a build's `mode` (Guided/Standard/Expert) without touching any
+ * `BuildItem` — docs §9's "Mode is switchable at any time without losing
+ * the build" is true almost for free here, since `mode` only ever changes
+ * how `/build/[shortId]/edit` *presents* the same slot grid (see
+ * `ModeSelect`'s own doc comment); nothing about part selection is keyed
+ * off it. Ownership-gated exactly like `shareBuild`.
+ */
+export async function setBuildMode(
+  buildId: string,
+  mode: BuildMode,
+  identity: CartIdentity,
+): Promise<void> {
+  const build = await db.build.findUnique({
+    where: { id: buildId },
+    select: { customerId: true, sessionToken: true },
+  });
+  if (!build) throw new NotFoundError("Build");
+  await assertCanEditBuild(build, identity);
+  await db.build.update({ where: { id: buildId }, data: { mode } });
 }
 
 export interface AddBuildToCartResult {

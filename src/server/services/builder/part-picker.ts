@@ -268,3 +268,85 @@ export async function listCandidatePartsWithPriceDelta(
     priceDeltaPaisa: row.price - currentPrice,
   }));
 }
+
+/**
+ * Builds a `slotKey -> PartRowData` map for every part currently in a
+ * build — the `/build/[shortId]/edit` workspace's "filled slot" display
+ * (`BuilderSlotCard`'s `state: "filled"` case needs a real `PartRowData`,
+ * not just the raw `BuildItem`/`ComponentPart` rows `getBuildByShortId`
+ * returns). Reuses this file's own `genericSpecFragments`/`stockStatusFor`/
+ * `resolvePartImage` so a part's card here and its row in the picker/fix
+ * drawer never show different specs or a different image for the same
+ * part. `price` is deliberately the build's own frozen
+ * `unitPricePaisaSnapshot`, not a fresh live-variant read — the same figure
+ * `BuildItem` charges if added to cart, per this codebase's "snapshot
+ * price at selection time" rule (`builds.ts`'s `setBuildItem`).
+ */
+export async function getSelectedPartRows(buildId: string): Promise<Record<string, PartRowData>> {
+  const items = (await db.buildItem.findMany({
+    where: { buildId },
+    select: {
+      slotKey: true,
+      unitPricePaisaSnapshot: true,
+      part: {
+        select: {
+          id: true,
+          partType: true,
+          manufacturer: true,
+          model: true,
+          specs: true,
+          performanceTier: true,
+          benchmarkScore: true,
+          tdpWatts: true,
+          idleWatts: true,
+          loadWatts: true,
+          transientMultiplier: true,
+          lengthMm: true,
+          widthMm: true,
+          heightMm: true,
+          dataConfidence: true,
+          variantId: true,
+          connectors: { select: { direction: true, connectorType: true, quantity: true } },
+          variant: {
+            select: {
+              pricePaisa: true,
+              compareAtPricePaisa: true,
+              lowStockThreshold: true,
+              allowBackorder: true,
+              product: {
+                select: {
+                  media: {
+                    select: {
+                      role: true,
+                      media: { select: { cdnUrl: true, url: true, altText: true } },
+                    },
+                  },
+                },
+              },
+              stockLevels: { select: { quantity: true, reservedQuantity: true } },
+            },
+          },
+        },
+      },
+    },
+  })) as unknown as Array<{ slotKey: string; unitPricePaisaSnapshot: number; part: CandidateRow }>;
+
+  const rows: Record<string, PartRowData> = {};
+  for (const item of items) {
+    const candidate = item.part;
+    const imageAlt = `${candidate.manufacturer} ${candidate.model}`;
+    const image = resolvePartImage(candidate.variant?.product.media, imageAlt);
+    rows[item.slotKey] = {
+      id: candidate.id,
+      imageUrl: image.url,
+      imageAlt: image.alt,
+      name: imageAlt,
+      specs: genericSpecFragments(candidate),
+      price: item.unitPricePaisaSnapshot,
+      compareAtPrice: candidate.variant?.compareAtPricePaisa ?? undefined,
+      stockStatus: stockStatusFor(candidate.variant),
+      compatible: true,
+    };
+  }
+  return rows;
+}

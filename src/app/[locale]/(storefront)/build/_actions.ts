@@ -24,6 +24,7 @@ import {
   setBuildItem,
   removeBuildItem,
   shareBuild,
+  setBuildMode,
   addBuildToCart,
   type AddBuildToCartResult,
 } from "@/server/services/builder/builds";
@@ -33,6 +34,7 @@ import {
 } from "@/server/services/builder/validate-build";
 import {
   listCandidatePartsForSlot,
+  listCandidatePartsWithPriceDelta,
   type CandidatePartRow,
 } from "@/server/services/builder/part-picker";
 import { runStorefrontAction, type ActionResult } from "../_lib/action-result";
@@ -142,6 +144,22 @@ export async function shareBuildAction(input: unknown): Promise<ActionResult<voi
   });
 }
 
+const setBuildModeSchema = z.object({
+  buildId: z.string().min(1),
+  mode: z.enum(["GUIDED", "STANDARD", "EXPERT"]),
+});
+
+/** Backs `ModeSelect` on `/build/[shortId]/edit` — switching modes never touches `BuildItem`s, so this deliberately does NOT return a `BuildValidationReport` the way the item-mutating actions above do; the caller's existing report stays valid. */
+export async function setBuildModeAction(input: unknown): Promise<ActionResult<void>> {
+  return runStorefrontAction(async () => {
+    const parsed = setBuildModeSchema.safeParse(input);
+    if (!parsed.success) throw validationErrorFromZodIssues(parsed.error.issues);
+
+    const identity = await currentIdentity();
+    await setBuildMode(parsed.data.buildId, parsed.data.mode, identity);
+  });
+}
+
 const listPartsForSlotSchema = z.object({ buildId: z.string().min(1), slotKey: z.string().min(1) });
 
 /** Backs `PartPickerDrawer`/`FixDrawer` — a read-only candidate list, safe to call every time a drawer opens since it never writes to the DB (only `setBuildItemAction` persists a selection). */
@@ -152,6 +170,27 @@ export async function listPartsForSlotAction(
     const parsed = listPartsForSlotSchema.safeParse(input);
     if (!parsed.success) throw validationErrorFromZodIssues(parsed.error.issues);
     return listCandidatePartsForSlot(parsed.data.buildId, parsed.data.slotKey);
+  });
+}
+
+const listPartsForSlotWithDeltaSchema = z.object({
+  buildId: z.string().min(1),
+  slotKey: z.string().min(1),
+  currentPartId: z.string().min(1).optional(),
+});
+
+/** Backs `FixDrawer` (Task #74, docs §9 "each row expandable into a Fix drawer listing candidate parts with price deltas") — same candidate list as `listPartsForSlotAction`, each row additionally carrying `priceDeltaPaisa` vs. `currentPartId`'s price in that slot. */
+export async function listPartsForSlotWithDeltaAction(
+  input: unknown,
+): Promise<ActionResult<Array<CandidatePartRow & { priceDeltaPaisa: number }>>> {
+  return runStorefrontAction(async () => {
+    const parsed = listPartsForSlotWithDeltaSchema.safeParse(input);
+    if (!parsed.success) throw validationErrorFromZodIssues(parsed.error.issues);
+    return listCandidatePartsWithPriceDelta(
+      parsed.data.buildId,
+      parsed.data.slotKey,
+      parsed.data.currentPartId,
+    );
   });
 }
 
