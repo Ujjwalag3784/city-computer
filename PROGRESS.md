@@ -6,7 +6,20 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session: the admin is complete enough to actually run the shop
+**Latest session: the site now has real content, a service desk, and an
+EMI calculator — the last feature phase before payment gateways.** A
+real blog (Tiptap-authored, sanitised on render, categories/authors,
+reading time, related products), editable CMS pages and menus with a
+broken-link checker, FAQs, a store locator, a working contact form and
+double-opt-in newsletter signup, an online repair-booking flow with a
+public ticket-status lookup and queued status notifications, and a
+`/emi-calculator` reading real per-bank instalment terms from `Setting`
+so the owner can update them without a deploy. See "Phase 10" below for
+the full, honest rundown of what's real and what's deferred (a nightly
+broken-link sweep, FAQ product/category scoping, and PDP-level EMI
+wiring, among a few smaller items).
+
+**Before that: the admin is complete enough to actually run the shop
 day to day.** Every module docs/09-ADMIN-DAD-MODE.md describes is now a
 real screen backed by a real service: the "Today" dashboard, customers
 (with COD blocking and notes), coupons and campaigns, review moderation,
@@ -1084,3 +1097,151 @@ No Prisma schema changes were needed this phase beyond the five new
 from earlier phases with the right shape. Payment gateway integration
 code itself remains completely untouched, per every prior session's own
 instruction — still the last item for the whole project.
+
+## Phase 10 — Content, Blog & Service Desk: done, in priority order
+
+Worked in the priority order this session was explicitly given: blog
+first, then CMS pages/menus, then FAQs/store locator/contact, then
+service booking/status lookup/notifications, then the EMI calculator,
+with newsletter double opt-in folded into the FAQ/store-locator/contact
+batch since it shared the same "public form" shape. Every item in that
+list shipped — nothing was cut for budget this time, though several
+sub-pieces inside each item were deliberately narrowed and are flagged
+below rather than silently dropped.
+
+**The single biggest, pleasant surprise this phase:** every database
+model Phase 10 needed — `Post`/`PostCategory`/`PostAuthor`, `Page`,
+`Menu`/`MenuItem`, `Faq`, `NewsletterSubscriber`, `Branch` (already used
+by Phase 9's admin), and the full `ServiceTicket`/`TicketEvent` set —
+already existed in the schema since Phase 3, just unused by any real
+code path. **Zero new Prisma models, and zero `prisma generate`/
+migration steps, were needed this entire phase** — unlike the `RecoveryCode`
+gap flagged back in Phase 3, there was nothing here to ask you to run on
+a real machine.
+
+**Blog** (`62f8115`). A real Tiptap-authored editor
+(`components/admin/tiptap-editor.tsx`), but content is never trusted as
+raw HTML at any point: `lib/tiptap/schema.ts`'s `tiptapDocumentSchema`
+allow-lists a small, fixed set of node/mark types (paragraphs, headings,
+lists, blockquote, code block, image, bold/italic/underline/strike/code/
+link — with `isSafeHref` blocking anything except http(s)/relative/
+mailto), and `lib/tiptap/render.tsx` walks that validated JSON tree
+building real JSX per node — `dangerouslySetInnerHTML` is never used
+anywhere in this feature (or anywhere in the codebase; the project's own
+ESLint rule bans it outright). Reading time is computed server-side
+(`lib/tiptap/reading-time.ts`, 200wpm). `/admin/blog` has full post/
+category/author CRUD; `/blog`, `/blog/[slug]`, `/blog/category/[slug]`
+are the public routes, with related products resolved through the
+existing `catalog/product.ts` summary lookup, not a duplicated query.
+
+**CMS pages + menus** (`16b2e52`). `Page` CRUD reuses the exact same
+Tiptap-validation pattern as blog posts — one content-safety story, not
+two. Menus are the more interesting half: `MenuItem` rows can target a
+category, brand, page, or a raw URL, and `admin/menus.ts`'s
+`checkMenuLinks()` is a real, on-demand broken-link checker — entity-
+linked items are checked against live DB rows (category still active,
+brand still exists, page still published), a `url` item is pattern-
+matched against known internal route shapes and checked against the
+real DB, or given a real `HEAD` request (5s timeout) if external, with
+"unknown" (not "broken") on a network failure so a slow host is never
+mislabelled as a dead link. Reorder is up/down buttons, not drag-and-
+drop — flagged, not a silent simplification.
+
+**FAQs, store locator, contact, newsletter** (`3be7dbe`). `/faq` (with
+real `FAQPage` JSON-LD), `/stores` + `/stores/[slug]` (with `LocalBusiness`
+JSON-LD and real opening hours from Phase 9's `BranchHours`), a genuine
+`/contact` form (the first public path this codebase had into the
+`Enquiry` inbox Phase 9's admin already reads from — verified by
+grepping for `enquiry.create` before writing it), and newsletter double
+opt-in (`content/newsletter.ts`): a subscribe issues an opaque token
+stored the same way `auth/verify-email.ts` already does, confirming it
+flips `NewsletterSubscriber.status` to `CONFIRMED`, and — since no email
+provider exists anywhere in this codebase — the "email" is a structured
+`logger.info` call, an honest, flagged gap rather than a fake send.
+JSON-LD on both pages is embedded as `<script>` children text, never
+`dangerouslySetInnerHTML`, with a `</` → `<` escape against a
+literal `</script>` breakout. FAQs are general-only for now — no
+per-product/per-category FAQ scoping in the public list yet, even
+though the `Faq` model supports it.
+
+**Service booking, status lookup, notifications** (`bbaedd5`).
+`/service/book` creates a real `ServiceTicket` with no staff actor
+(`actorId: null`, a genuinely different write path from
+`admin/service-tickets.ts`'s staff-side `createTicket`, not a thin
+wrapper around it) and immediately queues a status notification.
+`/service/status` is the security-sensitive half: `getPublicTicketStatus`
+requires the ticket number **and** the last 4 digits of the phone number
+used to book — a wrong-phone-digits lookup throws the exact same
+`NotFoundError` as a nonexistent ticket number (unit-tested to assert the
+messages are byte-identical), so ticket numbers can't be enumerated one
+digit at a time. Notifications (`ticket-notifications.ts`) queue a real,
+durable `Job` row per status change rather than faking a send — same
+honesty precedent as the newsletter's confirmation email — and a future
+worker can drain `type: "ticket_notification"` jobs through a real SMS/
+email provider without touching any call site built this phase. The
+admin side (technician ticket views, the state machine) was already
+built in Phase 9 and needed no rework, just the two-line notification
+hook added to `applyTicketTransition`.
+
+**EMI calculator** (`19e6aba`). `/emi-calculator` reads real per-bank
+tenure/interest/fee data from the `payments.emiRates` `Setting` row —
+flipped to `isPublic: true` this phase (it was `isPublic: false` and
+unread by anything since Phase 9) and reshaped from a single flat
+schedule into a genuine per-bank tenure list, since real Nepali bank EMI
+terms differ by issuer, not just by tenure length (docs/10-PAYMENTS-
+NEPAL.md §10's own bank table). `lib/emi.ts`'s `calculateEmi` is a pure,
+paisa-safe function (asserts its principal via `assertPaisa`, rounds
+every output with `Math.round`) with its own unit tests, extracted so
+both this route and the pre-existing `components/commerce/emi-widget.tsx`
+share one calculation rather than drifting. A malformed admin edit to
+the settings JSON degrades to "no banks published" rather than 500ing
+the page — `getPublicEmiData` validates the stored JSON with a real Zod
+schema (`lib/validation/emi.ts`) before trusting it. The lead-capture
+step ("have someone call me") writes a `GENERAL` `Enquiry`, same inbox
+every other public form this phase feeds — docs/10 §10 is explicit this
+is "content and lead capture, not a payment method," so there is no
+checkout integration and none was attempted.
+
+**What's deliberately deferred, flagged rather than faked:**
+
+- **No nightly/scheduled broken-link sweep.** `checkMenuLinks()` is
+  real and correct but only runs on-demand from the admin screen — there
+  is still no scheduled-job runner in this project (same gap Phase 5e
+  flagged for low-stock emails).
+- **FAQ scoping to a specific product or category** isn't in the public
+  `/faq` list yet, even though `Faq.productId`/`Faq.categoryId` exist —
+  only general FAQs (`productId: null, categoryId: null`) are shown.
+- **Menu reorder is up/down buttons, not drag-and-drop.**
+- **No EMI badge or widget wired into the product detail page.**
+  `components/commerce/emi-widget.tsx` was already built (Phase 2, prop-
+  driven, never connected to real data) and is still only used in the
+  `/design` showcase — wiring a "starting from Rs X/month" badge into a
+  real PDP, and swapping `EmiWidget` itself onto the new per-bank-tenure
+  settings data, is real follow-up work, not done this pass.
+- **No real SMS/email transport anywhere** — ticket-status notifications
+  and the newsletter confirmation both queue/log rather than send, the
+  same honest gap every prior phase's PROGRESS.md section has flagged.
+- **Newsletter unsubscribe has no per-address token** — it's a simpler,
+  lower-severity flow than subscribe/confirm, flagged in
+  `content/newsletter.ts`'s own doc comment.
+- **No author avatar picker** in the blog admin — authors are text
+  fields (name/bio) only.
+
+**Testing and verification.** New unit tests were added alongside every
+new service module: `lib/tiptap/schema.test.ts`, `lib/tiptap/reading-
+time.test.ts`, `admin/blog.test.ts`, `admin/menus.test.ts` (including the
+broken-link checker's category/page/internal-url/external-url/empty-item
+scenarios), `content/newsletter.test.ts`, `service/ticket-notifications.
+test.ts`, `service/public-tickets.test.ts` (with an explicit enumeration-
+resistance assertion comparing error messages), `service/ticket-state-
+machine.test.ts` (extended with the new notification hook), `content/
+emi.test.ts` (including the malformed-JSON-degrades-safely case), and
+`lib/emi.test.ts`. The full suite now stands at **573 tests passing
+across 60 files**, with a clean `pnpm typecheck` and a clean `pnpm lint`
+(zero warnings, `--max-warnings=0`). Commits: `62f8115` (blog), `16b2e52`
+(CMS pages + menus), `3be7dbe` (FAQs/stores/contact/newsletter), `bbaedd5`
+(service booking/status/notifications), `19e6aba` (EMI calculator).
+
+Payment gateway integration itself remains completely untouched, per
+every prior session's own instruction — still the last item for the
+whole project.
