@@ -24,6 +24,17 @@ import { extractPlainText } from "@/lib/tiptap/schema";
 export const MIN_BLOG_POST_WORDS = 150;
 export const MIN_CMS_PAGE_WORDS = 150;
 
+/**
+ * docs/11 §6.5's own PDP row, verbatim: "120 words of unique description +
+ * >= 6 spec attributes + >= 2 real photos, else product ships `noindex`
+ * and appears in an admin 'Needs content' list." Unlike the blog/CMS
+ * floors above, this one isn't our own judgement call — it's the doc's
+ * exact numeric table.
+ */
+export const MIN_PRODUCT_DESCRIPTION_WORDS = 120;
+export const MIN_PRODUCT_SPEC_ATTRIBUTES = 6;
+export const MIN_PRODUCT_PHOTOS = 2;
+
 /** Counts words in a Tiptap JSON document's plain-text content. Whitespace-only or empty content counts as 0, never throws on a malformed/`null` doc. */
 export function countTiptapWords(doc: unknown): number {
   const text = extractPlainText(doc).trim();
@@ -42,4 +53,28 @@ export function isBlogPostIndexable(doc: unknown): boolean {
 
 export function isCmsPageIndexable(doc: unknown): boolean {
   return hasSubstantialContent(doc, MIN_CMS_PAGE_WORDS);
+}
+
+export interface ProductContentInput {
+  /** `Product.description` — the long-form Tiptap JSON body, not `shortDescription` (which is a one-line SERP snippet, not "unique description" copy). */
+  description: unknown;
+  specCount: number;
+  photoCount: number;
+}
+
+/**
+ * docs/11 §6.5's PDP thin-content gate. All three floors must clear
+ * independently — a product with a long description but only one photo
+ * still ships `noindex`, per the doc's "+" (not "or") between the three
+ * clauses. `photoCount` counts every `ProductMedia` row (this catalogue's
+ * `MediaRole` enum — `GALLERY`/`THUMBNAIL`/`BANNER`/`SPEC_SHEET` — has no
+ * non-photo/video role to exclude, so a plain count is exact, not an
+ * approximation).
+ */
+export function isProductIndexable(input: ProductContentInput): boolean {
+  return (
+    countTiptapWords(input.description) >= MIN_PRODUCT_DESCRIPTION_WORDS &&
+    input.specCount >= MIN_PRODUCT_SPEC_ATTRIBUTES &&
+    input.photoCount >= MIN_PRODUCT_PHOTOS
+  );
 }

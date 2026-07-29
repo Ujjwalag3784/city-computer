@@ -12,10 +12,23 @@
  * non-`PUBLISHED` posts/pages are never selected. Paginated URLs
  * (`?page=2+`) are deliberately never listed (§5.3: "Discoverable via
  * page-1 links") — only the canonical, unfiltered entity URL.
+ *
+ * Products/posts/pages get one more filter on top of the status check:
+ * §6.5's thin-content guard (`isProductIndexable`/`isBlogPostIndexable`/
+ * `isCmsPageIndexable`) is re-applied here so a thin `ACTIVE` product or
+ * `PUBLISHED` post/page — the exact case §6.5 says ships `noindex` — never
+ * lands in the sitemap either. This mirrors, rather than duplicates, the
+ * same gate each page's own `generateMetadata` applies; both read from
+ * the same `thin-content.ts` module so the two can't drift.
  */
 import "server-only";
 import { db } from "@/server/db";
 import { PostStatus, ProductStatus } from "@/generated/prisma/client";
+import {
+  isBlogPostIndexable,
+  isCmsPageIndexable,
+  isProductIndexable,
+} from "@/lib/seo/thin-content";
 
 export interface SitemapRow {
   slug: string;
@@ -23,11 +36,25 @@ export interface SitemapRow {
 }
 
 export async function listSitemapProducts(): Promise<SitemapRow[]> {
-  return db.product.findMany({
+  const rows = await db.product.findMany({
     where: { status: ProductStatus.ACTIVE, deletedAt: null },
-    select: { slug: true, updatedAt: true },
+    select: {
+      slug: true,
+      updatedAt: true,
+      description: true,
+      _count: { select: { specs: true, media: true } },
+    },
     orderBy: { slug: "asc" },
   });
+  return rows
+    .filter((row) =>
+      isProductIndexable({
+        description: row.description,
+        specCount: row._count.specs,
+        photoCount: row._count.media,
+      }),
+    )
+    .map((row) => ({ slug: row.slug, updatedAt: row.updatedAt }));
 }
 
 export async function listSitemapCategories(): Promise<SitemapRow[]> {
@@ -48,19 +75,25 @@ export async function listSitemapBrands(): Promise<SitemapRow[]> {
 }
 
 export async function listSitemapPosts(): Promise<SitemapRow[]> {
-  return db.post.findMany({
+  const rows = await db.post.findMany({
     where: { status: PostStatus.PUBLISHED, deletedAt: null },
-    select: { slug: true, updatedAt: true },
+    select: { slug: true, updatedAt: true, content: true },
     orderBy: { slug: "asc" },
   });
+  return rows
+    .filter((row) => isBlogPostIndexable(row.content))
+    .map((row) => ({ slug: row.slug, updatedAt: row.updatedAt }));
 }
 
 export async function listSitemapPages(): Promise<SitemapRow[]> {
-  return db.page.findMany({
+  const rows = await db.page.findMany({
     where: { status: PostStatus.PUBLISHED, deletedAt: null },
-    select: { slug: true, updatedAt: true },
+    select: { slug: true, updatedAt: true, content: true },
     orderBy: { slug: "asc" },
   });
+  return rows
+    .filter((row) => isCmsPageIndexable(row.content))
+    .map((row) => ({ slug: row.slug, updatedAt: row.updatedAt }));
 }
 
 export async function listSitemapBranches(): Promise<SitemapRow[]> {

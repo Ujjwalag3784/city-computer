@@ -14,8 +14,10 @@ import {
   buildOpenGraph,
   buildTwitter,
   robotsForTranslationState,
+  ROBOTS_NOINDEX_FOLLOW,
 } from "@/lib/seo/metadata";
 import { absoluteUrl } from "@/lib/seo/site";
+import { isProductIndexable } from "@/lib/seo/thin-content";
 import { getProductBySlug, type ProductDetail } from "@/server/services/catalog/product";
 import { NotFoundError } from "@/lib/errors";
 import { toPrismaLocale, toProductCardData } from "../../_lib/catalog-view";
@@ -56,6 +58,16 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     const description = product.metaDescription ?? product.shortDescription;
     const canonical = buildCanonical(pathname, locale);
     const image = product.media[0]?.url;
+    // docs/11 §6.5's PDP-specific thin-content row: 120 words of
+    // description + >= 6 spec attributes + >= 2 photos, else `noindex`
+    // regardless of what the translation-state check below would
+    // otherwise allow — same "content gate wins over translation gate"
+    // precedence already used on blog posts and CMS pages.
+    const indexableContent = isProductIndexable({
+      description: product.description,
+      specCount: product.specs.length,
+      photoCount: product.media.length,
+    });
 
     return {
       title,
@@ -64,7 +76,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
         canonical,
         languages: buildHreflangAlternates(pathname, { ne: HAS_NE_TRANSLATION }),
       },
-      robots: robotsForTranslationState(locale, HAS_NE_TRANSLATION),
+      robots: indexableContent
+        ? robotsForTranslationState(locale, HAS_NE_TRANSLATION)
+        : ROBOTS_NOINDEX_FOLLOW,
       // `type: "website"`, never "article" — docs/11 §12's own acceptance
       // bar names this exact PDP defect by number (#1).
       openGraph: buildOpenGraph({
