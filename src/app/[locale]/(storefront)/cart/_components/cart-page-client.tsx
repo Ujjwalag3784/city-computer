@@ -148,8 +148,8 @@ export function CartPageClient({ initialView, initialCoupon }: CartPageClientPro
           onApplyCoupon={handleApplyCoupon}
           taxInclusiveNote
           primaryAction={
-            <Button variant="primary" glow className="w-full" disabled>
-              Proceed to checkout
+            <Button variant="primary" glow className="w-full" asChild>
+              <Link href="/checkout">Proceed to checkout</Link>
             </Button>
           }
           className="sticky top-24"
