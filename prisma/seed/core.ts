@@ -109,6 +109,59 @@ async function seedSettings() {
       dataType: "NUMBER",
       isPublic: false,
     },
+    // Phase 9 (docs/17): EMI rates and feature switches — admin-configurable
+    // settings, not new gateway integration work. `payments.emiEnabled`
+    // gates whether the storefront should offer to show these at all;
+    // nothing reads it yet (no checkout EMI UI exists), same "flagged, not
+    // wired everywhere it could be" honesty as every other Phase 9 setting
+    // added ahead of its consumer.
+    {
+      key: "payments.emiEnabled",
+      value: false,
+      group: "payments",
+      label: "Offer instalment (EMI) plans",
+      helpText: "Shows instalment options to customers at checkout.",
+      dataType: "BOOLEAN",
+      isPublic: false,
+    },
+    {
+      key: "payments.emiRates",
+      value: [
+        { months: 3, interestRatePercent: 0 },
+        { months: 6, interestRatePercent: 5 },
+        { months: 12, interestRatePercent: 9 },
+      ],
+      group: "payments",
+      label: "Instalment plans",
+      helpText: "How many months, and the extra percentage charged for each.",
+      dataType: "JSON",
+      isPublic: false,
+    },
+    {
+      key: "features.enableReviews",
+      value: true,
+      group: "features",
+      label: "Let customers leave reviews",
+      dataType: "BOOLEAN",
+      isPublic: false,
+    },
+    {
+      key: "features.enablePcBuilder",
+      value: true,
+      group: "features",
+      label: "Show the PC Builder",
+      dataType: "BOOLEAN",
+      isPublic: false,
+    },
+    {
+      key: "features.maintenanceMode",
+      value: false,
+      group: "features",
+      label: "Maintenance mode",
+      helpText: "Shows a 'we'll be back soon' page to customers instead of the website.",
+      dataType: "BOOLEAN",
+      isPublic: false,
+    },
   ];
 
   for (const setting of settings) {
