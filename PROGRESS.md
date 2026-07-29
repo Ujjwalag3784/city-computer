@@ -795,3 +795,131 @@ and the admin parts/rule-tester screen are next, per
 `docs/17-ROADMAP-PHASES.md` — followed by the still-deferred payment
 gateways once every other feature area is complete, per this session's own
 instruction.
+
+## Phase 8 continued — the interactive builder screen and the admin surface are real now
+
+This pass finished what the previous Phase 8 session flagged as "the
+single biggest piece of this phase still ahead": an actual `/build/new` →
+`/build/[shortId]/edit` workspace a shopper can click through, Fix drawers
+wired to real issues, and a minimal admin Buildable Parts list + Rule
+Tester. The rule engine, power/balance model, persistence layer, and
+shareable `/build/[shortId]` page were already real and committed before
+this pass started (see the Phase 8 section above) — nothing about the
+engine itself changed here except two small additions described below.
+
+**What actually works right now, for real:**
+
+- **A real slot model and part-image resolution.** `src/lib/builder/
+slots.ts`'s `SLOT_MODEL` covers this pass's 8 "core" slots (cpu,
+  motherboard, ram, gpu, storage_1, cpu_cooler, psu, case), with CPU as
+  the single anchor prerequisite — a documented simplification of the
+  docs' fuller per-slot prerequisite chain. `src/lib/builder/part-image.ts`
+  resolves a part's photo through its optional `variant → product → media`
+  chain, falling back to a flagged inline SVG placeholder for the
+  informational-only parts that don't have one.
+- **A real candidate-parts service.** `listCandidatePartsForSlot` (and
+  `listCandidatePartsWithPriceDelta` for the Fix drawer) hypothetically
+  substitutes every active part of a slot's type into the build and
+  re-runs the actual engine (`evaluateSelectedParts`, extracted from
+  `validateBuild` for exactly this reuse) to compute a real `compatible`/
+  `incompatibleReason` per row — never a second, drifted copy of the
+  compatibility logic.
+- **A real virtualized part picker.** `PartPickerDrawer` now uses
+  `@tanstack/react-virtual`'s `useVirtualizer` with dynamic per-row
+  measurement and a 6-row overscan, with no change to its exported props.
+- **`/build/new` is a real page.** Mode + use-case + resolution + budget
+  capture, calling `createBuildAction`, redirecting to the edit page.
+  Guided mode collects the exact same four inputs as Standard/Expert —
+  the docs' fuller "6 questions → auto-built complete build" vision is
+  NOT implemented (no solver runs anywhere this pass); mode only changes
+  how the edit page _presents_ the same slot grid afterwards.
+- **`/build/[shortId]/edit` is a real, ownership-gated workspace.** A new
+  `isBuildOwner` (non-throwing) check in `builds.ts` lets the page branch
+  before rendering — a non-owner is redirected to the read-only
+  `/build/[shortId]` share view rather than shown an error. The page
+  renders `BuilderEditView`: a `SLOT_MODEL`-driven grid of
+  `BuilderSlotCard`s (every non-CPU slot shows the `incompatible` state
+  with "Pick a processor first" until a CPU is chosen), the virtualized
+  `PartPickerDrawer` wired to `listPartsForSlotAction`/`setBuildItemAction`,
+  a live `CompatibilityPanel`/`IssueRow` list refreshed after every
+  change, `BuildSummaryPanel` with working Share/Print/Add-to-cart, and a
+  new `setBuildModeAction` so switching modes never touches a `BuildItem`
+  (mode really is "switchable at any time without losing the build," not
+  just documented as such). Standard mode additionally renders `StepRail`
+  over the same 8 core slots as a simplified stand-in for the docs' fuller
+  10-step wizard — flagged, not silently substituted. Expert and Guided
+  modes render the identical grid with no extra gating beyond the
+  CPU-anchor rule already in `SLOT_MODEL`.
+- **Fix drawers are wired for real (Task #74).** `FixDrawer` (a Phase 2
+  presentational component that already existed, unused, since before
+  this pass) now opens from any fixable `IssueRow` in the edit workspace,
+  listing real alternative parts with real price deltas via a new
+  `listPartsForSlotWithDeltaAction`. "Fixable" means a rule-engine issue
+  whose `subjectSlotKey` maps to one of this pass's 8 core slots —
+  connector-shortfall issues and the data-confidence note have no single
+  part/slot to attribute a fix to and never render a Fix button, a real
+  and flagged scope limit rather than a bug.
+- **A minimal admin surface exists (Task #76).** `/admin/builder/parts`
+  lists every `ComponentPart`, filterable by `PartType` and
+  `PartDataConfidence`, searchable by manufacturer/model — read-only this
+  pass. `/admin/builder/rules` is a real Rule Tester: pick a sample part
+  for any of the 8 core slots from a live dropdown and run the exact same
+  `evaluateSelectedParts` pipeline the real builder uses (via a new
+  `runRuleTester`/`listRuleTesterPartOptions` service), showing every
+  fired rule's raw code, both slot keys, and message — a technician's
+  diagnostic view, deliberately not the shopper-facing
+  `CompatibilityPanel`. Both screens are gated on their real seeded
+  permissions (`builder-part:write`, `builder-rule:write`).
+- **432 tests pass now** (up from 424): 4 existing `listCandidatePartsForSlot`
+  tests (compatible candidate, incompatible candidate with a real reason,
+  re-picking a slot's own current part, unknown slot key) plus 4 new
+  `runRuleTester`/`listRuleTesterPartOptions` tests (a compatible pair, a
+  socket-mismatched pair firing the real `CPU_MOBO_SOCKET` rule, an
+  unselected slot being silently skipped rather than erroring, and
+  per-slot option grouping). Clean type-check and lint throughout.
+
+**What's deliberately simplified or deferred, flagged rather than faked
+(this pass's own explicit out-of-scope list, carried over verbatim from
+the instructions this pass was given):**
+
+- No `MobileStepBar`/mobile-specific sheet variants — the builder
+  workspace is desktop-shaped this pass (`StepRail` itself is already
+  `hidden lg:flex` only).
+- No "show parts that don't fit" escape-hatch toggle in the part picker —
+  incompatible rows are always shown, disabled, with a reason; there's no
+  way to hide them.
+- No localStorage autosave/resume-prompt. Every change is already
+  persisted server-side immediately (`setBuildItemAction` writes on every
+  selection), so there's no unsaved-work-to-resume state to begin with,
+  but there's also no "you were mid-edit, continue?" banner.
+- No named saves under `/account/builds` — a build is only reachable by
+  its own shareable link right now, there's no signed-in "my builds" list.
+- No `BuildRevision` diffing/"what changed" history — `BuildRevision`/
+  `BuildValidationSnapshot` still exist as unused database tables, same
+  as noted in the previous Phase 8 section.
+- No export beyond the existing `window.print()` the share page already
+  had (no PDF/JSON quote generation).
+- No auto-build/solver and no `/builder/recommend`, `/builder/compare`,
+  `/builder/import` endpoints.
+- No multi-storage/case-fan/monitor/OS/expansion/peripheral slots in the
+  UI — `SLOT_MODEL` only covers the 8 core slots described above; the
+  engine itself still evaluates rules against any `BuildItem` in those
+  other `PartType`s if one exists in the database, this UI just never
+  offers a tile to pick one.
+- **Admin: only two of the five described admin screens exist.** Buildable
+  Parts (read-only list) and Rule Tester are real. Full `ComponentPart`
+  CRUD (authoring `specs` JSON per `PartType` through a form, not by hand
+  in the seed file), CSV/XLSX bulk import, the Customer Builds funnel, the
+  Build Templates screen, and the Data Quality screen are NOT built —
+  deferred for budget reasons, per this pass's own explicit priority order
+  (sections 1-5 solid and committed before spending any time on section 6).
+- The Rule Tester is narrowed to this pass's 8 core `SLOT_MODEL` slots,
+  same simplification as the shopper-facing builder — testing a rule
+  against `case_fan_3` or a monitor isn't supported this pass.
+
+The PC Builder's UI is now feature-complete enough to actually build,
+save, share, and buy a PC end to end through the browser — the remaining
+gaps above are real, described product surface, not silent omissions.
+Payment gateways (eSewa/Khalti/Fonepay/connectIPS) remain the last
+deferred item for the whole project, per every prior session's own
+instruction — still untouched.
