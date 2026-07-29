@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatNPR } from "@/lib/money";
 import { getTodayDashboardForRequest } from "@/server/services/admin/dashboard";
+import { LearnMoreLink } from "@/components/admin/learn-more-link";
 
 /**
  * `/admin` — "Today" (docs/09-ADMIN-DAD-MODE.md §3/§4). Row 1 (four
@@ -33,6 +34,7 @@ export default async function AdminTodayPage() {
         <p className="max-w-[65ch] text-body-sm text-on-surface-variant">
           This is where you can see how the shop is doing today and what needs your attention.
         </p>
+        <LearnMoreLink slug="understanding-the-today-page" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

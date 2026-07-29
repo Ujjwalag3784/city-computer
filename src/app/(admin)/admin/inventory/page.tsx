@@ -10,6 +10,7 @@ import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { stockListQuerySchema } from "@/lib/validation/admin/inventory";
 import { listStockForAdmin } from "@/server/services/admin/inventory";
 import { InventoryTable } from "./_components/inventory-table";
+import { LearnMoreLink } from "@/components/admin/learn-more-link";
 
 export const metadata: Metadata = {
   title: "Stock — Admin — City Computer Systems",
@@ -63,6 +64,7 @@ export default async function AdminInventoryPage({
           This is where you check and change how much of each product you have. Every change here is
           recorded, with who made it and why.
         </p>
+        <LearnMoreLink slug="understanding-stock" />
       </div>
 
       <AdminSearchBox

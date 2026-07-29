@@ -6,6 +6,7 @@ import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { STAFF_ROLE_KEYS } from "@/lib/validation/admin/staff";
 import { STAFF_ROLE_DESCRIPTIONS } from "@/server/services/admin/staff";
 import { NewStaffForm } from "../_components/new-staff-form";
+import { LearnMoreLink } from "@/components/admin/learn-more-link";
 
 export const metadata: Metadata = { title: "Add a staff member — Admin — City Computer Systems" };
 
@@ -33,6 +34,7 @@ export default async function NewStaffPage() {
           They&apos;ll be able to sign in once you give them the temporary password shown after
           this.
         </p>
+        <LearnMoreLink slug="adding-a-new-staff-member" />
       </div>
       <NewStaffForm roles={roles} />
     </div>

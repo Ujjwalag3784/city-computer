@@ -7,6 +7,7 @@ import { listBrandsForAdmin } from "@/server/services/admin/brand";
 import { listCategoriesForAdmin, type AdminCategoryNode } from "@/server/services/admin/category";
 import type { ComboboxOption } from "@/components/ui/combobox";
 import { ProductWizard } from "../product-wizard";
+import { LearnMoreLink } from "@/components/admin/learn-more-link";
 
 export const metadata: Metadata = {
   title: "Add a product — Admin — City Computer Systems",
@@ -45,6 +46,7 @@ export default async function NewProductPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-headline-md text-on-surface">Add a product</h1>
+        <LearnMoreLink slug="adding-your-first-product" />
       </div>
 
       <ProductWizard

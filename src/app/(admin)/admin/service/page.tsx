@@ -16,6 +16,7 @@ import {
   listTicketsForAdmin,
   type AdminTicketListItem,
 } from "@/server/services/admin/service-tickets";
+import { LearnMoreLink } from "@/components/admin/learn-more-link";
 
 export const metadata: Metadata = { title: "Repair jobs — Admin — City Computer Systems" };
 
@@ -140,6 +141,7 @@ export default async function AdminServicePage({
           <p className="max-w-[65ch] text-body-sm text-on-surface-variant">
             Every device your team is fixing, from drop-off to pickup.
           </p>
+          <LearnMoreLink slug="managing-repair-jobs" />
         </div>
         <Button asChild>
           <Link href="/admin/service/new">+ New repair job</Link>

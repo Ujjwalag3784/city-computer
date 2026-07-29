@@ -4,6 +4,7 @@ import { auth } from "@/server/auth";
 import { requirePermission } from "@/server/auth/permissions";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { CouponForm, EMPTY_COUPON_FORM } from "../_components/coupon-form";
+import { LearnMoreLink } from "@/components/admin/learn-more-link";
 
 export const metadata: Metadata = { title: "Add a discount code — Admin — City Computer Systems" };
 
@@ -25,6 +26,7 @@ export default async function NewCouponPage() {
         <p className="max-w-[65ch] text-body-sm text-on-surface-variant">
           Create a code customers can type at checkout for money off their order.
         </p>
+        <LearnMoreLink slug="creating-a-discount-code" />
       </div>
       <CouponForm initialValues={EMPTY_COUPON_FORM} />
     </div>

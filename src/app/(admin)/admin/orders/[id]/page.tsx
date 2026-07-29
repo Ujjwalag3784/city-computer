@@ -13,6 +13,7 @@ import { getOrderForAdmin } from "@/server/services/admin/orders";
 import { OrderTransitionPanel } from "./_components/order-transition-panel";
 import { PaymentPanel } from "./_components/payment-panel";
 import { OrderTimeline } from "./_components/order-timeline";
+import { LearnMoreLink } from "@/components/admin/learn-more-link";
 
 export const metadata: Metadata = {
   title: "Order — Admin — City Computer Systems",
@@ -106,6 +107,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           Placed {detail.placedAt.toLocaleString()} · {detail.customer.name ?? "Guest"}
           {detail.customer.phone ? ` · ${detail.customer.phone}` : ""}
         </p>
+        <LearnMoreLink slug="processing-an-order" />
       </div>
 
       <OrderTransitionPanel orderId={detail.id} nextStatuses={nextStatuses} />
