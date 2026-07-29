@@ -13,7 +13,7 @@ import {
   rejectBankTransferAction,
   getReceiptViewUrlAction,
 } from "../../_actions";
-import { ReasonDialog } from "./reason-dialog";
+import { ReasonDialog } from "@/components/admin/reason-dialog";
 
 export interface PaymentPanelProps {
   orderId: string;

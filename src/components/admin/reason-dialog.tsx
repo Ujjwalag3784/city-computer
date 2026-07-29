@@ -15,12 +15,15 @@ import { Textarea } from "@/components/ui/textarea";
 /**
  * A small text-reason confirm dialog — `@/components/admin/confirm-dialog.tsx`'s
  * `ConfirmDialog` covers the fixed-copy "yes/no" cases (docs/09 §8), but
- * cancelling an order or rejecting a bank-transfer payment both need a
- * free-text reason recorded alongside the action (`Order.cancellationReason`,
- * `Payment.rejectionReason`) — this is that missing shape, kept local to
- * `/admin/orders` rather than promoted to `components/admin/` on its first
- * use (same "promote on second consumer" rule `admin-search-box.tsx`'s own
- * doc comment states).
+ * cancelling an order, rejecting a bank-transfer payment, or flipping a
+ * customer's Cash on Delivery block all need a free-text reason recorded
+ * alongside the action (`Order.cancellationReason`, `Payment.rejectionReason`,
+ * the `AuditLog` entry `admin/customers.ts`'s `setCustomerCodBlocked`
+ * writes) — this is that missing shape. Originally kept local to
+ * `/admin/orders` (same "promote on second consumer" rule
+ * `admin-search-box.tsx`'s own doc comment states); promoted here to
+ * `components/admin/` on Phase 9's Customers screen becoming its second
+ * consumer.
  */
 export interface ReasonDialogProps {
   open: boolean;

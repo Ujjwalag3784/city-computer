@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { OrderStatus } from "@/generated/prisma/client";
 import { transitionOrderAction } from "../../_actions";
-import { ReasonDialog } from "./reason-dialog";
+import { ReasonDialog } from "@/components/admin/reason-dialog";
 
 const STATUS_ACTION_LABEL: Partial<Record<OrderStatus, string>> = {
   [OrderStatus.CONFIRMED]: "Confirm order",
