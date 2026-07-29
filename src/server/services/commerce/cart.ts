@@ -377,6 +377,8 @@ export async function addItemToCart(
   cartId: string,
   variantId: string,
   quantity: number,
+  /** Set when this line comes from a PC build's "Add to Cart" (`CartItem.buildId`) — see `builder/builds.ts`'s `addBuildToCart`, which is the only caller that passes this. Every other call site omits it, so ordinary PDP/quick-add behavior is unchanged. */
+  buildId?: string,
 ): Promise<void> {
   const context = (await resolveVariantCartContext([variantId])).get(variantId);
   if (!context || context.isDeleted) throw new NotFoundError("Product option");
@@ -405,8 +407,8 @@ export async function addItemToCart(
 
   await db.cartItem.upsert({
     where: { cartId_variantId: { cartId, variantId } },
-    create: { cartId, variantId, quantity, unitPricePaisaSnapshot: context.pricePaisa },
-    update: { quantity: newLineQuantity, unitPricePaisaSnapshot: context.pricePaisa },
+    create: { cartId, variantId, quantity, unitPricePaisaSnapshot: context.pricePaisa, buildId },
+    update: { quantity: newLineQuantity, unitPricePaisaSnapshot: context.pricePaisa, buildId },
   });
   await db.cart.update({ where: { id: cartId }, data: { lastActivityAt: new Date() } });
 }

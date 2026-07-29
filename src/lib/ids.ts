@@ -47,6 +47,20 @@ export function generateCartToken(): string {
   return randomBase58(32, () => getRandomValues(32));
 }
 
+/**
+ * Generates a 32-character base58 anonymous "builder identity" cookie
+ * value — the PC Builder's equivalent of `generateCartToken`, proving
+ * "which browser created this build" for an anonymous shopper so they can
+ * keep editing an `UNLISTED`/`PRIVATE` build across visits (docs/08 §2's
+ * `Build.sessionToken`, "similar to the guest-cart-cookie pattern"). Kept
+ * as its own named function (rather than reusing `generateCartToken`
+ * directly at call sites) so a future divergence in length/encoding
+ * between the two token kinds doesn't require hunting down every caller.
+ */
+export function generateBuildSessionToken(): string {
+  return randomBase58(32, () => getRandomValues(32));
+}
+
 function pad(n: number, width: number): string {
   return String(n).padStart(width, "0");
 }
