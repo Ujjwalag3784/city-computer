@@ -31,6 +31,10 @@ import {
   validateBuild,
   type BuildValidationReport,
 } from "@/server/services/builder/validate-build";
+import {
+  listCandidatePartsForSlot,
+  type CandidatePartRow,
+} from "@/server/services/builder/part-picker";
 import { runStorefrontAction, type ActionResult } from "../_lib/action-result";
 
 async function currentIdentity() {
@@ -135,6 +139,19 @@ export async function shareBuildAction(input: unknown): Promise<ActionResult<voi
 
     const identity = await currentIdentity();
     await shareBuild(parsed.data.buildId, parsed.data.visibility, identity);
+  });
+}
+
+const listPartsForSlotSchema = z.object({ buildId: z.string().min(1), slotKey: z.string().min(1) });
+
+/** Backs `PartPickerDrawer`/`FixDrawer` — a read-only candidate list, safe to call every time a drawer opens since it never writes to the DB (only `setBuildItemAction` persists a selection). */
+export async function listPartsForSlotAction(
+  input: unknown,
+): Promise<ActionResult<CandidatePartRow[]>> {
+  return runStorefrontAction(async () => {
+    const parsed = listPartsForSlotSchema.safeParse(input);
+    if (!parsed.success) throw validationErrorFromZodIssues(parsed.error.issues);
+    return listCandidatePartsForSlot(parsed.data.buildId, parsed.data.slotKey);
   });
 }
 

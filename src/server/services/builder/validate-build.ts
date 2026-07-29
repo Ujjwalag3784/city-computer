@@ -31,6 +31,8 @@ import { buildAggregates, type SelectedPart, type BuildSettings } from "./build-
 import { loadActiveRules } from "./rules";
 import { evaluateRules, type FiredIssue } from "./rule-engine";
 
+export type { SelectedPart, BuildSettings };
+
 export interface ConnectorShortfallIssue {
   connectorType: string;
   severity: "ERROR" | "INFO";
@@ -176,10 +178,23 @@ export async function loadSelectedParts(
   return { parts, settings };
 }
 
-/** Runs the full §4.4 pass. This is the one function every caller (Server Actions, `/build/[shortId]`, the admin rule tester) should use — nothing outside this file should call the individual models directly for a real build, so the pipeline order above is never duplicated or drifted between callers. */
-export async function validateBuild(buildId: string): Promise<BuildValidationReport> {
-  const { parts, settings } = await loadSelectedParts(buildId);
-
+/**
+ * The pure, DB-free core of the §4.4 pass: power/connector/balance/rule
+ * evaluation over an in-memory `SelectedPart[]` + `BuildSettings`, with no
+ * `buildId` of its own. `validateBuild` below is a thin wrapper of this
+ * function for the "real, persisted build" case; `part-picker.ts`'s
+ * `listCandidatePartsForSlot` is the other caller — it substitutes one
+ * hypothetical candidate part into a slot and re-runs this exact function
+ * rather than a second, drifted copy of the pipeline. `buildId` is threaded
+ * through only to stamp the returned report; pass any string (e.g. the real
+ * build's id, even for a hypothetical run) since nothing in this function
+ * reads it.
+ */
+export async function evaluateSelectedParts(
+  buildId: string,
+  parts: SelectedPart[],
+  settings: BuildSettings,
+): Promise<BuildValidationReport> {
   const power = computePowerReport(parts);
   const connectorBalance = computeConnectorBalance(parts);
   const balance = computeBalanceReport(parts, settings.targetResolution as BuildResolution);
@@ -214,4 +229,10 @@ export async function validateBuild(buildId: string): Promise<BuildValidationRep
     isAddToCartBlocked: issues.some((i) => i.isBlocking && i.severity === "ERROR"),
     dataConfidenceNote,
   };
+}
+
+/** Runs the full §4.4 pass over a real, persisted `Build`. This is the one function every caller (Server Actions, `/build/[shortId]`, the admin rule tester) should use for a saved build — nothing outside this file should call the individual models directly, so the pipeline order above is never duplicated or drifted between callers. */
+export async function validateBuild(buildId: string): Promise<BuildValidationReport> {
+  const { parts, settings } = await loadSelectedParts(buildId);
+  return evaluateSelectedParts(buildId, parts, settings);
 }
