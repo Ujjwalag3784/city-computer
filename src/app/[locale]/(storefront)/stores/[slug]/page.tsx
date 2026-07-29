@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildBreadcrumbListJsonLd } from "@/lib/seo/jsonld/breadcrumb";
+import { buildComputerStoreJsonLd } from "@/lib/seo/jsonld/local-business";
+import { buildCanonical, buildHreflangAlternates, buildOpenGraph } from "@/lib/seo/metadata";
+import { absoluteUrl } from "@/lib/seo/site";
 import { NotFoundError } from "@/lib/errors";
 import { getActiveBranchBySlug } from "@/server/services/content/stores";
 
@@ -7,27 +13,40 @@ export const revalidate = 3600;
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+// See `/blog/page.tsx`'s identical constant/comment — `Branch` has no
+// locale-specific content path yet.
+const HAS_NE_TRANSLATION = false;
+
 interface StorePageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }
 
 export async function generateMetadata({ params }: StorePageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
   try {
     const branch = await getActiveBranchBySlug(slug);
+    const pathname = `/stores/${slug}`;
+    const title = branch.metaTitle ?? `${branch.name} — City Computer Systems`;
+    const description =
+      branch.metaDescription ?? `Visit our ${branch.name} store at ${branch.addressLine}.`;
+    const canonical = buildCanonical(pathname, locale);
     return {
-      title: branch.metaTitle ?? `${branch.name} — City Computer Systems`,
-      description:
-        branch.metaDescription ?? `Visit our ${branch.name} store at ${branch.addressLine}.`,
+      title,
+      description,
+      alternates: {
+        canonical,
+        languages: buildHreflangAlternates(pathname, { ne: HAS_NE_TRANSLATION }),
+      },
+      openGraph: buildOpenGraph({ title, description, url: canonical, locale }),
     };
   } catch {
     return {};
   }
 }
 
-/** `/stores/[slug]` — docs/02's route table: "ISR 3600s, LocalBusiness schema." */
+/** `/stores/[slug]` — docs/02's route table: "ISR 3600s, LocalBusiness schema." JSON-LD via the shared `buildComputerStoreJsonLd` builder (docs/11 §4.2) rather than `ElectronicsStore` — `ComputerStore` is the more specific applicable subtype the doc names. */
 export default async function StorePage({ params }: StorePageProps) {
-  const { slug } = await params;
+  const { locale, slug } = await params;
 
   let branch: Awaited<ReturnType<typeof getActiveBranchBySlug>>;
   try {
@@ -37,38 +56,12 @@ export default async function StorePage({ params }: StorePageProps) {
     throw error;
   }
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ElectronicsStore",
-    name: branch.name,
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: branch.addressLine,
-      addressRegion: branch.district,
-      addressCountry: "NP",
-    },
-    telephone: branch.phone,
-    ...(branch.latitude != null && branch.longitude != null
-      ? {
-          geo: {
-            "@type": "GeoCoordinates",
-            latitude: branch.latitude,
-            longitude: branch.longitude,
-          },
-        }
-      : {}),
-    openingHoursSpecification: branch.hours
-      .filter((h) => !h.isClosed && h.openTime && h.closeTime)
-      .map((h) => ({
-        "@type": "OpeningHoursSpecification",
-        dayOfWeek: `https://schema.org/${DAY_NAMES[h.dayOfWeek]}`,
-        opens: h.openTime,
-        closes: h.closeTime,
-      })),
-  };
+  const pageUrl = absoluteUrl(`/stores/${slug}`, locale);
+  const breadcrumbItems = [{ label: "Stores", href: "/stores" }, { label: branch.name }];
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-8 p-4 sm:p-8">
+      <Breadcrumbs items={breadcrumbItems} />
       <div className="flex flex-col gap-2">
         <h1 className="text-display-sm text-on-surface">{branch.name}</h1>
         <p className="text-body-md text-on-surface-variant">{branch.addressLine}</p>
@@ -107,8 +100,20 @@ export default async function StorePage({ params }: StorePageProps) {
         />
       )}
 
-      {/* Structured-data JSON-LD as plain text children — never `dangerouslySetInnerHTML` (this codebase's own eslint rule bans it, docs/13-SECURITY.md §4). Built entirely from plain admin-authored Branch fields, never Tiptap rich text. */}
-      <script type="application/ld+json">{JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>
+      <JsonLd data={buildBreadcrumbListJsonLd(breadcrumbItems, locale, { pageUrl })} />
+      <JsonLd
+        data={buildComputerStoreJsonLd({
+          slug,
+          name: branch.name,
+          telephone: branch.phone,
+          email: branch.email,
+          streetAddress: branch.addressLine,
+          addressLocality: branch.district,
+          latitude: branch.latitude,
+          longitude: branch.longitude,
+          hours: branch.hours,
+        })}
+      />
     </div>
   );
 }

@@ -1,17 +1,33 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buildCanonical, buildHreflangAlternates } from "@/lib/seo/metadata";
 import { listPublicPosts } from "@/server/services/content/blog";
 
 export const revalidate = 600;
 
+// See `/blog/page.tsx`'s identical constant/comment.
+const HAS_NE_TRANSLATION = false;
+
 interface CategoryBlogPageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
   searchParams: Promise<{ page?: string }>;
 }
 
-export async function generateMetadata({ params }: CategoryBlogPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  return { title: `${slug} articles — Blog — City Computer Systems` };
+export async function generateMetadata({
+  params,
+  searchParams,
+}: CategoryBlogPageProps): Promise<Metadata> {
+  const { locale, slug } = await params;
+  const { page: pageParam } = await searchParams;
+  const page = Number(pageParam) > 0 ? Number(pageParam) : 1;
+  const pathname = `/blog/category/${slug}`;
+  return {
+    title: `${slug.replace(/-/g, " ")} articles — Blog — City Computer Systems`,
+    alternates: {
+      canonical: buildCanonical(pathname, locale, { page }),
+      languages: buildHreflangAlternates(pathname, { ne: HAS_NE_TRANSLATION }),
+    },
+  };
 }
 
 /** `/blog/category/[slug]` — posts tagged against a real catalogue `Category` (docs/06 §8: `PostCategory` join, no standalone `BlogCategory` model). */

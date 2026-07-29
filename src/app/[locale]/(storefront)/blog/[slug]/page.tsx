@@ -1,25 +1,69 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { NotFoundError } from "@/lib/errors";
 import { getPublicPostBySlug } from "@/server/services/content/blog";
 import { TiptapContent } from "@/lib/tiptap/render";
 import { ProductGrid } from "@/components/commerce/product-grid";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildBreadcrumbListJsonLd } from "@/lib/seo/jsonld/breadcrumb";
+import { buildBlogPostingJsonLd } from "@/lib/seo/jsonld/blog-posting";
+import {
+  buildCanonical,
+  buildHreflangAlternates,
+  buildOpenGraph,
+  ROBOTS_NOINDEX_FOLLOW,
+  robotsForTranslationState,
+} from "@/lib/seo/metadata";
+import { absoluteUrl } from "@/lib/seo/site";
+import { isBlogPostIndexable } from "@/lib/seo/thin-content";
 import { toProductCardData } from "../../_lib/catalog-view";
 
 export const revalidate = 600;
 
+// See `/p/[productSlug]/page.tsx`'s identical constant/comment — the blog
+// service has no locale awareness at all yet.
+const HAS_NE_TRANSLATION = false;
+
 interface BlogPostPageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
   try {
     const post = await getPublicPostBySlug(slug);
+    const pathname = `/blog/${slug}`;
+    const title = post.metaTitle ?? `${post.title} — City Computer Systems`;
+    const description = post.metaDescription ?? post.excerpt ?? undefined;
+    const canonical = buildCanonical(pathname, locale);
+    const indexableContent = isBlogPostIndexable(post.content);
+
     return {
-      title: post.metaTitle ?? `${post.title} — City Computer Systems`,
-      description: post.metaDescription ?? post.excerpt ?? undefined,
+      title,
+      description,
+      alternates: {
+        canonical,
+        languages: buildHreflangAlternates(pathname, { ne: HAS_NE_TRANSLATION }),
+      },
+      // A thin/near-empty draft never ships indexable, regardless of
+      // translation state — docs/11 §6.5's thin-content guard, applied to
+      // blog posts per this codebase's own extension of it (thin-
+      // content.ts's doc comment).
+      robots: indexableContent
+        ? robotsForTranslationState(locale, HAS_NE_TRANSLATION)
+        : ROBOTS_NOINDEX_FOLLOW,
+      // `type: "article"` is correct here — it's the one page type in
+      // this codebase that's actually meant to carry it. docs/11 §12's
+      // acceptance bar bans `article` only on a PDP.
+      openGraph: buildOpenGraph({
+        title,
+        description,
+        url: canonical,
+        locale,
+        type: "article",
+      }),
     };
   } catch {
     return {};
@@ -33,7 +77,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
  * indexable: no client-only data fetching, real `<h1>`/metadata.
  */
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
-  const { slug } = await params;
+  const { locale, slug } = await params;
 
   let post: Awaited<ReturnType<typeof getPublicPostBySlug>>;
   try {
@@ -43,8 +87,17 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     throw error;
   }
 
+  const pageUrl = absoluteUrl(`/blog/${slug}`, locale);
+  // `publishedAt` doubles as `dateModified` for now — `PublicPostDetail`
+  // doesn't expose `Post.updatedAt` yet, and inventing a fake "modified"
+  // date would risk the exact freshness-spam pattern docs/11 §4.8 warns
+  // against. Wiring the real `updatedAt` through is a small follow-up.
+  const publishedIso = (post.publishedAt ?? new Date()).toISOString();
+  const breadcrumbItems = [{ label: "Blog", href: "/blog" }, { label: post.title }];
+
   return (
     <article className="mx-auto flex max-w-[760px] flex-col gap-8 p-4 sm:p-8">
+      <Breadcrumbs items={breadcrumbItems} />
       <header className="flex flex-col gap-3">
         <h1 className="text-display-sm text-on-surface">{post.title}</h1>
         <p className="text-body-sm text-on-surface-variant">
@@ -94,6 +147,20 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <ProductGrid products={post.relatedProducts.map(toProductCardData)} />
         </section>
       )}
+
+      <JsonLd data={buildBreadcrumbListJsonLd(breadcrumbItems, locale, { pageUrl })} />
+      <JsonLd
+        data={buildBlogPostingJsonLd({
+          slug,
+          locale,
+          headline: post.title,
+          description: post.excerpt ?? post.title,
+          images: [],
+          datePublished: publishedIso,
+          dateModified: publishedIso,
+          authorName: post.authorName,
+        })}
+      />
     </article>
   );
 }

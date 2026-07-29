@@ -1,17 +1,37 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildItemListJsonLd } from "@/lib/seo/jsonld/item-list";
+import { buildCanonical, buildHreflangAlternates } from "@/lib/seo/metadata";
+import { absoluteUrl } from "@/lib/seo/site";
 import { listActiveBranches } from "@/server/services/content/stores";
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
-  title: "Our stores — City Computer Systems",
-  description: "Find a City Computer Systems store near you in Nepal.",
-};
+const HAS_NE_TRANSLATION = false;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const canonical = buildCanonical("/stores", locale);
+  return {
+    title: "Our stores — City Computer Systems",
+    description: "Find a City Computer Systems store near you in Nepal.",
+    alternates: {
+      canonical,
+      languages: buildHreflangAlternates("/stores", { ne: HAS_NE_TRANSLATION }),
+    },
+  };
+}
 
 /** `/stores` — docs/02's route table, ISR 3600s. */
-export default async function StoresPage() {
+export default async function StoresPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
   const branches = await listActiveBranches();
+  const pageUrl = absoluteUrl("/stores", locale);
 
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-8 p-4 sm:p-8">
@@ -38,6 +58,14 @@ export default async function StoresPage() {
           ))}
         </div>
       )}
+
+      <JsonLd
+        data={buildItemListJsonLd({
+          locale,
+          pageUrl,
+          items: branches.map((branch) => ({ href: `/stores/${branch.slug}`, name: branch.name })),
+        })}
+      />
     </div>
   );
 }

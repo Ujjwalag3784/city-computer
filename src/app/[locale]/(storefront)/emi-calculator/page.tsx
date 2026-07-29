@@ -1,14 +1,37 @@
 import type { Metadata } from "next";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildBreadcrumbListJsonLd } from "@/lib/seo/jsonld/breadcrumb";
+import { buildWebApplicationJsonLd } from "@/lib/seo/jsonld/web-application";
+import { buildCanonical, buildHreflangAlternates, buildOpenGraph } from "@/lib/seo/metadata";
+import { absoluteUrl } from "@/lib/seo/site";
 import { getPublicEmiData } from "@/server/services/content/emi";
 import { EmiCalculatorClient } from "./_components/emi-calculator-client";
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
-  title: "EMI calculator — City Computer Systems",
-  description:
-    "Estimate your monthly instalment for a laptop, desktop, or accessory purchase across our partner banks.",
-};
+const HAS_NE_TRANSLATION = false;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const title = "EMI calculator — City Computer Systems";
+  const description =
+    "Estimate your monthly instalment for a laptop, desktop, or accessory purchase across our partner banks.";
+  const canonical = buildCanonical("/emi-calculator", locale);
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+      languages: buildHreflangAlternates("/emi-calculator", { ne: HAS_NE_TRANSLATION }),
+    },
+    openGraph: buildOpenGraph({ title, description, url: canonical, locale }),
+  };
+}
 
 /**
  * `/emi-calculator` — docs/10-PAYMENTS-NEPAL.md §10 implementation item 1
@@ -17,20 +40,19 @@ export const metadata: Metadata = {
  * can update rates without a deploy — see that function's own doc comment
  * for how a malformed edit degrades safely instead of 500ing this page.
  */
-export default async function EmiCalculatorPage() {
+export default async function EmiCalculatorPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
   const { enabled, schedules } = await getPublicEmiData();
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    name: "City Computer Systems EMI Calculator",
-    applicationCategory: "FinanceApplication",
-    operatingSystem: "Any",
-    offers: { "@type": "Offer", price: "0", priceCurrency: "NPR" },
-  };
+  const pageUrl = absoluteUrl("/emi-calculator", locale);
+  const breadcrumbItems = [{ label: "EMI calculator" }];
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-6 p-4 sm:p-8">
+      <Breadcrumbs items={breadcrumbItems} />
       <div className="flex flex-col gap-2">
         <h1 className="text-display-sm text-on-surface">EMI calculator</h1>
         <p className="text-body-md text-on-surface-variant">
@@ -47,8 +69,16 @@ export default async function EmiCalculatorPage() {
         </p>
       )}
 
-      {/* JSON-LD as plain text children, never `dangerouslySetInnerHTML` — see `/faq/page.tsx`'s identical comment for why. */}
-      <script type="application/ld+json">{JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>
+      <JsonLd data={buildBreadcrumbListJsonLd(breadcrumbItems, locale, { pageUrl })} />
+      <JsonLd
+        data={buildWebApplicationJsonLd({
+          pathname: "/emi-calculator",
+          locale,
+          name: "City Computer Systems EMI Calculator",
+          description: "Estimate your monthly instalment across partner banks.",
+          applicationCategory: "FinanceApplication",
+        })}
+      />
     </div>
   );
 }

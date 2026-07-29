@@ -1,29 +1,46 @@
 import type { Metadata } from "next";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildBreadcrumbListJsonLd } from "@/lib/seo/jsonld/breadcrumb";
+import { buildFaqPageJsonLd } from "@/lib/seo/jsonld/faq";
+import { buildCanonical, buildHreflangAlternates } from "@/lib/seo/metadata";
+import { absoluteUrl } from "@/lib/seo/site";
 import { listPublicFaqs } from "@/server/services/content/faqs";
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
-  title: "Frequently asked questions — City Computer Systems",
-  description: "Answers to common questions about ordering, delivery, warranty, and repairs.",
-};
+// The FAQ page's chrome is real bilingual UI copy today, but the actual
+// FAQ content itself (`listPublicFaqs()`) has no locale field — see
+// PROGRESS.md Phase 11.
+const HAS_NE_TRANSLATION = false;
 
-/** `/faq` — docs/17 Phase 10. Real FAQPage JSON-LD, since the `Faq` model's own schema comment names this as its purpose. */
-export default async function FaqPage() {
-  const faqs = await listPublicFaqs();
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((faq) => ({
-      "@type": "Question",
-      name: faq.question,
-      acceptedAnswer: { "@type": "Answer", text: faq.answer },
-    })),
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const canonical = buildCanonical("/faq", locale);
+  return {
+    title: "Frequently asked questions — City Computer Systems",
+    description: "Answers to common questions about ordering, delivery, warranty, and repairs.",
+    alternates: {
+      canonical,
+      languages: buildHreflangAlternates("/faq", { ne: HAS_NE_TRANSLATION }),
+    },
   };
+}
+
+/** `/faq` — docs/17 Phase 10. FAQPage JSON-LD via the shared `lib/seo/jsonld/faq.ts` builder, since the `Faq` model's own schema comment names this as its purpose. */
+export default async function FaqPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const faqs = await listPublicFaqs();
+  const pageUrl = absoluteUrl("/faq", locale);
+  const breadcrumbItems = [{ label: "FAQ" }];
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-8 p-4 sm:p-8">
+      <Breadcrumbs items={breadcrumbItems} />
       <h1 className="text-display-sm text-on-surface">Frequently asked questions</h1>
 
       {faqs.length === 0 ? (
@@ -42,17 +59,8 @@ export default async function FaqPage() {
         </div>
       )}
 
-      {/*
-        Structured-data JSON-LD as plain text children — never
-        `dangerouslySetInnerHTML` (this codebase's own eslint rule bans it
-        outright, docs/13-SECURITY.md §4). The `</` escape guards against an
-        admin-entered FAQ answer containing a literal "</script>": a
-        browser's HTML parser looks for that end-tag sequence inside a
-        `<script>` element regardless of how the text got there, so this
-        matters even though `question`/`answer` are plain text, not Tiptap
-        rich text.
-      */}
-      <script type="application/ld+json">{JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>
+      <JsonLd data={buildBreadcrumbListJsonLd(breadcrumbItems, locale, { pageUrl })} />
+      <JsonLd data={buildFaqPageJsonLd(faqs)} />
     </div>
   );
 }

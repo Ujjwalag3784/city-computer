@@ -1,9 +1,25 @@
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildWebApplicationJsonLd } from "@/lib/seo/jsonld/web-application";
+import { buildCanonical, buildHreflangAlternates } from "@/lib/seo/metadata";
 import { NewBuildForm } from "./_components/new-build-form";
 
-export const metadata: Metadata = {
-  title: "Start a PC build — City Computer Systems",
-};
+const HAS_NE_TRANSLATION = false;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    title: "Start a PC build — City Computer Systems",
+    alternates: {
+      canonical: buildCanonical("/build/new", locale),
+      languages: buildHreflangAlternates("/build/new", { ne: HAS_NE_TRANSLATION }),
+    },
+  };
+}
 
 /**
  * `/build/new` — Task #73's entry point into the PC Builder. Captures the
@@ -20,7 +36,8 @@ export const metadata: Metadata = {
  * at any time without losing the build"); no solver runs here or anywhere
  * in this pass. Flagged in PROGRESS.md, not silently narrowed.
  */
-export default function NewBuildPage() {
+export default async function NewBuildPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
   return (
     <div className="mx-auto max-w-[640px] px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col gap-1">
@@ -31,6 +48,16 @@ export default function NewBuildPage() {
         </p>
       </div>
       <NewBuildForm />
+
+      <JsonLd
+        data={buildWebApplicationJsonLd({
+          pathname: "/build/new",
+          locale,
+          name: "City Computer Systems PC Builder",
+          description: "Build a custom PC step by step, with real compatibility checking.",
+          applicationCategory: "UtilitiesApplication",
+        })}
+      />
     </div>
   );
 }

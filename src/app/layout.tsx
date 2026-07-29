@@ -3,6 +3,10 @@ import type { ReactNode } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { getLocale } from "next-intl/server";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildOrganizationJsonLd } from "@/lib/seo/jsonld/organization";
+import { buildWebsiteJsonLd } from "@/lib/seo/jsonld/website";
+import { SITE_URL } from "@/lib/seo/site";
 import "./globals.css";
 
 // docs/05-DESIGN-SYSTEM.md §2 — three families, self-hosted via next/font
@@ -30,7 +34,17 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
 });
 
+/**
+ * `metadataBase` — docs/11-SEO-STRATEGY.md §3.1: "set once in the root
+ * layout so every relative URL resolves absolutely." Every route's own
+ * `generateMetadata` still builds fully-qualified canonical/OG/hreflang
+ * URLs via `lib/seo/site.ts`'s `absoluteUrl()` rather than relying on this
+ * as a fallback — but Next.js also uses `metadataBase` to resolve any
+ * metadata field a route *doesn't* explicitly qualify (e.g. `icons`), so
+ * it belongs here regardless.
+ */
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "City Computer Systems",
   description: "Genuine Products. Best Prices. Laptops, PCs, components and repairs in Kathmandu.",
 };
@@ -63,7 +77,23 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       lang={locale}
       className={`dark ${GeistSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        {/*
+          docs/11-SEO-STRATEGY.md §4.13's coverage matrix: "All pages —
+          Organization, WebSite (root layout, @graph)." Emitted once, here,
+          rather than per-page, since both nodes are identical on every
+          route — a page that needs to reference the Organization/WebSite
+          (Product.brand's seller, BreadcrumbList's publisher, etc.) does so
+          by @id, never by re-emitting these nodes itself.
+        */}
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@graph": [buildOrganizationJsonLd(), buildWebsiteJsonLd()],
+          }}
+        />
+      </body>
     </html>
   );
 }

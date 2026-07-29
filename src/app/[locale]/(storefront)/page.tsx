@@ -3,8 +3,18 @@ import { getTranslations } from "next-intl/server";
 import { getCategoryTree } from "@/server/services/catalog/category";
 import { listProducts } from "@/server/services/catalog/product";
 import { ProductGrid } from "@/components/commerce/product-grid";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildItemListJsonLd } from "@/lib/seo/jsonld/item-list";
+import { buildCanonical, buildHreflangAlternates, buildOpenGraph } from "@/lib/seo/metadata";
+import { absoluteUrl } from "@/lib/seo/site";
 import { CategoryGrid } from "./_components/category-grid";
 import { toPrismaLocale, toProductCardData } from "./_lib/catalog-view";
+
+// The homepage itself is a fully bilingual shell (chrome is translated via
+// next-intl messages, not entity content) — `/ne` is a real, intentional
+// page, not an English-fallback shell, so it's the one route in this pass
+// that legitimately claims a `ne` hreflang alternate.
+const HAS_NE_TRANSLATION = true;
 
 /**
  * The real homepage route (`/`, or `/ne` for Nepali) — replaces the
@@ -25,8 +35,20 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "home" });
-  return { title: `${t("featuredProducts")} — City Computer Systems` };
+  const title = "City Computer Systems — Laptops, PCs, Components & Repairs in Kathmandu";
+  const description =
+    "Genuine laptops, desktops, PC components, and repair services in Kathmandu, Nepal. Best prices, real stock, and expert support.";
+  const canonical = buildCanonical("/", locale);
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+      languages: buildHreflangAlternates("/", { ne: HAS_NE_TRANSLATION }),
+    },
+    openGraph: buildOpenGraph({ title, description, url: canonical, locale }),
+  };
 }
 
 const FEATURED_PRODUCT_COUNT = 8;
@@ -66,6 +88,17 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </h2>
         <ProductGrid products={featured.items.map(toProductCardData)} />
       </section>
+
+      <JsonLd
+        data={buildItemListJsonLd({
+          locale,
+          pageUrl: absoluteUrl("/", locale),
+          items: featured.items.map((item) => ({
+            href: `/p/${item.slug}`,
+            name: item.displayTitle,
+          })),
+        })}
+      />
     </div>
   );
 }
