@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { CookieConsent } from "@/components/layout/cookie-consent";
 import { CartDrawerHost } from "@/components/commerce/cart-drawer-host";
 import { PRIMARY_NAV_ITEMS } from "@/config/navigation";
+import { subscribeNewsletterAction } from "./_actions";
 
 /**
  * docs/04-REPOSITORY-STRUCTURE.md: `(storefront)/layout.tsx` — "SiteHeader
@@ -33,7 +34,7 @@ export default function StorefrontLayout({ children }: { children: ReactNode }) 
 
       <main id="main-content">{children}</main>
 
-      <SiteFooter />
+      <SiteFooter onSubscribe={subscribeNewsletterAction} />
       <CookieConsent />
       <CartDrawerHost />
     </>

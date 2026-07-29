@@ -48,6 +48,18 @@ import { cn } from "@/lib/utils";
  */
 export interface SiteFooterProps {
   className?: string;
+  /**
+   * The newsletter form's real submit handler (Phase 10) — a plain async
+   * function, not a direct `server/**` import, so this component stays
+   * presentational per docs/04 §3's "`components/` never imports
+   * `server/**`" boundary. The actual Server Action
+   * (`subscribeNewsletterAction`) is wired in from `(storefront)/
+   * layout.tsx`, the one layer allowed to know about both sides. Omitting
+   * this prop preserves the original Phase 2 "acknowledges locally, does
+   * nothing real" placeholder behaviour — useful for `/design` and any
+   * other place this component renders without a real backend behind it.
+   */
+  onSubscribe?: (email: string) => Promise<{ ok: boolean; message?: string }>;
 }
 
 /** Placeholder shop contact number — real store data lands in a later phase. */
@@ -167,15 +179,34 @@ const LEGAL_LINKS: FooterLink[] = [
   { label: "Returns policy", href: "/pages/refund-returns" },
 ];
 
-export function SiteFooter({ className }: SiteFooterProps) {
+export function SiteFooter({ className, onSubscribe }: SiteFooterProps) {
   const [submitted, setSubmitted] = React.useState(false);
+  const [email, setEmail] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+  const [submitting, setSubmitting] = React.useState(false);
 
-  function handleNewsletterSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleNewsletterSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // No newsletter API route exists yet — this is a presentational v1 that
-    // just acknowledges the submission locally. Wiring a real endpoint
-    // (and validating/storing the address) is a later phase.
-    setSubmitted(true);
+    setError(null);
+
+    if (!onSubscribe) {
+      // No handler wired in (e.g. the `/design` showcase) — same
+      // presentational-only acknowledgement this form has always had.
+      setSubmitted(true);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await onSubscribe(email);
+      if (!result.ok) {
+        setError(result.message ?? "Couldn't subscribe right now. Please try again.");
+        return;
+      }
+      setSubmitted(true);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function openCookieSettings() {
@@ -249,23 +280,27 @@ export function SiteFooter({ className }: SiteFooterProps) {
           </div>
 
           {submitted ? (
-            <p className="text-body-sm text-on-surface">Thanks — you&apos;re on the list.</p>
+            <p className="text-body-sm text-on-surface">
+              Thanks — check your email to confirm your subscription.
+            </p>
           ) : (
-            <form
-              onSubmit={handleNewsletterSubmit}
-              className="flex w-full max-w-md gap-2 sm:w-auto"
-            >
-              <Input
-                type="email"
-                required
-                placeholder="you@example.com"
-                aria-label="Email address"
-                className="flex-1"
-              />
-              <Button type="submit" variant="primary">
-                Subscribe
-              </Button>
-            </form>
+            <div className="flex w-full max-w-md flex-col gap-1 sm:w-auto">
+              <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
+                <Input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  aria-label="Email address"
+                  className="flex-1"
+                />
+                <Button type="submit" variant="primary" disabled={submitting}>
+                  {submitting ? "Subscribing…" : "Subscribe"}
+                </Button>
+              </form>
+              {error && <p className="text-body-sm text-danger">{error}</p>}
+            </div>
           )}
         </div>
 

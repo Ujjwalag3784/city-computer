@@ -63,6 +63,14 @@ export const RATE_LIMIT_PRESETS = {
   builderValidate: { windowMs: 60 * 1000, max: 120 },
   /** Media/receipt uploads — docs/13 §5 "20 uploads/hour/user". */
   upload: { windowMs: 60 * 60 * 1000, max: 20 },
+  /** Public contact form (Phase 10) — same shape as `orderLookup`'s "guest-facing, anti-spam" reasoning, no doc-specified number, so a conservative one is chosen rather than left unlimited. */
+  contactForm: { windowMs: 60 * 60 * 1000, max: 5 },
+  /** Public newsletter signup (Phase 10) — same reasoning as `contactForm`. */
+  newsletterSubscribe: { windowMs: 60 * 60 * 1000, max: 5 },
+  /** Public repair-booking form (Phase 10) — same reasoning as `contactForm`. */
+  serviceBooking: { windowMs: 60 * 60 * 1000, max: 5 },
+  /** Public ticket-status lookup by ticket number + phone digits (Phase 10) — mirrors `orderLookup`'s "guest guesses" limit exactly, since it's the same enumeration-resistance shape (docs/07 §3.5). */
+  ticketStatusLookup: { windowMs: 60 * 60 * 1000, max: 10 },
 } as const satisfies Record<string, RateLimitConfig>;
 
 export type RateLimitPresetName = keyof typeof RATE_LIMIT_PRESETS;

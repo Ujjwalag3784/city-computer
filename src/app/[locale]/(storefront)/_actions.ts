@@ -20,6 +20,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/server/auth";
 import { validationErrorFromZodIssues } from "@/lib/errors";
 import { rateLimit } from "@/server/rate-limit-store";
+import { getRequestIpFromHeaders } from "@/lib/request-ip";
 import {
   addToCartSchema,
   applyCouponSchema,
@@ -37,6 +38,9 @@ import {
 } from "@/server/services/commerce/cart";
 import { previewCoupon, type CouponPreview } from "@/server/services/commerce/coupon";
 import { db } from "@/server/db";
+import { Locale, NewsletterStatus } from "@/generated/prisma/client";
+import { newsletterSubscribeSchema } from "@/lib/validation/content";
+import { subscribeToNewsletter } from "@/server/services/content/newsletter";
 import { runStorefrontAction, type ActionResult } from "./_lib/action-result";
 
 const CART_PATH = "/cart";
@@ -132,5 +136,27 @@ export async function applyCouponAction(input: unknown): Promise<ActionResult<Ap
     await db.cart.update({ where: { id: cart.id }, data: { couponCode: coupon.code } });
     revalidatePath(CART_PATH);
     return { cart: cartView, coupon };
+  });
+}
+
+/**
+ * `SiteFooter`'s newsletter form (Phase 10) — the form itself has existed
+ * since Phase 2 as presentational-only, with its own doc comment noting
+ * "no newsletter API route exists yet... a later phase." This is that
+ * later phase. Lives in this shared, layout-wide actions file (not a
+ * route-scoped `_actions.ts`) because `SiteFooter` renders on every
+ * storefront page via `(storefront)/layout.tsx`, not one specific route.
+ */
+export async function subscribeNewsletterAction(
+  input: unknown,
+): Promise<ActionResult<{ status: NewsletterStatus }>> {
+  return runStorefrontAction(async () => {
+    const parsed = newsletterSubscribeSchema.safeParse(input);
+    if (!parsed.success) throw validationErrorFromZodIssues(parsed.error.issues);
+
+    const ip = await getRequestIpFromHeaders();
+    await rateLimit("newsletterSubscribe", `ip:${ip}`);
+
+    return subscribeToNewsletter(parsed.data.email, Locale.EN, "footer");
   });
 }
