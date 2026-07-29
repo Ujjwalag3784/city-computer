@@ -6,8 +6,22 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session: the dedicated stock screens landed, and so did the whole
-cart.** `/admin/inventory` now exists — search, an "almost out of stock" /
+**Latest session: checkout is real. You can place an actual order now.**
+`/checkout` exists — a 3-step address / payment / review flow — and
+finishing it creates a real `Order` in the database, holds the stock aside
+(the reservation system Phase 6 built and tested but never switched on),
+and creates a Cash-on-Delivery or Bank-Transfer payment record. After
+placing an order you land on `/order/[orderNumber]`, which tracks its
+status, lets a bank-transfer shopper upload their receipt, and can produce
+a PDF invoice. On the admin side, `/admin/orders` is a real list-and-detail
+screen — move an order forward, cancel it, mark cash collected, or
+approve/reject a bank-transfer receipt. See "Phase 7" below for the full,
+honest rundown of what's simplified and what's still missing (mainly: only
+Cash on Delivery and Bank Transfer work — no eSewa/Khalti/Fonepay/
+connectIPS yet, and nobody gets an email when any of this happens).
+
+Before that: the dedicated stock screens landed, and so did the whole
+cart. `/admin/inventory` now exists — search, an "almost out of stock" /
 "out of stock" filter, the real `+/−`/"Set…" stock control with its
 mandatory reason dialog, a plain-language stock history timeline per
 product, and a bulk-update dialog. Right after that: a real shopping cart.
@@ -16,9 +30,7 @@ a cookie for a browser that isn't signed in, in the database once someone
 is — the little cart icon in the header shows a real count, clicking it
 opens a real slide-out cart, and there's a real `/cart` page with a working
 quantity stepper, remove button, and coupon box. See "Phase 5e" and "Phase
-6" below for the full, honest rundown of what's simplified and what's
-still missing (mainly: nothing calls any of this at actual checkout time
-yet, because there is no checkout screen yet).
+6" below for the full, honest rundown of those.
 
 Before that: the product wizard, product list, photo library, and admin
 search all landed, and before that, Phase 4 (the whole storefront —
@@ -560,3 +572,101 @@ small step, not a rebuild.
 357 tests pass now (up from 307), and a clean type-check and lint.
 Checkout, payments, and the PC-builder's compatibility-checking logic
 are next, per `docs/17-ROADMAP-PHASES.md`.
+
+## Phase 7 — Checkout & Orders: Cash on Delivery and Bank Transfer, real end to end
+
+This phase turns Phase 6's cart into an actual order. Scoped to two
+payment rails only, per this session's own instruction: **Cash on
+Delivery and Bank Transfer**. eSewa, Khalti, Fonepay, connectIPS,
+webhooks, a payment-reconciliation cron, and transactional emails are all
+part of the _full_ Phase 7 in `docs/17-ROADMAP-PHASES.md` — none of them
+are built this pass, and nothing here pretends otherwise.
+
+**What actually works right now, for real:**
+
+- **`/checkout`** — a 3-step flow (Address → Payment → Review). The
+  address step covers Nepal's shape (province, district, municipality,
+  ward, delivery vs. branch pickup) and shows a live shipping-cost and
+  VAT quote as you fill it in; the payment step only shows Cash on
+  Delivery and Bank Transfer, and only offers Cash on Delivery when the
+  order is under the configured limit (NPR 25,000 by default); the review
+  step shows the real, final total before you place the order. Every
+  number shown is recalculated on the server at each step — nothing
+  the browser sends is ever trusted for a price.
+- **Placing an order is real.** It creates the `Order` and its line
+  items/addresses in the database, snapshotting the product name, price,
+  and photo at that exact moment (so a later price change never rewrites
+  history), holds the stock aside immediately, and creates the payment
+  record. A coupon applied back on the cart page is re-checked against
+  the live cart before being honoured — never just trusted from what was
+  stored earlier.
+- **Cash on Delivery has real guardrails**: a value cap, a "too many
+  cash-on-delivery orders already in progress" check per phone number, a
+  "too many orders to this exact address this week" check, and an
+  account-level block a shop owner can set on a repeat no-show customer.
+- **Bank Transfer has a real receipt-upload-and-review flow.** After
+  placing a bank-transfer order, the customer sees an upload box on their
+  order page. What they upload goes to private storage — never a public
+  link — and an admin has to open it deliberately to see it. Orders over
+  NPR 100,000 can only be approved by an Owner account; below that, a
+  Manager can do it too.
+- **`/order/[orderNumber]`** — track any order by its number. If you're
+  signed in and it's your order, it just shows. If not (a guest, or
+  checking from a different device), typing in the phone number the
+  order was placed under unlocks the same view. Shows a plain step
+  tracker (Placed → Confirmed → Packed → Shipped → Delivered), the
+  items, the address, and — for bank transfer — the receipt upload box.
+  There's also a genuine "Download invoice" button that produces a real
+  PDF, built on the spot each time (nothing is pre-generated and stored).
+- **`/admin/orders`** — search and filter every order (including two
+  filters the dashboard's own "needs attention" tiles already linked to
+  from an earlier phase, now finally real: bank-transfer payments
+  waiting for review, and orders that are paid but not yet sent).
+  `/admin/orders/[id]` shows the full picture and only shows the buttons
+  an admin's own role is actually allowed to click — a Support account
+  sees a read-only order, a Staff account can move it forward but not
+  cancel or refund it, a Manager or Owner can do everything, and only an
+  Owner can approve a bank transfer above the NPR 100,000 line. Cancelling
+  an order also correctly releases whatever stock it was holding.
+
+**What's deliberately simplified, flagged rather than faked:**
+
+- **No SMS anywhere.** The blueprint calls for a phone-verification code
+  before accepting a Cash-on-Delivery order above a certain value, and a
+  confirmation call for first-time buyers. Neither exists — there's no
+  SMS provider wired into this project yet, so it would only be able to
+  fake sending a code, and this project doesn't do that.
+- **No email either.** Nobody gets an order-confirmation, payment-
+  received, or shipping-notice email. This is a real, known gap, not an
+  oversight — sending real email needs a provider account this sandbox
+  doesn't have.
+- **Only one order page design, not three.** The blueprint originally
+  called for three separate pages (a post-checkout confirmation page, a
+  public "track by phone" page, and a signed-in "my orders" page). This
+  pass built one page that covers all three jobs instead, since that's
+  what was actually asked for this session. Worth knowing if you want the
+  original three-page split later.
+- **A bank receipt isn't checked for being a real image/PDF beyond its
+  declared file type**, and nothing strips identifying photo metadata
+  from it yet. Someone could theoretically upload a mislabeled file. An
+  admin still has to look at it before approving anything, so this isn't
+  a security hole today, just a rough edge.
+- **Nothing automatically cancels an unpaid bank-transfer order after 48
+  hours**, even though the stock hold itself does expire on schedule —
+  there's no background job scheduler in this project yet to run that
+  sweep.
+- **The "requester can never be the approver" half of the two-person
+  bank-transfer rule isn't enforced**, because nothing in the database
+  currently records who uploaded a receipt on a customer's behalf (this
+  only matters for an order a staff member enters by phone, not a
+  customer's own upload, which is the only path this pass builds).
+- **Only 13 of Nepal's 77 districts have a delivery price configured**
+  (a Phase 6 gap, not new) — checkout tells a shopper outside those
+  districts to contact the shop or choose pickup instead of pretending a
+  price exists.
+- The invoice PDF is intentionally plain — no logo, no letterhead. It's
+  correct and complete, just not "designed" yet.
+
+394 tests pass now (up from 357), and a clean type-check and lint. The PC
+builder's compatibility-checking logic and the remaining online payment
+gateways are next, per `docs/17-ROADMAP-PHASES.md`.
