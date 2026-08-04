@@ -4,6 +4,12 @@ import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -15,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { SeoPreview } from "@/components/admin/seo-preview";
 import type { AdminCategoryNode } from "@/server/services/admin/category";
 import { createCategoryAction, updateCategoryAction } from "../_actions";
 
@@ -57,6 +64,8 @@ export function CategoryFormDialog({
   const [description, setDescription] = useState("");
   const [showInNav, setShowInNav] = useState(true);
   const [isActive, setIsActive] = useState(true);
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,6 +74,8 @@ export function CategoryFormDialog({
     setDescription(category?.description ?? "");
     setShowInNav(category?.showInNav ?? true);
     setIsActive(category?.isActive ?? true);
+    setMetaTitle(category?.metaTitle ?? "");
+    setMetaDescription(category?.metaDescription ?? "");
     setError(null);
   }, [open, category]);
 
@@ -80,8 +91,8 @@ export function CategoryFormDialog({
             showInNav,
             showInFooter: category!.showInFooter,
             isActive,
-            metaTitle: category!.metaTitle ?? undefined,
-            metaDescription: category!.metaDescription ?? undefined,
+            metaTitle: metaTitle || undefined,
+            metaDescription: metaDescription || undefined,
           })
         : await createCategoryAction({
             name,
@@ -89,6 +100,8 @@ export function CategoryFormDialog({
             description: description || undefined,
             showInNav,
             isActive,
+            metaTitle: metaTitle || undefined,
+            metaDescription: metaDescription || undefined,
           });
 
       if (!result.ok) {
@@ -157,6 +170,30 @@ export function CategoryFormDialog({
             </div>
             <Switch id="category-active" checked={isActive} onCheckedChange={setIsActive} />
           </div>
+
+          <Accordion type="single" collapsible>
+            <AccordionItem value="seo">
+              <AccordionTrigger>Search information</AccordionTrigger>
+              <AccordionContent>
+                {/*
+                  docs/09-ADMIN-DAD-MODE.md §11 / docs/11-SEO-STRATEGY.md §3:
+                  same `SeoPreview` component the product wizard and blog/page
+                  forms already use — the import and `metaTitle`/`metaDescription`
+                  state were already wired by the prior pass; only the render
+                  call was missing. Collapsed by default so the core three fields
+                  aren't hidden behind SEO jargon for day-to-day category edits.
+                */}
+                <SeoPreview
+                  pageUrl={`citycomputer.com.np/c/${name ? name.toLowerCase().replace(/\s+/g, "-") : "..."}`}
+                  pageTitle={metaTitle}
+                  onPageTitleChange={setMetaTitle}
+                  searchDescription={metaDescription}
+                  onSearchDescriptionChange={setMetaDescription}
+                  productNameForHint={name}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           {error && (
             <p role="alert" className="text-body-sm text-error">

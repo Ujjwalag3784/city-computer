@@ -52,7 +52,6 @@ export function SearchStep({
       searchDescription={searchDescription}
       onSearchDescriptionChange={(metaDescription) => onChange({ ...value, metaDescription })}
       productNameForHint={productName}
-      slug={slug}
       canonicalOverride={value.canonicalOverride}
       onCanonicalOverrideChange={(canonicalOverride) => onChange({ ...value, canonicalOverride })}
     />

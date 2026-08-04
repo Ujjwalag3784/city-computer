@@ -361,7 +361,6 @@ function ProductWizardSection() {
           searchDescription={searchDescription}
           onSearchDescriptionChange={setSearchDescription}
           productNameForHint="HP Victus 15"
-          slug="hp-victus-15"
           canonicalOverride={canonicalOverride}
           onCanonicalOverrideChange={setCanonicalOverride}
         />

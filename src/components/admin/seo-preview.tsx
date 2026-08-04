@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { computeSeoHint, DESCRIPTION_WARN_AT, TITLE_WARN_AT } from "@/lib/seo/serp-hint";
 import { cn } from "@/lib/utils";
 
 /**
@@ -27,19 +28,12 @@ import { cn } from "@/lib/utils";
  * collapsed by default and labelled 'Only change these if someone has
  * asked you to', exposes the website link and canonical override."
  *
- * Thresholds (character counters + traffic-light hint):
- * - Title: warn amber past 60 (the doc's own limit), danger red past 65 —
- *   a 5-character grace band before calling it "too long", per the doc's
- *   explicit 60/65 pair.
- * - Description: warn amber past 160 (the doc's limit), danger red past
- *   175 — the same proportionally-sized grace band as the title (roughly
- *   +8-9%), scaled up for the longer field. Also flagged (amber, not red)
- *   below 50 characters as "a bit short" — short enough that it's unlikely
- *   to say anything useful about the product, but not long enough to
- *   justify a hard floor.
- * - The counter text itself changes (not just colour) past each threshold,
- *   per docs/05-DESIGN-SYSTEM.md §5 A6 "status never communicated by
- *   colour alone".
+ * All of the threshold math (docs/11-SEO-STRATEGY.md §3's length-budget
+ * table) and the traffic-light verdict live in `src/lib/seo/serp-hint.ts`,
+ * a plain function with its own unit tests — this component only wires
+ * that verdict into JSX. It used to duplicate the threshold constants
+ * inline (and had drifted from the doc — see PROGRESS.md Phase 11); this
+ * is the fix, not a rewrite of the underlying decision.
  *
  * The Google SERP mock below the fields is a deliberate one-off visual
  * reference to a real Google search result — not part of the Obsidian Peak
@@ -48,13 +42,6 @@ import { cn } from "@/lib/utils";
  * a small "Preview" eyebrow so it doesn't read as a broken/unstyled
  * component.
  */
-
-const TITLE_WARN_AT = 60;
-const TITLE_DANGER_AT = 65;
-const DESCRIPTION_WARN_AT = 160;
-const DESCRIPTION_DANGER_AT = 175;
-const DESCRIPTION_MIN = 50;
-
 export interface SeoPreviewProps {
   /** e.g. "citycomputer.com.np/p/hp-victus-15" */
   pageUrl: string;
@@ -64,40 +51,9 @@ export interface SeoPreviewProps {
   onSearchDescriptionChange: (value: string) => void;
   /** Used by the traffic-light hint's "mentions the product name" check. */
   productNameForHint?: string;
-  /** For the Advanced settings section's website-link field. */
-  slug?: string;
   canonicalOverride?: string;
   onCanonicalOverrideChange?: (value: string) => void;
   className?: string;
-}
-
-function titleCounterCopy(length: number): { text: string; className: string } {
-  if (length > TITLE_DANGER_AT) {
-    return {
-      text: `${length} / ${TITLE_WARN_AT} — too long, Google will cut this off`,
-      className: "text-danger",
-    };
-  }
-  if (length > TITLE_WARN_AT) {
-    return { text: `${length} / ${TITLE_WARN_AT} — a bit long`, className: "text-warning" };
-  }
-  return { text: `${length} / ${TITLE_WARN_AT}`, className: "text-on-surface-variant" };
-}
-
-function descriptionCounterCopy(length: number): { text: string; className: string } {
-  if (length > DESCRIPTION_DANGER_AT) {
-    return {
-      text: `${length} / ${DESCRIPTION_WARN_AT} — too long, Google will cut this off`,
-      className: "text-danger",
-    };
-  }
-  if (length > DESCRIPTION_WARN_AT) {
-    return {
-      text: `${length} / ${DESCRIPTION_WARN_AT} — a bit long`,
-      className: "text-warning",
-    };
-  }
-  return { text: `${length} / ${DESCRIPTION_WARN_AT}`, className: "text-on-surface-variant" };
 }
 
 export function SeoPreview({
@@ -107,58 +63,15 @@ export function SeoPreview({
   searchDescription,
   onSearchDescriptionChange,
   productNameForHint,
-  slug,
   canonicalOverride,
   onCanonicalOverrideChange,
   className,
 }: SeoPreviewProps) {
-  const titleCounter = titleCounterCopy(pageTitle.length);
-  const descriptionCounter = descriptionCounterCopy(searchDescription.length);
-
-  const titleOk = pageTitle.length > 0 && pageTitle.length <= TITLE_WARN_AT;
-  const descriptionOk =
-    searchDescription.length >= DESCRIPTION_MIN && searchDescription.length <= DESCRIPTION_WARN_AT;
-
-  const mentionsProduct =
-    !productNameForHint ||
-    (pageTitle.toLowerCase().includes(productNameForHint.toLowerCase()) &&
-      searchDescription.toLowerCase().includes(productNameForHint.toLowerCase()));
-
-  const looksGood = titleOk && descriptionOk && mentionsProduct;
-
-  const issues: string[] = [];
-  if (pageTitle.length === 0) {
-    issues.push("Add a page title");
-  } else if (pageTitle.length > TITLE_DANGER_AT) {
-    issues.push("Page title is too long");
-  } else if (pageTitle.length > TITLE_WARN_AT) {
-    issues.push("Page title is a bit long");
-  }
-  if (searchDescription.length === 0) {
-    issues.push("Add a search description");
-  } else if (searchDescription.length > DESCRIPTION_DANGER_AT) {
-    issues.push("Search description is too long");
-  } else if (searchDescription.length > DESCRIPTION_WARN_AT) {
-    issues.push("Search description is a bit long");
-  } else if (searchDescription.length < DESCRIPTION_MIN) {
-    issues.push("Search description is a bit short");
-  }
-  if (
-    productNameForHint &&
-    pageTitle.length > 0 &&
-    !pageTitle.toLowerCase().includes(productNameForHint.toLowerCase())
-  ) {
-    issues.push("Page title doesn't mention the product name");
-  }
-  if (
-    productNameForHint &&
-    searchDescription.length > 0 &&
-    !searchDescription.toLowerCase().includes(productNameForHint.toLowerCase())
-  ) {
-    issues.push("Search description doesn't mention the product name");
-  }
-
-  const websiteLink = slug ? `citycomputer.com.np/p/${slug}` : pageUrl;
+  const hint = computeSeoHint({
+    title: pageTitle,
+    description: searchDescription,
+    entityName: productNameForHint,
+  });
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
@@ -174,8 +87,8 @@ export function SeoPreview({
           value={pageTitle}
           onChange={(event) => onPageTitleChange(event.target.value)}
         />
-        <span className={cn("text-label-mono-xs", titleCounter.className)}>
-          {titleCounter.text}
+        <span className={cn("text-label-mono-xs", hint.titleCounter.className)}>
+          {hint.titleCounter.text}
         </span>
       </div>
 
@@ -192,8 +105,8 @@ export function SeoPreview({
           onChange={(event) => onSearchDescriptionChange(event.target.value)}
           rows={3}
         />
-        <span className={cn("text-label-mono-xs", descriptionCounter.className)}>
-          {descriptionCounter.text}
+        <span className={cn("text-label-mono-xs", hint.descriptionCounter.className)}>
+          {hint.descriptionCounter.text}
         </span>
       </div>
 
@@ -215,17 +128,17 @@ export function SeoPreview({
       <p
         className={cn(
           "flex items-start gap-2 text-body-sm",
-          looksGood ? "text-success" : "text-warning",
+          hint.looksGood ? "text-success" : "text-warning",
         )}
       >
-        {looksGood ? (
+        {hint.looksGood ? (
           <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         ) : (
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         )}
-        {looksGood
+        {hint.looksGood
           ? "Looks good — your title and description are the right length and mention the product name."
-          : issues.join("; ") || "Double-check the title and description above."}
+          : hint.issues.join("; ") || "Double-check the title and description above."}
       </p>
 
       <Accordion type="single" collapsible>
@@ -235,7 +148,7 @@ export function SeoPreview({
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <span className="text-body-sm text-on-surface-variant">Website link</span>
-                <Input value={websiteLink} readOnly disabled />
+                <Input value={pageUrl} readOnly disabled />
               </div>
               {onCanonicalOverrideChange && (
                 <div className="flex flex-col gap-1.5">

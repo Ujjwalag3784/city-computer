@@ -15,6 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { SeoPreview } from "@/components/admin/seo-preview";
 import type { AdminBrandRow } from "@/server/services/admin/brand";
 import { createBrandAction, updateBrandAction } from "../_actions";
 
@@ -34,6 +41,8 @@ export function BrandFormDialog({ open, onOpenChange, brand }: BrandFormDialogPr
   const [website, setWebsite] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,6 +52,8 @@ export function BrandFormDialog({ open, onOpenChange, brand }: BrandFormDialogPr
     setWebsite(brand?.website ?? "");
     setIsFeatured(brand?.isFeatured ?? false);
     setIsActive(brand?.isActive ?? true);
+    setMetaTitle(brand?.metaTitle ?? "");
+    setMetaDescription(brand?.metaDescription ?? "");
     setError(null);
   }, [open, brand]);
 
@@ -56,8 +67,8 @@ export function BrandFormDialog({ open, onOpenChange, brand }: BrandFormDialogPr
         website,
         isFeatured,
         isActive,
-        metaTitle: brand?.metaTitle ?? undefined,
-        metaDescription: brand?.metaDescription ?? undefined,
+        metaTitle: metaTitle || undefined,
+        metaDescription: metaDescription || undefined,
       };
       const result = isEdit
         ? await updateBrandAction(brand!.id, input)
@@ -144,6 +155,33 @@ export function BrandFormDialog({ open, onOpenChange, brand }: BrandFormDialogPr
             </div>
             <Switch id="brand-active" checked={isActive} onCheckedChange={setIsActive} />
           </div>
+
+          <Accordion type="single" collapsible>
+            <AccordionItem value="seo">
+              <AccordionTrigger>Search information</AccordionTrigger>
+              <AccordionContent>
+                {/*
+                  Same `SeoPreview` component the category/blog/page admin
+                  forms use (see `category-form-dialog.tsx`'s doc comment) —
+                  brand wasn't explicitly required by the Phase 11 admin-SEO
+                  brief but the fields (and their schema/service support)
+                  already existed, and the dialog's own "reused-once, re-
+                  synced-on-open" shape is identical to the category dialog's,
+                  so wiring it here was a clean, consistent addition rather
+                  than an awkward fit. Collapsed by default, same reasoning
+                  as the category dialog.
+                */}
+                <SeoPreview
+                  pageUrl={`citycomputer.com.np/b/${brand?.slug ?? (name ? name.toLowerCase().replace(/\s+/g, "-") : "...")}`}
+                  pageTitle={metaTitle}
+                  onPageTitleChange={setMetaTitle}
+                  searchDescription={metaDescription}
+                  onSearchDescriptionChange={setMetaDescription}
+                  productNameForHint={name}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           {error && (
             <p role="alert" className="text-body-sm text-error">

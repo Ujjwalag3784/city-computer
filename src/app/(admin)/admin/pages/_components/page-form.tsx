@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SeoPreview } from "@/components/admin/seo-preview";
 import { TiptapEditor } from "@/components/admin/tiptap-editor";
 import { PageTemplate, PostStatus } from "@/generated/prisma/client";
 import { slugify } from "@/lib/slug";
@@ -182,23 +183,23 @@ export function PageForm({ pageId, initialValues }: PageFormProps) {
         </Select>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="page-meta-title">Search result title</Label>
-          <Input
-            id="page-meta-title"
-            value={values.metaTitle}
-            onChange={(e) => update("metaTitle", e.target.value)}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="page-meta-description">Search result description</Label>
-          <Input
-            id="page-meta-description"
-            value={values.metaDescription}
-            onChange={(e) => update("metaDescription", e.target.value)}
-          />
-        </div>
+      <div className="flex flex-col gap-1.5">
+        <Label>Search information</Label>
+        {/* Same `SeoPreview` the product wizard and blog post form use — see PROGRESS.md Phase 11's admin-SEO-fields audit note. */}
+        <SeoPreview
+          pageUrl={`citycomputer.com.np/pages/${values.slug || "..."}`}
+          pageTitle={values.metaTitle}
+          onPageTitleChange={(metaTitle) => update("metaTitle", metaTitle)}
+          searchDescription={values.metaDescription}
+          onSearchDescriptionChange={(metaDescription) =>
+            update("metaDescription", metaDescription)
+          }
+          productNameForHint={values.title}
+        />
+        {issues.metaTitle && <p className="text-body-sm text-danger">{issues.metaTitle}</p>}
+        {issues.metaDescription && (
+          <p className="text-body-sm text-danger">{issues.metaDescription}</p>
+        )}
       </div>
 
       <div className="flex justify-between gap-3">
