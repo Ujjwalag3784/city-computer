@@ -29,7 +29,12 @@ import {
   verifyTotpToken,
 } from "@/lib/totp";
 import { AppError, NotFoundError, validationErrorFromZodIssues } from "@/lib/errors";
-import { markTwoFactorVerified } from "@/server/auth/session-state";
+import {
+  forgetPendingTwoFactorSecret,
+  markTwoFactorVerified,
+  readPendingTwoFactorSecret,
+  rememberPendingTwoFactorSecret,
+} from "@/server/auth/session-state";
 
 export interface TwoFactorEnrollmentStart {
   /** Not persisted until `confirmTwoFactorEnrollment` succeeds — an abandoned setup never leaves `twoFactorSecret` set-but-unverified. */
@@ -102,4 +107,65 @@ export async function verifyTwoFactorForSession(
   }
 
   await markTwoFactorVerified(sessionToken);
+}
+
+/** What `/admin/verify-2fa` needs to render an enrollment screen. Deliberately does NOT include a session-independent handle to the secret — the secret itself lives in Redis, keyed by session token. */
+export interface TwoFactorEnrollmentPrompt {
+  qrCodeDataUrl: string;
+  /** The same secret in typeable form, for a phone whose camera can't scan. Shown once, during enrollment, to the account's own owner — the standard TOTP fallback. */
+  manualEntryKey: string;
+}
+
+/**
+ * The session-scoped wrapper `/admin/verify-2fa` actually calls, layered on
+ * `startTwoFactorEnrollment` above.
+ *
+ * The difference that matters: `startTwoFactorEnrollment` hands the caller a
+ * brand-new secret every time and makes stashing it somewhere the caller's
+ * problem. This one pins the *first* candidate for a session in Redis (see
+ * `rememberPendingTwoFactorSecret`) and renders the QR for whatever is
+ * pinned, so refreshing the enrollment page — or React rendering it twice —
+ * cannot leave the operator holding a QR code that no longer matches what
+ * the server will verify against.
+ */
+export async function beginTwoFactorEnrollmentForSession(
+  userId: string,
+  sessionToken: string,
+): Promise<TwoFactorEnrollmentPrompt> {
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundError("User");
+
+  const candidate = generateTotpSecret();
+  const secret = await rememberPendingTwoFactorSecret(sessionToken, candidate);
+
+  const keyUri = buildTotpKeyUri(secret, user.email ?? user.phone ?? userId);
+  const qrCodeDataUrl = await generateTotpQrCodeDataUrl(keyUri);
+  return { qrCodeDataUrl, manualEntryKey: secret };
+}
+
+/**
+ * Commits an enrollment started by `beginTwoFactorEnrollmentForSession` and
+ * marks the current session 2FA-satisfied in one step, so the operator isn't
+ * asked for a second code immediately after proving they hold the first.
+ *
+ * A missing pending secret is an error, never a pass: it means the 15-minute
+ * window elapsed or the enrollment was started in a different session, and
+ * the only safe response is "start again."
+ */
+export async function confirmTwoFactorEnrollmentForSession(
+  userId: string,
+  sessionToken: string,
+  input: unknown,
+): Promise<void> {
+  const secret = await readPendingTwoFactorSecret(sessionToken);
+  if (!secret) {
+    throw new AppError(
+      "VALIDATION_FAILED",
+      "This setup step expired. Reload the page to get a fresh QR code.",
+    );
+  }
+
+  await confirmTwoFactorEnrollment(userId, secret, input);
+  await markTwoFactorVerified(sessionToken);
+  await forgetPendingTwoFactorSecret(sessionToken);
 }

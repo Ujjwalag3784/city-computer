@@ -72,6 +72,9 @@ export const config = {
 
 const intlMiddleware = createIntlMiddleware(routing);
 
+/** `src/app/(admin-auth)/admin/verify-2fa/page.tsx`. Named once so the redirect target and the loop guard below can never drift apart. */
+const TWO_FACTOR_PATH = "/admin/verify-2fa";
+
 function isIpAllowed(ip: string): boolean {
   const allowlist = env.ADMIN_IP_ALLOWLIST?.split(",")
     .map((entry) => entry.trim())
@@ -119,8 +122,22 @@ const adminMiddleware = auth(async (request: NextAuthRequest, _event: NextFetchE
     return new NextResponse(null, { status: 404 });
   }
 
-  if (requiresTwoFactor(session.user.roleKeys) && !session.user.twoFactorVerified) {
-    const verifyUrl = new URL("/admin/verify-2fa", nextUrl);
+  // The 2FA screen itself is the one admin path this redirect must not fire
+  // for, or a session that hasn't satisfied 2FA would be redirected to
+  // /admin/verify-2fa from /admin/verify-2fa, forever. This is a loop guard,
+  // not a relaxation: a request for this path still has to pass every other
+  // check in this function (allowed IP, real session, admin role, and both
+  // session windows below), and the page itself re-checks the session and
+  // role and bounces anyone who doesn't actually need this step. The only
+  // thing that ever sets `twoFactorVerified` is a correct TOTP code reaching
+  // `session-state.ts`'s Redis flag.
+  const isTwoFactorPath = nextUrl.pathname === TWO_FACTOR_PATH;
+  if (
+    !isTwoFactorPath &&
+    requiresTwoFactor(session.user.roleKeys) &&
+    !session.user.twoFactorVerified
+  ) {
+    const verifyUrl = new URL(TWO_FACTOR_PATH, nextUrl);
     verifyUrl.searchParams.set("callbackUrl", nextUrl.pathname);
     return NextResponse.redirect(verifyUrl);
   }
