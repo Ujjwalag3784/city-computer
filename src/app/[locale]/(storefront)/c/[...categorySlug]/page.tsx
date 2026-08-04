@@ -13,7 +13,8 @@ import {
   ROBOTS_NOINDEX_FOLLOW,
   robotsForTranslationState,
 } from "@/lib/seo/metadata";
-import { absoluteUrl } from "@/lib/seo/site";
+import { absoluteAssetUrl, absoluteUrl } from "@/lib/seo/site";
+import { OG_IMAGE_SIZE } from "@/lib/seo/og-image-theme";
 import { getCategoryBreadcrumbTrail, getCategoryByPath } from "@/server/services/catalog/category";
 import { getFilterableSpecKeys } from "@/server/services/catalog/facet";
 import { listProducts } from "@/server/services/catalog/product";
@@ -103,7 +104,30 @@ export async function generateMetadata({
       robots: faceted
         ? ROBOTS_NOINDEX_FOLLOW
         : robotsForTranslationState(locale, HAS_NE_TRANSLATION),
-      openGraph: buildOpenGraph({ title, description, url: canonical, locale }),
+      // Pointed at `/api/og/category` explicitly rather than inferred from an
+      // `opengraph-image.tsx` sibling file: this route's segment is a
+      // catch-all, and Next.js rejects any route where a catch-all isn't the
+      // last part of the URL, which is exactly what a metadata image file
+      // here would produce. See that route handler's header comment.
+      openGraph: buildOpenGraph({
+        title,
+        description,
+        url: canonical,
+        locale,
+        images: [
+          {
+            // `absoluteAssetUrl`, not `absoluteUrl`: this is a locale-agnostic
+            // API route, so it must not pick up an `/ne` prefix — the locale
+            // travels as a query parameter instead.
+            url: absoluteAssetUrl(
+              `/api/og/category?path=${encodeURIComponent(categorySlug.join("/"))}&locale=${locale}`,
+            ),
+            width: OG_IMAGE_SIZE.width,
+            height: OG_IMAGE_SIZE.height,
+            alt: `${category.name} — City Computer Systems`,
+          },
+        ],
+      }),
     };
   } catch {
     // A missing category 404s via `notFound()` in the page component

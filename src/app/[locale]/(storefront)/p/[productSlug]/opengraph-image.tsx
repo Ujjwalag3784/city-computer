@@ -13,7 +13,16 @@ import { getProductBySlug } from "@/server/services/catalog/product";
 import { OG_COLORS, OG_CONTENT_TYPE, OG_IMAGE_SIZE } from "@/lib/seo/og-image-theme";
 import { toPrismaLocale } from "../../_lib/catalog-view";
 
-export const runtime = "edge";
+// NOT `runtime = "edge"`. This file reads live data through the catalog/content
+// service layer, which reaches `@/server/db` -> `@prisma/adapter-pg` -> `pg`,
+// and `pg` is a Node-only package: the edge runtime cannot resolve it
+// (`Module not found: Can't resolve 'pg-native'`, then a 500 on every request
+// for this image). It was declared `edge` from the moment it was written in
+// Phase 11 and had never been exercised, because no build or dev server in any
+// prior session got far enough to render it. `next/og`'s `ImageResponse` works
+// on the Node.js runtime just as well, so the default runtime is simply
+// correct here — only the static homepage OG image, which imports no services,
+// can legitimately stay on the edge.
 export const alt = "Product — City Computer Systems";
 export const size = OG_IMAGE_SIZE;
 export const contentType = OG_CONTENT_TYPE;
