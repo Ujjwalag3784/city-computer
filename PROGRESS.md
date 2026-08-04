@@ -6,7 +6,70 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session: SEO & Structured Data (Phase 11) is complete.** The
+**Latest session: the premium visual redesign is merged into `main`.**
+An isolated frontend worktree (`CityComputer-frontend`, a disconnected
+`git init`, forked before Phase 11 started) ran a Stitch/Obsidian-Peak-
+inspired presentation pass over 9 files — no business logic, data
+fetching, event handlers, or component prop contracts touched, per its
+own `REDESIGN_NOTES.md`. That work has now been folded into `main`:
+
+- **Files merged**: `_components/category-grid.tsx` (taller image-style
+  category tiles, single-column on mobile), the storefront
+  `page.tsx` (full hero section above the fold, restyled section
+  headers), `admin-sidebar.tsx` and `metric-tile.tsx` and
+  `builder-slot-card.tsx` (hover-glow treatment), `filter-rail.tsx`
+  (glass-panel wrapper, monospace labels), `order-summary-panel.tsx`
+  (hover glow), `product-card.tsx` (grid-variant hover glow/scale/
+  color-shift), and `spec-table.tsx` (zebra striping, monospace labels).
+  A 10th file the source repo touched, `product-grid.tsx`, was correctly
+  excluded — its only change there was a reverted `"use client"`
+  directive, so it carried no real redesign diff, and it also holds
+  Phase 11's LCP `priority={index < 3}` hint, which stays untouched.
+- **Two real merge conflicts, resolved by hand, not overwritten**: the
+  frontend repo forked before Phase 11's SEO work, so two of its 9 files
+  had since been touched by Phase 11 on `main`. `page.tsx` had gained
+  `generateMetadata` (canonical/hreflang/OG) and a `JsonLd` +
+  `buildItemListJsonLd` call; `product-card.tsx` had gained a `priority`
+  prop threaded through all three variants' `<Image>` for the LCP hint.
+  Both were kept exactly as Phase 11 left them, with the redesign's
+  presentational JSX/Tailwind changes layered around them, not inside
+  them. No `src/lib/seo/**` code was touched at all.
+- **Verification**: `pnpm typecheck` (0 errors), `pnpm lint` (0
+  warnings/errors), and `pnpm test` (703/703 tests, 78 files) all pass
+  clean on `main` post-merge. `pnpm build` was attempted repeatedly and
+  in several forms — a real `next build` with `NEXT_FONT_GOOGLE_MOCKED_RESPONSES`
+  pointed at genuine local Inter/JetBrains Mono `.woff2` files (this
+  sandbox's outbound network policy blocks `fonts.googleapis.com`/
+  `fonts.gstatic.com`, same root cause the frontend agent's own sandbox
+  hit), a Turbopack build (ruled out: it panics on a pre-existing,
+  unrelated Phase 11 route — a catch-all segment ordering issue with the
+  `opengraph-image` routes — nothing to do with this merge), and a
+  `--no-mangling`/clean-cache build. Every attempt showed genuine,
+  actively-progressing CPU-bound compilation (verified via `ps` — steady
+  ~130-140% CPU, climbing memory, zero errors, zero crashes at any
+  point) but did not reach a finished state inside this environment's
+  hard per-command execution ceiling — the codebase's generated Prisma
+  client alone (`src/generated/prisma/`) is 260k+ lines, and this
+  sandbox has 2 CPUs — nor could the build be resumed across separate
+  attempts, since each command's process tree is torn down at the end of
+  that command regardless of `nohup`/`disown`/`setsid` (a hard PID-
+  namespace property of this execution environment, independently
+  confirmed). This is a tooling/environment ceiling, not a demonstrated
+  code defect: no build error, warning, or crash was ever observed, only
+  an incomplete run against the clock. **Caveat, matching
+  `REDESIGN_NOTES.md`'s own honesty about the same limitation in the
+  frontend sandbox: `pnpm build` should be re-run to a finished
+  completion in a normal, unconstrained environment (a real CI box or a
+  developer machine) before this is treated as deploy-verified** — there
+  is no positive evidence of a defect, but there is also no completed
+  build log to point to.
+- **Merge mechanics**: branch `frontend/stitch-redesign-merge` off
+  `main` at `43a7b90`, the 9 files copied/merged file-by-file (not a
+  history merge — the frontend repo has fully disconnected git history),
+  committed as `9b9cd33`, then merged into `main` with `--no-ff` as
+  `b8f67cd`.
+
+**Before that: SEO & Structured Data (Phase 11) is complete.** The
 site now emits correct, Google-parseable structured data on every
 indexable route — and correctly suppresses it where the data doesn't
 exist. Here's what landed:
