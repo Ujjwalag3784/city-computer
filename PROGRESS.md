@@ -6,7 +6,155 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session: the premium visual redesign is merged into `main`.**
+**Latest session: deploy readiness — and it turned out the app could not
+have been deployed or even started at all.** Full runbook in
+`DEPLOY_VERCEL.md`. Honest summary of what was found, added and verified:
+
+**Two hard blockers that nothing in the existing checks could see.** Both
+predate this session, both were found by finally getting a Next.js compiler
+to load the route tree (typecheck, lint and 738 tests are all blind to
+them):
+
+1. **The route tree did not load.** `c/[...categorySlug]/opengraph-image.tsx`
+   (added in Phase 11, `b12ea7b`) produced the route
+   `/c/[...categorySlug]/opengraph-image` — a catch-all followed by another
+   segment, which Next.js rejects with *"Catch-all must be the last part of
+   the URL."* `next dev` **refused to start** on it, and `next build` would
+   have failed the same way. Earlier sessions saw this symptom and recorded
+   it as a Turbopack-only panic; it is not Turbopack-specific. Proven by
+   bisection: moving that one file aside took the dev server from "refuses
+   to start" to "Ready in 2.5s". Fixed by moving the renderer to
+   `src/app/api/og/category/route.tsx` and pointing the category page's
+   `openGraph.images` at it explicitly. Same renderer, same live data, same
+   1200x630 output.
+2. **Every data-driven OG image 500ed.** The category, product and blog-post
+   OG images were all `runtime = "edge"` while importing the service layer,
+   which reaches `@prisma/adapter-pg` → `pg`. `pg` is Node-only; the edge
+   runtime cannot resolve it (`Can't resolve 'pg-native'`). Dropped to the
+   default Node runtime. Only the homepage OG image, which imports no
+   services, legitimately stays on the edge.
+
+**There was no way to log in — and the reason was bigger than the missing
+`User` row.** The seed creates zero users, yes. But there were also **no
+auth pages at all**: `authConfig.pages.signIn`, `adminMiddleware` and
+`(admin)/layout.tsx` have all redirected to `/auth/login` since Phase 3, and
+`adminMiddleware` has redirected OWNER/MANAGER to `/admin/verify-2fa` — and
+neither route existed anywhere under `src/app`. Every one of those redirects
+landed on a 404. Phase 3's own section below says the pages were never
+built; what had never been joined up is that this made the entire admin
+console unreachable regardless of the database. Added:
+
+- **`/auth/login`** (`[locale]/(auth)/`) — credentials sign-in. One
+  indistinguishable failure message for wrong password / no such account /
+  suspended / locked / rate-limited, per docs/13 §2. Adds no checks of its
+  own; `authorize()` already owns them all. Deliberately does not call
+  `auth()`, so an unreachable Redis cannot 500 the one page needed to
+  recover. **Verified rendering: `GET /auth/login` → 200 with the real
+  form.**
+- **`/admin/verify-2fa`** (`(admin-auth)/`) — TOTP enrollment (QR plus a
+  typeable key) and per-session verification in one screen. Outside the
+  `(admin)` group because that layout's `requireAdminSession` 404s on
+  precisely the state this page exists to resolve. The pending enrollment
+  secret is pinned in Redis with `SET NX`, so refreshing cannot invalidate a
+  QR already scanned into a phone.
+- `middleware.ts` gained a one-path loop guard so the 2FA redirect cannot
+  target the 2FA page. **The 2FA requirement itself was not weakened,
+  bypassed or made conditional** — every other check still applies to that
+  path, and nothing sets the verified flag except a correct code.
+- `lib/safe-redirect.ts` — `?callbackUrl=` is attacker-controlled, so it is
+  validated to a same-origin path (rejecting `//host`, `/\host`, schemes,
+  control characters) before reaching `redirect()` or `redirectTo`.
+
+**`pnpm db:create-admin`** (`prisma/seed/create-admin.ts`):
+
+```bash
+pnpm db:create-admin --email=you@example.com --password='at-least-ten-chars' \
+  --name="Shop Owner" [--role=OWNER|MANAGER|STAFF|SUPPORT|TECHNICIAN|CONTENT_EDITOR]
+```
+
+Upserts by email (re-running is the documented password-reset path),
+attaches the role through `UserRole` (idempotent against
+`@@unique([userId, roleId])`), Argon2id via `lib/password.ts`, and enforces
+the same length + breach-corpus policy a customer signup gets. Never prints
+the password back. CLI flags rather than env vars because
+`eslint.config.mjs` bans `process.env` outside `src/env*.ts`. Imports the
+seed client and the new `@/lib/admin-roles` (which
+`server/auth/permissions.ts` re-exports) because anything carrying
+`server-only` throws under plain `tsx`.
+
+**Role decision: defaults to OWNER, supports all six.** `STAFF` avoids 2FA
+but its seeded `ROLE_GRANTS` (`prisma/seed/core.ts`) cover only product:view,
+order:view/update, stock:update, customer:view and service-ticket:write — it
+**cannot** open the product wizard, reports, coupons, campaigns, settings,
+blog, CMS, staff accounts or the builder admin. Roughly two thirds of the
+console is invisible to it, which makes a poor demo. OWNER costs one
+60-second phone setup instead.
+
+**`emailVerified` is set by the script, and is NOT a login requirement** —
+verified by reading `config.ts`'s `authorize()`, which checks `passwordHash`,
+`status === "ACTIVE"` and `lockedUntil` only. It is set because it is true
+and because a null value would misreport the account in the admin's own
+staff list.
+
+**Redis is genuinely required for the admin, and genuinely optional for the
+storefront.** Traced rather than guessed:
+
+- `session-state.ts` holds all three things the `Session` model has no
+  columns for (8h absolute, 30min idle, the 2FA flag) and `middleware.ts`
+  reads them on every `/admin` request, failing closed. No Redis, no admin.
+  Correctly so — this was not "fixed".
+- **Real bug found and fixed** in `rate-limit-store.ts`: it only failed open
+  when `pipeline.exec()` resolved to `null`, but ioredis with
+  `maxRetriesPerRequest: 2` **rejects** instead. That rejection escaped
+  `rateLimit()` into every caller, so a dead `REDIS_URL` (which
+  `env-core.ts` defaults to `redis://localhost:6379`, passing validation)
+  broke sign-in, add-to-cart, checkout and the contact form outright rather
+  than degrading. Now caught and failed open, matching the file's own
+  documented intent. Not a weakened control: every authorisation gate still
+  fails closed and none of them route through that file. Six new tests pin
+  it.
+- Confirmed by running the site with Redis down: bounded `Redis client
+  error` logging, no crash, no hang, and `/auth/login` still 200.
+
+**Migrations: `prisma migrate deploy`, not `db push`.**
+`prisma/migrations/20260727175048_pnpm_db_seed/migration.sql` is a real
+2,614-line migration, and it was checked to contain a `CREATE TABLE` for all
+90 models in `prisma/schema/*.prisma` — no drift. `prisma/sql/manual-constraints.sql`
+**does** still have to be applied by hand afterwards (the migration creates
+the `search_vector` columns but none of the extensions, triggers or indexes);
+`DEPLOY_VERCEL.md` step 5.3 uses `prisma db execute` for it, and says plainly
+that the file has never been executed anywhere. The long-standing
+`RecoveryCode` gap is **still outstanding** — 2FA works, backup codes do not
+exist, and the documented recovery route is re-running `db:create-admin`.
+
+**`pnpm build`: still never completed, and that is now the only significant
+unverified thing left.** `build` was changed to
+`prisma generate && next build` (Vercel installs fresh; a missing generate is
+the classic Prisma-on-Vercel failure). In this environment a full build
+remains impossible for two independent reasons, both environmental:
+`prisma generate` cannot fetch its engine binaries (`binaries.prisma.sh`
+→ 403 through the proxy) and `next build` is CPU-bound well past the hard
+**45-second per-command ceiling** — no process survives a command boundary
+(`bwrap --unshare-pid --die-with-parent`, independently re-confirmed), and
+Next.js only writes its webpack cache on completion, so successive attempts
+start from scratch. Two full attempts reached "Creating an optimized
+production build" with 2.1 MB of `.next` and no error before being killed.
+**What was verified instead**, which is more than any previous session
+managed: the route tree loads, `next dev` reaches Ready in 2.5s,
+`GET /auth/login` returns 200 with real markup, and
+`GET /api/og/category?path=laptops` returns 200 `image/png` 1200x630, 15.6 kB.
+`pnpm typecheck` and `pnpm lint` are clean, and **738 tests pass** (up from
+703 — 35 new, covering arg parsing, role resolution, open-redirect rejection
+and Redis fail-open). Typecheck had to be run as two complementary
+`tsconfig` halves whose union is the whole tree, for the same 45-second
+reason; both halves exit 0.
+
+**Not added:** no `vercel.json`. Nothing needs it — Vercel detects Next.js
+and pnpm, and the build command lives in `package.json` where it belongs.
+`next.config.ts`'s `output: "standalone"` was left alone; Vercel handles it,
+and changing it would be churn.
+
+**Before that: the premium visual redesign is merged into `main`.**
 An isolated frontend worktree (`CityComputer-frontend`, a disconnected
 `git init`, forked before Phase 11 started) ran a Stitch/Obsidian-Peak-
 inspired presentation pass over 9 files — no business logic, data
