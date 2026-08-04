@@ -111,7 +111,13 @@ export function OrderSummaryPanel({
   }
 
   return (
-    <Card variant="surface" className={cn(className)}>
+    <Card
+      variant="surface"
+      className={cn(
+        "transition-all duration-300 hover:border-primary-container/40 hover:shadow-glow/30",
+        className,
+      )}
+    >
       {/* `CardContent` defaults to `pt-0` (it expects a `CardHeader` above it
           for the top gap) — there is no header here, so `pt-[--space-card-
           padding]` is restored via `className`, which `cn`'s `twMerge` lets

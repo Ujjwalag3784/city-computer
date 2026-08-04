@@ -167,7 +167,7 @@ export function AdminSidebar({ items, activeHref, className }: AdminSidebarProps
   return (
     <aside
       className={cn(
-        "hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-glass-stroke lg:bg-surface-container lg:p-4",
+        "hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-glass-stroke lg:bg-obsidian-surface lg:p-4",
         className,
       )}
     >

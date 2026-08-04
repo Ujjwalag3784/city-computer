@@ -84,7 +84,7 @@ export function MetricTile({
     return (
       <Card
         className={cn(
-          "group relative p-[--space-card-padding] transition-colors hover:border-primary-container",
+          "group relative p-[--space-card-padding] transition-all duration-300 hover:border-primary-container/60 hover:shadow-glow",
           className,
         )}
       >
