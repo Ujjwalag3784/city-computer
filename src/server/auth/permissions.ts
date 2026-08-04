@@ -18,23 +18,28 @@ import { db } from "@/server/db";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 
 /**
- * Every role key that is NOT `CUSTOMER` — i.e. "has some admin surface
- * access," per prisma/seed/core.ts's `ROLES`. `CUSTOMER` is the only role
- * seeded onto ordinary storefront accounts.
+ * The role-key catalogue and the two pure predicates over it now live in
+ * `@/lib/admin-roles` and are re-exported here unchanged.
+ *
+ * Why: `prisma/seed/create-admin.ts` (`pnpm db:create-admin`) needs to know
+ * which roles grant admin access and which force TOTP 2FA, and it runs
+ * under plain `tsx`, where this file's own `import "server-only"` throws
+ * unconditionally (see `src/env-core.ts`'s header). Moving the plain data
+ * and the two string checks down into `lib/` — which has no server
+ * dependencies — lets both sides share one definition instead of the seed
+ * script keeping a second copy that could silently drift out of step with
+ * the middleware's actual gate.
+ *
+ * Every existing `from "@/server/auth/permissions"` import keeps working:
+ * this is a re-export, not a move-and-update-call-sites.
  */
-export const ADMIN_ROLE_KEYS = [
-  "OWNER",
-  "MANAGER",
-  "STAFF",
-  "CONTENT_EDITOR",
-  "SUPPORT",
-  "TECHNICIAN",
-] as const;
-
-export type AdminRoleKey = (typeof ADMIN_ROLE_KEYS)[number];
-
-/** docs/13 §2: "TOTP mandatory for OWNER and MANAGER." Every other admin role may enroll but isn't forced to. */
-export const TWO_FACTOR_MANDATORY_ROLE_KEYS = ["OWNER", "MANAGER"] as const;
+export {
+  ADMIN_ROLE_KEYS,
+  TWO_FACTOR_MANDATORY_ROLE_KEYS,
+  isAdminRoleKey,
+  requiresTwoFactor,
+  type AdminRoleKey,
+} from "@/lib/admin-roles";
 
 export interface UserRoleAndPermissionKeys {
   roleKeys: string[];
@@ -70,18 +75,6 @@ export async function loadUserRoleAndPermissionKeys(
   }
 
   return { roleKeys: [...roleKeys], permissionKeys: [...permissionKeys] };
-}
-
-/** True if `roleKey` is one of the seeded non-`CUSTOMER` roles — i.e. this role grants *some* admin-surface access. Doesn't check permissions; a role having admin access at all is a coarser question than what it can do. */
-export function isAdminRoleKey(roleKey: string): roleKey is AdminRoleKey {
-  return (ADMIN_ROLE_KEYS as readonly string[]).includes(roleKey);
-}
-
-/** True if any of `roleKeys` requires TOTP 2FA (docs/13 §2: OWNER, MANAGER). */
-export function requiresTwoFactor(roleKeys: readonly string[]): boolean {
-  return roleKeys.some((key) =>
-    (TWO_FACTOR_MANDATORY_ROLE_KEYS as readonly string[]).includes(key),
-  );
 }
 
 /** Pure membership check — no DB, no session lookup. Exists mainly so `requirePermission` and tests share one definition of "has". */
