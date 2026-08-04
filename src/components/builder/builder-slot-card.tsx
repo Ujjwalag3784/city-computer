@@ -116,7 +116,13 @@ export function BuilderSlotCard({
   const isRecommended = state === "recommended";
 
   return (
-    <Card borderTone={isRecommended ? "primary" : "default"} className={cn(className)}>
+    <Card
+      borderTone={isRecommended ? "primary" : "default"}
+      className={cn(
+        "transition-all duration-300 hover:border-primary-container/40 hover:shadow-glow/50",
+        className,
+      )}
+    >
       <CardHeader className="flex-row items-center justify-between gap-2 pb-0">
         <span className="text-label-mono-xs text-on-surface-variant">{slotLabel}</span>
         {isRecommended && (

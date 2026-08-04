@@ -39,19 +39,21 @@ export function SpecTable({ groups, className }: SpecTableProps) {
   return (
     <div className={cn("flex flex-col gap-6", className)}>
       {groups.map((group) => (
-        <section key={group.title} className="flex flex-col gap-2">
-          <h3 className="text-title text-on-surface">{group.title}</h3>
+        <section key={group.title} className="flex flex-col gap-3">
+          <h3 className="font-display text-title text-on-surface">{group.title}</h3>
           <dl className="overflow-hidden rounded-xl border border-glass-stroke">
             {group.rows.map((row) => (
               <div
                 key={row.label}
                 className={cn(
-                  "grid grid-cols-1 gap-1 px-4 py-3 odd:bg-surface-container-high",
+                  "grid grid-cols-1 gap-1 px-4 py-3 odd:bg-[#09090b] even:bg-obsidian-surface",
                   "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:gap-4",
                 )}
               >
-                <dt className="text-body-sm text-on-surface-variant">{row.label}</dt>
-                <dd className="text-body-sm text-on-surface">{row.value}</dd>
+                <dt className="font-mono text-label-mono-xs text-on-surface-variant">
+                  {row.label}
+                </dt>
+                <dd className="text-body-md text-on-surface">{row.value}</dd>
               </div>
             ))}
           </dl>

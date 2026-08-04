@@ -17,11 +17,19 @@ import type { CategoryTreeNode } from "@/server/services/catalog/category";
  */
 export function CategoryGrid({ categories }: { categories: CategoryTreeNode[] }) {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {categories.map((category) => (
-        <Link key={category.id} href={`/c/${category.path}`}>
-          <Card className="flex h-28 flex-col items-center justify-center gap-2 p-4 text-center transition-colors hover:bg-surface-container-high">
-            <span className="text-body-md font-medium text-on-surface">{category.name}</span>
+        <Link key={category.id} href={`/c/${category.path}`} className="group">
+          <Card className="relative flex h-36 flex-col justify-end overflow-hidden border border-glass-stroke bg-obsidian-surface p-6 transition-all duration-300 hover:border-primary-container/60 hover:shadow-glow">
+            <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent z-10" />
+            <div className="relative z-20 flex flex-col gap-1">
+              <span className="text-body-lg font-display font-semibold text-on-surface transition-colors group-hover:text-primary">
+                {category.name}
+              </span>
+              <span className="text-label-mono-xs text-on-surface-variant group-hover:text-silver-text transition-colors">
+                Explore Category &rarr;
+              </span>
+            </div>
           </Card>
         </Link>
       ))}

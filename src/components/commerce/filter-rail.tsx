@@ -51,23 +51,34 @@ export function FilterRail({ groups, onClearAll, className }: FilterRailProps) {
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-4 pb-4">
-        <p className="text-body-md text-on-surface">Filters</p>
-        <Button variant="outline" size="sm" onClick={onClearAll}>
-          Clear filters
-        </Button>
-      </div>
+      <div className="glass-panel p-6 rounded-xl border border-glass-stroke flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-4 pb-2 border-b border-glass-stroke">
+          <p className="font-mono text-label-mono-xs uppercase text-primary font-semibold tracking-wider">
+            Technical Filters
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClearAll}
+            className="h-7 text-label-mono-xs text-on-surface-variant hover:text-primary"
+          >
+            Reset
+          </Button>
+        </div>
 
-      <Accordion type="multiple" defaultValue={openValues}>
-        {groups.map((group) => (
-          <AccordionItem key={group.title} value={group.title}>
-            <AccordionTrigger>{group.title}</AccordionTrigger>
-            <AccordionContent>
-              <FilterGroup {...group} />
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+        <Accordion type="multiple" defaultValue={openValues}>
+          {groups.map((group) => (
+            <AccordionItem key={group.title} value={group.title}>
+              <AccordionTrigger className="text-body-sm font-mono uppercase tracking-wide text-on-surface">
+                {group.title}
+              </AccordionTrigger>
+              <AccordionContent>
+                <FilterGroup {...group} />
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
     </aside>
   );
 }

@@ -148,7 +148,12 @@ export function ProductCard({
 
   // variant === "grid" (default) — built on the shared `Card` primitive.
   return (
-    <Card className={cn("flex flex-col overflow-hidden", className)}>
+    <Card
+      className={cn(
+        "group flex flex-col overflow-hidden transition-all duration-300 hover:border-primary-container/60 hover:shadow-glow",
+        className,
+      )}
+    >
       <Link href={href} className={cn("flex flex-1 flex-col", linkFocusClassName)}>
         <div className="relative aspect-square w-full overflow-hidden bg-surface-container-high">
           <Image
@@ -156,7 +161,7 @@ export function ProductCard({
             alt={product.imageAlt}
             fill
             sizes="(min-width: 1024px) 33vw, 50vw"
-            className="object-contain"
+            className="object-contain transition-transform duration-500 ease-out group-hover:scale-105"
             priority={priority}
           />
         </div>
@@ -164,7 +169,7 @@ export function ProductCard({
           {product.brand && (
             <span className="text-label-mono-xs text-on-surface-variant">{product.brand}</span>
           )}
-          <span className="line-clamp-2 text-body-md font-medium text-on-surface">
+          <span className="line-clamp-2 text-body-md font-medium text-on-surface transition-colors group-hover:text-primary">
             {product.displayTitle}
           </span>
           {rating !== null && (
