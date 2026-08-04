@@ -6,7 +6,48 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session: the site now has real content, a service desk, and an
+**Latest session: SEO & Structured Data (Phase 11) is complete.** The
+site now emits correct, Google-parseable structured data on every
+indexable route — and correctly suppresses it where the data doesn't
+exist. Here's what landed:
+
+- **JSON-LD library** (`src/lib/seo/jsonld/`): 10+ typed builders —
+  `Product` (with the zero-review `aggregateRating` suppression rule),
+  `BreadcrumbList`, `Organization`, `WebSite` + `SearchAction`,
+  `ComputerStore`, `BlogPosting`, `FAQPage`, `Service`, `ItemList` +
+  `CollectionPage`, `WebApplication`, and the PC-builder `Product`
+  bundle. Every builder has unit tests; 703 tests pass total.
+- **Metadata on every route**: `generateMetadata` with canonical,
+  hreflang, `noindex` guards, and Open Graph on all 15+ storefront
+  routes (homepage, PDP, category, brand, search, blog list, blog post,
+  blog category, CMS pages, FAQ, stores, store detail, service, build
+  share, EMI calculator).
+- **Thin-content guards**: PDP (120 words + 6 specs + 2 photos),
+  blog post (150 words), CMS page (150 words) — all wired at the route
+  level, not just defined.
+- **Faceted-URL `noindex`**: category and brand pages with any filter
+  param except `page` are `noindex,follow`, canonical pointing at the
+  clean URL.
+- **Dynamic OG images** (`next/og`, edge runtime): homepage fallback,
+  PDP (product photo + brand + price + availability), category (name +
+  live count), blog post (title + author + reading time).
+- **Sitemap** (`/sitemap.xml`): index sharded into 6 fixed types
+  (static, categories, brands, posts, pages, branches) + one 10k-chunk
+  shard per product. Revalidates every hour.
+- **`robots.txt`**: production allows crawlers, blocks `Disallow` list
+  including all admin/cart/checkout routes; staging/preview/local always
+  returns `Disallow: /`. AI training crawlers blocked, search/answer
+  crawlers explicitly allowed.
+- **Admin SEO fields**: `SeoPreview` (live SERP preview + traffic-light
+  hint) wired into every admin form with a `metaTitle`/`metaDescription`
+  pair — the product wizard's Step 4, and now the category, brand, blog
+  post, and CMS page forms too. The `serp-hint.ts` thresholds are
+  imported from the same constants that actually truncate the live tags.
+- **XSS-safe serialisation**: `serializeJsonLd()` escapes `<`, `>`, `&`,
+  and Unicode line separators — the only place in the codebase that
+  touches the raw JSON-LD string before it hits the HTML response.
+
+**Before that: the site now has real content, a service desk, and an
 EMI calculator — the last feature phase before payment gateways.** A
 real blog (Tiptap-authored, sanitised on render, categories/authors,
 reading time, related products), editable CMS pages and menus with a
@@ -1245,3 +1286,163 @@ across 60 files**, with a clean `pnpm typecheck` and a clean `pnpm lint`
 Payment gateway integration itself remains completely untouched, per
 every prior session's own instruction — still the last item for the
 whole project.
+
+## Phase 11 — SEO & Structured Data: done, six commits
+
+Worked docs/11-SEO-STRATEGY.md's own dependency order: the JSON-LD
+builder catalogue first (nothing downstream can render structured data
+without it), then the `generateMetadata` cascade that wires those
+builders (plus canonical/hreflang/pagination) onto every route, then
+sitemaps/robots, then OG images, then the PDP thin-content gate, and
+last the admin-facing SERP preview. Two things that read as separate
+line items in docs/17-ROADMAP-PHASES.md turned out to already be
+satisfied by earlier phases rather than needing new work: breadcrumb UI
+(`components/layout/breadcrumbs.tsx`, `components/ui/breadcrumb.tsx`)
+already existed pre-Phase-11 and only needed `BreadcrumbList` JSON-LD
+wired alongside it (folded into the `generateMetadata` commit below,
+not a separate deliverable), and related-products resolution already
+lived in `catalog/product.ts` since Phase 4/10 and needed no rework.
+Canonical, hreflang, and pagination metadata are likewise not a
+standalone commit — they're clauses inside the same `generateMetadata`
+cascade, per `metadata.ts`'s own doc comments (§2.4/§2.6/§9.3/§6.6).
+
+**JSON-LD builder catalogue** (`74a69d1`). Ten-plus typed builders
+under `src/lib/seo/jsonld/`: `Product` (with the zero-review
+`aggregateRating` suppression rule — emitting a fabricated 0-review
+rating is worse for trust than omitting the field), `BreadcrumbList`,
+`Organization` (reads the `ORG_INFO` placeholder in `lib/seo/site.ts`,
+flagged `DECISION REQUIRED` per docs/11 §4.1 pending the owner's real
+legal name/PAN/VAT/phone/social links), `WebSite` + `SearchAction`,
+`ComputerStore` (`LocalBusiness`), `BlogPosting`, `FAQPage`, `Service`,
+`ItemList`/`CollectionPage`, `WebApplication`, and the PC-builder's own
+`Product` bundle. `serializeJsonLd()` is the one function allowed to
+turn a builder's output into the literal string that lands inside a
+`<script type="application/ld+json">` tag — it escapes `<`, `>`, `&`,
+and the two Unicode line-separator characters that can otherwise break
+out of a script context, and every route uses it instead of
+`JSON.stringify` directly. Every builder and the serialiser have their
+own unit tests.
+
+**`generateMetadata` + JSON-LD on every route** (`9289ad9`). All 15+
+storefront routes (homepage, PDP, category, brand, search, blog list,
+blog post, blog category, CMS pages, FAQ, stores index, store detail,
+service book/status, build share, EMI calculator) now export a real
+`generateMetadata`, not a static `metadata` object — title/description
+built per-entity, a self-referencing absolute canonical
+(`lib/seo/site.ts`'s `absoluteUrl`), `hreflang` alternates for every
+`next-intl` locale via the same `localePath` helper the canonical uses
+(one function owns that rule so it can't drift between the two), and
+`noindex,follow` on any category/brand URL carrying a filter param
+other than `page` (with canonical still pointing at the clean,
+unfiltered URL). Pagination metadata (`rel="next"`/`rel="prev"`-
+equivalent handling via canonical-per-page) rides the same cascade.
+Breadcrumb JSON-LD was wired onto every route that already rendered
+the pre-existing breadcrumb UI, rather than building new breadcrumb
+components.
+
+**Sitemaps + robots.txt** (`f170618`). `/sitemap.xml` is a real index,
+sharded into six fixed-type child sitemaps (static routes, categories,
+brands, posts, pages, branches) plus one 10,000-URL-chunked shard per
+product, each revalidating hourly. `/robots.txt` is environment-aware:
+production allows crawlers with a `Disallow` list covering every
+admin/cart/checkout path, while staging/preview/local unconditionally
+return `Disallow: /` so a non-production deploy can never leak into a
+search index. Known AI-training crawlers are blocked; AI
+answer/search crawlers (the ones that drive real referral traffic) are
+explicitly allowed — a deliberate distinction, not an oversight.
+
+**OG image routes + LCP priority hints** (`b12ea7b`). Branded
+`opengraph-image` routes (Next's `next/og`, edge runtime) for the
+homepage fallback, PDP (product photo + brand + price + availability
+badge), category (name + live product count), and blog post (title +
+author + reading time) — every shared link gets a real, on-brand
+preview card instead of a blank one. Alongside that, `priority` hints
+were added to the PDP's above-the-fold hero image so it isn't
+lazy-loaded behind the fold, per docs/11's Core Web Vitals guidance.
+
+**PDP thin-content gate** (`5768410`). docs/11 §6.5's exact table for
+products (>= 120 words of unique description + >= 6 spec attributes +
+
+> = 2 real photos, else `noindex` — all three floors independently, an
+> "and" not an "or") is a real, tested gate (`lib/seo/thin-content.ts`),
+> wired at the PDP route level so a thin product genuinely ships
+> `noindex`, not just a defined-but-unused function. The doc has no
+> numeric floor for blog posts or CMS pages, so this module makes its own
+> documented, flagged call — 150 words, a common general-SEO substance
+> floor — rather than leaving those two page families ungated.
+
+**Admin SEO fields with live SERP preview** (`f20633c`, this session's
+close-out commit). The prior pass had already left three files in
+good shape, uncommitted: `serp-hint.ts`, a pure, tested module holding
+the title/description character-count traffic-light logic, with its
+thresholds (`TITLE_HARD_MAX`/`DESCRIPTION_HARD_MAX`) imported straight
+from `metadata.ts` so the admin hint can never drift from the real
+truncation behaviour; its test file; and a refactored
+`seo-preview.tsx` that consumes `serp-hint.ts` instead of duplicating
+the threshold constants inline (it had drifted from the doc before —
+that drift is exactly why the constants now live in one place). All
+three were correct as found and needed no changes. What was actually
+missing was wiring: `SeoPreview` was only mounted in the product
+wizard's Step 4. This commit mounts it — replacing a plain, unguided
+text `<Input>`/`<Textarea>` pair — in the category form dialog, the
+blog post form, and the CMS page form, each following the product
+wizard's exact pattern (`pageUrl` built from the entity's real
+storefront route — `/c/{slug}` for categories, `/blog/{slug}` for
+posts, `/pages/{slug}` for CMS pages — and the entity's name/title
+passed as `productNameForHint` for the "mentions the entity name"
+check). Brand wasn't on the original required list, but its dialog
+turned out to be a clean fit — same "reused-once, re-synced-on-open"
+shape as the category dialog, and `metaTitle`/`metaDescription` already
+had full schema and service support, just no editable UI — so it got
+the same treatment (`pageUrl` from the real `/b/{slug}` storefront
+route) rather than being left as the one inconsistent form.
+
+**What's deliberately deferred, flagged rather than faked:**
+
+- **`ORG_INFO` in `lib/seo/site.ts` is still placeholder data** — exact
+  legal name, PAN/VAT, phone, and social `sameAs` URLs are docs/11
+  §4.1's own `DECISION REQUIRED` item, pending the owner. The
+  `Organization` JSON-LD builder omits `sameAs` entirely rather than
+  emit an empty array while this is unresolved.
+- **No component-rendering test infrastructure** (no jsdom/happy-dom,
+  no `@testing-library/react`) exists in this project yet — `vitest
+.config.ts`'s `environment: "node"` only globs `*.test.ts`. Rather
+  than stand up a whole DOM-testing stack for one component,
+  `serp-hint.ts` extracts `SeoPreview`'s actual decision logic into
+  plain, directly-testable functions; the component itself is
+  untested at the render level, same honest gap as every other
+  `"use client"` component in this codebase.
+- **Blog post / CMS page thin-content floors (150 words) are this
+  session's own judgement call**, not a number from docs/11's table —
+  flagged in `thin-content.ts`'s own doc comment.
+- **No scheduled/nightly sitemap ping or re-crawl request** — the
+  sitemap is correct and revalidates hourly on request, but nothing
+  proactively tells Google/Bing it changed, the same class of gap
+  Phase 5e (low-stock emails) and Phase 10 (broken-link sweep) already
+  flagged for this project's total absence of a scheduled-job runner.
+
+**Testing and verification.** New unit tests landed with every
+service module this phase: the full `lib/seo/jsonld/*.test.ts` set (one
+per builder, including the zero-review suppression case and the
+`sameAs`-omission case), `lib/seo/jsonld/serialize.test.ts` (the
+script-breakout escape), `lib/seo/metadata.test.ts`, `lib/seo/
+sitemap.test.ts`, `lib/seo/site.test.ts`, `lib/seo/thin-content.test.ts`,
+and `lib/seo/serp-hint.test.ts`. The full suite now stands at **703
+tests passing across 78 files**, with a clean `pnpm typecheck` and a
+clean `pnpm lint` (zero warnings, `--max-warnings=0`) — both re-run
+after this session's admin-form wiring, not just carried over from the
+earlier five commits. Commits: `74a69d1` (JSON-LD builder catalogue),
+`9289ad9` (generateMetadata + JSON-LD on every route), `f170618`
+(sitemaps + robots.txt), `b12ea7b` (OG images + LCP hints), `5768410`
+(PDP thin-content gate), `f20633c` (admin SEO fields + SERP preview).
+
+No bugs were found in the five commits that predated this session's
+work — the audit this session did (reading `serp-hint.ts`,
+`serp-hint.test.ts`, and the refactored `seo-preview.tsx` before
+touching anything, then grepping every `SeoPreview` call site for
+stale props) turned up one small leftover: `seo-preview.tsx` and its
+callers briefly carried a redundant `slug` prop for the "Advanced
+settings" website-link field, even though `pageUrl` already encodes
+the same information. That was cleaned up (in the same uncommitted
+working tree, before this session's commit) so `SeoPreview`'s public
+API has exactly one source of truth for the link it displays.
