@@ -29,20 +29,44 @@ const redisRateLimitStore: RateLimitStore = {
     // same millisecond would collide in the sorted set and undercount.
     const member = `${nowMs}-${Math.random().toString(36).slice(2)}`;
 
-    const pipeline = redis.pipeline();
-    pipeline.zremrangebyscore(key, 0, windowStart);
-    pipeline.zadd(key, nowMs, member);
-    pipeline.zcard(key);
-    // Let Redis expire the whole key once the window has fully elapsed —
-    // otherwise a key for a rate limit that's never hit again would live
-    // forever.
-    pipeline.pexpire(key, windowMs);
-    const results = await pipeline.exec();
+    let results: Awaited<ReturnType<ReturnType<typeof redis.pipeline>["exec"]>>;
+    try {
+      const pipeline = redis.pipeline();
+      pipeline.zremrangebyscore(key, 0, windowStart);
+      pipeline.zadd(key, nowMs, member);
+      pipeline.zcard(key);
+      // Let Redis expire the whole key once the window has fully elapsed —
+      // otherwise a key for a rate limit that's never hit again would live
+      // forever.
+      pipeline.pexpire(key, windowMs);
+      results = await pipeline.exec();
+    } catch (error) {
+      // ioredis does NOT always resolve to `null` when Redis is
+      // unreachable — with `maxRetriesPerRequest: 2` (server/redis.ts) it
+      // *rejects* queued commands once that retry budget is spent, and a
+      // rejecting `exec()` propagated straight out of here, past
+      // `checkRateLimit`, past `rateLimit()`, and into whatever called it.
+      // In practice that meant a dead or misconfigured Redis turned every
+      // rate-limited entry point into a hard failure rather than a degraded
+      // one: no sign-in (config.ts's `authorize` rate-limits before it even
+      // looks up the user), no add-to-cart, no checkout, no contact form.
+      // That directly contradicted this store's own documented intent one
+      // branch below ("fail open rather than blocking every request in the
+      // app because Redis is briefly unavailable"), which only ever covered
+      // the `null` case.
+      //
+      // Failing open here is the correct call and not a weakened control:
+      // rate limiting is abuse-blunting defence in depth, and every
+      // *authorisation* control (session validity, admin role, the 2FA
+      // gate in `session-state.ts`) still fails CLOSED independently — none
+      // of them route through this file.
+      logger.warn({ key, error }, "rate limit store: redis unreachable, failing open");
+      return 0;
+    }
 
     if (!results) {
-      // ioredis returns null only when the pipeline itself failed to
-      // execute (e.g. connection down) — fail open rather than blocking
-      // every request in the app because Redis is briefly unavailable.
+      // The other half of the same story: ioredis returns null when the
+      // pipeline never executed at all. Same fail-open reasoning.
       logger.warn({ key }, "rate limit store: pipeline returned no results, failing open");
       return 0;
     }
