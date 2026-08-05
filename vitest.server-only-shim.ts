@@ -5,7 +5,7 @@
 // only letting the throw survive in the *client* bundle, so app code never
 // actually hits it. Vitest doesn't run Next's webpack config at all, so
 // without this shim, any test that transitively imports a module chain
-// ending in `import "server-only"` (e.g. `lib/logger.ts` -> `env.ts`)
+// ending in `import "server-only"` (e.g. `server/services/**` -> `@/env`)
 // fails immediately with that thrown error, regardless of whether the
 // test itself does anything server-specific. This file intentionally
 // exports nothing — importing it is a no-op, exactly what happens for real

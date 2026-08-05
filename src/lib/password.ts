@@ -11,10 +11,19 @@
  * `isPasswordBreached` shape is still worth keeping test-friendly and
  * import-cheap; the native module cost is paid once by whatever server
  * module actually calls `hashPassword`/`verifyPassword`.
+ *
+ * It is also imported by `prisma/seed/create-admin.ts`, which runs under
+ * plain `tsx` rather than Next's bundler, so nothing this file imports may
+ * pull in the `server-only` package either — that is why the two
+ * `logger.warn` calls below come from `@/lib/logger-core` (the unguarded
+ * Pino instance) rather than `@/lib/logger` (the guarded entry point app
+ * code uses). Exactly the same reasoning as
+ * `src/server/db/create-client.ts` importing `@/env-core` instead of
+ * `@/env`; see `src/lib/logger-core.ts`'s header for the details.
  */
 import argon2 from "argon2";
 import { createHash } from "node:crypto";
-import { logger } from "@/lib/logger";
+import { logger } from "@/lib/logger-core";
 import { ValidationError } from "@/lib/errors";
 
 const MIN_PASSWORD_LENGTH = 10;

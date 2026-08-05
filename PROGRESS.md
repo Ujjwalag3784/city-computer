@@ -1751,3 +1751,132 @@ clean over the full file set (run in two chunks, see above), and **740
 tests passing across 82 files** — the 738 baseline plus the two new
 boundary-guard tests. No `server-only` guard was weakened or removed;
 all 21 fixes reversed an import direction instead.
+
+## `pnpm db:create-admin` crashed before it ever ran — the last hole in the "scripts don't get Next's bundler" fix
+
+**What you saw.** `pnpm db:create-admin` died instantly, before printing
+anything, with:
+
+```
+Error: This module cannot be imported from a Client Component module.
+It should only be used from a Server Component.
+  at node_modules/server-only/index.js:1:7
+```
+
+**Root cause.** The same one commit `506e22e` fixed for `pnpm db:seed`,
+in a place that fix didn't reach. `import "server-only"` is a package
+whose _only_ job is to throw. Next.js makes it safe by resolving it to an
+empty module inside its server bundle and letting the throw survive only
+in the client bundle. Plain Node — which is what `tsx` is — sets neither
+condition, so it gets the throwing copy. Any one-shot script whose import
+graph touches a guarded module therefore dies on load, no matter how deep
+the chain is. Here the chain was four hops:
+
+```
+prisma/seed/create-admin.ts
+  -> src/lib/password.ts        (hashPassword / assertPasswordPolicy)
+  -> src/lib/logger.ts          (two logger.warn calls)
+  -> src/env.ts                 (for LOG_LEVEL)
+  -> import "server-only"       -> throw
+```
+
+**Why `pnpm db:seed` worked and `db:create-admin` didn't.** Nothing about
+the earlier fix was wrong; its blast radius was just smaller than the
+problem. `506e22e` unhooked the two modules `db:seed` actually touches —
+config (`env.ts` → `env-core.ts`) and the Prisma client (`server/db.ts` →
+`create-client.ts` + `seed-client.ts`). `db:seed`'s import graph is 18
+modules and never once reaches the logger. `create-admin`'s graph is 15
+modules and _does_, because it hashes a password and `password.ts` logs a
+warning when a hash is malformed or when the breached-password API can't
+be reached. So the logger's `@/env` import sat there, guarded, harmless,
+for two commits — until the first script that needed Argon2 came along.
+
+**The complete list of affected modules.** I walked the full transitive
+import graph of every `tsx`-run script in package.json with the
+TypeScript compiler API rather than guessing. Exactly one module in
+either graph reached the `server-only` package: **`src/env.ts`**, via
+**`src/lib/logger.ts`**, via **`src/lib/password.ts`**. Nothing else
+under `prisma/seed/**` was affected — `core.ts`, `taxonomy.ts`,
+`catalog.ts`, `builder.ts` and `content.ts` only pull in `lib/money.ts`,
+`lib/slug.ts`, the builder rule catalogue and the seed Prisma client,
+none of which is guarded. So this was one bug, not a family of them, but
+it was one bug in a category that had already bitten twice.
+
+**What I changed, and why this shape.** The obvious one-liner — point
+`logger.ts` at `@/env-core` instead of `@/env` and walk away — would
+have worked and would also have quietly deleted a real protection:
+`logger.ts`'s `server-only` guard (inherited from `@/env`) is currently
+the thing that stops a Client Component from dragging Pino _and_ the
+entire environment schema into the browser bundle. Never remove a guard
+to make something run; move the boundary. So the logger got the exact
+same two-file split this codebase already used twice:
+
+- **`src/lib/logger-core.ts`** (new) — the Pino instance, reading
+  `LOG_LEVEL` from `@/env-core`. No guard, deliberately.
+- **`src/lib/logger.ts`** — now three lines: `import "server-only"` plus
+  a re-export of the core. Every one of the 15 app modules that imports
+  `@/lib/logger` is exactly as protected as it was before; not one of
+  them changed.
+- **`src/lib/password.ts`** — imports `@/lib/logger-core`, the same way
+  `src/server/db/create-client.ts` imports `@/env-core` rather than
+  `@/env`. It is the module that has to work on both sides of the fence,
+  so it takes the guard-free core.
+
+That is `env.ts`/`env-core.ts` and `server/db.ts`/`create-client.ts`
+copied verbatim, third time. The alternative — ripping the two
+`logger.warn` calls out of `password.ts` — would have run just as well
+and left the code worse: a silent `catch` around a malformed password
+hash is exactly the thing you want in the log.
+
+No new `process.env` read, so eslint's allowlist didn't need touching.
+
+**Two regression guards now cover this, not one.**
+`src/lib/client-boundary.test.ts` (from the previous commit) walked
+`"use client"` entry points looking for the `server-only` _marker_. That
+marker is now a weaker signal than it was, because the whole point of
+this fix is that `logger-core.ts` and `env-core.ts` are server-side-only
+without carrying it. Left alone, the test would have kept passing while
+protecting less. So:
+
+1. Its notion of "server-side-only" was widened from the marker to the
+   underlying reality: `@/env-core`, `@/lib/logger-core`,
+   `@/generated/prisma/client`, plus the packages `pino`,
+   `@prisma/adapter-pg`, `argon2`, `ioredis`, `pg` and `nodemailer`. A
+   Client Component that reaches any of them now fails the test even
+   though `next build` might not say a word.
+2. A second check walks the **other** direction: from every `tsx` entry
+   point it finds in package.json's `scripts` (so a new script is
+   covered automatically), fail if anything in its graph reaches a
+   `server-only` module. It models Node rather than a bundler — `node:`
+   builtins and native packages are fine in a script, `"use server"` is
+   not an RPC boundary, and an unreferenced non-type import still counts
+   as an edge because Node executes it for its side effects.
+
+I did **not** write the more faithful version of check 2 (spawn
+`tsx --eval "import(…)"` and assert it doesn't throw), and that's a
+deliberate call worth recording: both seed entry points call `main()` at
+module scope, so merely importing one would run the seed and try to write
+to whatever `DATABASE_URL` points at. The static walk can't be tricked
+into that, needs no environment, and covers the only failure mode at
+issue — module resolution.
+
+Both new guards were verified by breaking things on purpose and watching
+them fail with the exact import chain, then reverting: a `"use client"`
+file importing `@/lib/logger`, the same file importing
+`@/lib/logger-core`, the same file importing `@/env-core`, and
+`password.ts` put back on `@/lib/logger` (which reproduces this bug and
+fails check 2 with `pnpm db:create-admin -> prisma/seed/create-admin.ts
+-> lib/password.ts -> ...`).
+
+**Verification.** `pnpm typecheck` clean, `pnpm lint` clean at
+`--max-warnings=0`, `pnpm prettier --check` clean, and **742 tests
+passing across 82 files** — the 740 baseline plus the two new
+script-boundary tests. `pnpm db:create-admin` with no arguments now
+prints its usage text and exits 1 on `--email is required`, and with
+valid arguments it runs the password-policy check (logging the
+breach-API-unreachable warning through the new logger, which is the fix
+proving itself) and then fails on `Can't reach database server at
+127.0.0.1:5432`. There is no database in this sandbox, so "fails at
+argument validation or at the database connection instead of at
+`server-only`" is the success signal — the same one `506e22e` used.
+`pnpm db:seed` still gets to its first query too.

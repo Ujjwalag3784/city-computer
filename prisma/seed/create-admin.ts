@@ -18,6 +18,11 @@
  * `server/**` (except the seed client) carries `import "server-only"`,
  * which throws unconditionally when resolved outside Next's bundler, i.e.
  * under plain `tsx`. See `src/env-core.ts`'s header for the full story.
+ * That rule is transitive, which is how this script broke once already:
+ * `@/lib/password` reached `@/lib/logger`, which reached the guarded
+ * `@/env`. It now reaches `@/lib/logger-core` instead. The whole import
+ * graph of both `tsx` scripts is pinned down by
+ * `src/lib/client-boundary.test.ts`.
  *
  * Deliberately NOT set here:
  *   - `twoFactorSecret`. An OWNER/MANAGER account must enroll TOTP itself

@@ -13,13 +13,20 @@
 // Client Component module" even though a seed script obviously isn't one.
 //
 // The fix is this file: the exact same schema and parsing logic as
-// `src/env.ts`, minus the guard, so a script-only entry point
-// (`src/server/db/seed-client.ts`) can read validated config without ever
-// touching the `server-only` package. `src/env.ts` still re-exports this
-// file's `env` behind its own `import "server-only"`, so every normal
-// Next.js app import of `@/env` is exactly as protected as before — this
-// file is not a general-purpose replacement for `@/env`, only the shared
-// core the two entry points both build on.
+// `src/env.ts`, minus the guard, so the modules a script's import chain
+// reaches (`src/server/db/create-client.ts` for the database,
+// `src/lib/logger-core.ts` for `LOG_LEVEL`) can read validated config
+// without ever touching the `server-only` package. `src/env.ts` still
+// re-exports this file's `env` behind its own `import "server-only"`, so
+// every normal Next.js app import of `@/env` is exactly as protected as
+// before — this file is not a general-purpose replacement for `@/env`,
+// only the shared core the guarded and unguarded entry points both build
+// on.
+//
+// Because this file carries no guard, `src/lib/client-boundary.test.ts`
+// treats it as a server-side-only module in its own right: a Client
+// Component that reaches `@/env-core` fails that test even though it would
+// not trip `server-only`.
 //
 // `no-restricted-properties` (eslint.config.mjs) still bans reading
 // `process.env` anywhere except this file and `src/env.ts` themselves —
