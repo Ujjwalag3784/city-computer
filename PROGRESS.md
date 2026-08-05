@@ -1657,3 +1657,97 @@ settings" website-link field, even though `pageUrl` already encodes
 the same information. That was cleaned up (in the same uncommitted
 working tree, before this session's commit) so `SeoPreview`'s public
 API has exactly one source of truth for the link it displays.
+
+## The first real production build — 21 client/server boundary bugs no local check could see
+
+The first complete `next build` ever attempted on this project (a Vercel
+deploy) failed. Not because of the deploy config, and not because of
+anything this session changed — it failed on two genuine pre-existing
+bugs, with 19 more queued behind them. **Every one of them was invisible
+to `pnpm typecheck`, `pnpm lint` and all 738 tests**, because none of
+those three tools ever splits the code into a browser bundle and a
+server bundle. Only a real production build does that, and this project
+has no build step in CI. So they sat there, latent, since the phases
+that introduced them.
+
+**What "server-only boundary bug" means here.** `src/env.ts` and 90 other
+modules carry `import "server-only"` — a deliberate tripwire that makes
+the build fail loudly if server code is ever pulled into a browser
+bundle. That tripwire did its job. The fix is never to remove it; the
+fix is to turn the import arrow around.
+
+**Bug 1 — the SERP hint dragged the whole server config into the browser.**
+`components/admin/seo-preview.tsx` is a `"use client"` component. It
+imports `lib/seo/serp-hint.ts`, which imported its two length maxima
+from `lib/seo/metadata.ts` → `lib/seo/site.ts` → `@/env` →
+`import "server-only"`. The intent was right and worth keeping: the
+admin's "too long, Google will cut this off" warning must never drift
+from the constant that actually truncates the tag. So instead of
+duplicating the numbers, they moved into a new **import-free leaf**,
+`src/lib/seo/limits.ts`, which both sides now read. `serp-hint.ts` no
+longer touches `metadata.ts` at all, and `metadata.ts` re-exports the
+two constants so no existing call site changed. This one chain broke
+**10 different admin screens** (brands, categories, products, blog,
+pages, and the `/design` showcase).
+
+**Bug 2 — a role dropdown imported a database service.**
+`admin/users/_components/staff-role-select.tsx` is a Client Component
+that imported `STAFF_ROLE_DESCRIPTIONS` from
+`server/services/admin/staff.ts`. That was a real runtime value, not a
+type, so `import type` would not have helped. It was plain presentation
+copy keyed by a plain enum, so it moved to
+`lib/validation/admin/staff.ts`, right next to the `STAFF_ROLE_KEYS`
+it's keyed by. The service module re-exports it unchanged, so the two
+`/admin/users` server pages are untouched.
+
+**Bugs 3-21 — Prisma's server-side entry point in 19 files.** Found by
+walking the import graph rather than guessing, then confirmed by a real
+webpack pass. Nineteen files imported a Prisma enum value (e.g.
+`OrderStatus`, `Province`, `ConditionType`) from
+`@/generated/prisma/client`. Prisma's own generated header says that
+file is server-side only — it opens with `import * as process from
+"node:process"` and reaches the query engine — and the build failed with
+`UnhandledSchemeError: Reading from "node:async_hooks"`. They now import
+from `@/generated/prisma/enums`, which the generator emits as a plain
+import-free `as const` catalogue. Eighteen were Client Components; the
+nineteenth, `lib/validation/catalog.ts`, was an indirect hit reached
+from the storefront's `catalog-listing.tsx` — the kind of two-hop chain
+a spot check would have missed.
+
+**A permanent guard now exists.** `src/lib/client-boundary.test.ts`
+parses every one of the 673 files under `src/` with the TypeScript
+compiler API, finds all 129 `"use client"` entry points, and walks their
+transitive runtime imports looking for anything that reaches a
+`server-only` module, a `node:` builtin, the Prisma runtime, or a native
+package. It models the two things that make this analysis correct rather
+than paranoid: `import type` and unused-value imports are erased before
+bundling and so are not edges, and `"use server"` modules are an RPC
+boundary the client bundle never inlines. It runs in well under a second
+as part of `pnpm test`, and it was verified by reverting each fix and
+watching it fail with the exact import chain. Since this project has no
+build step in CI, a test is the only place this check would actually
+run.
+
+**How much of this was verified by a real build, honestly.** The sandbox
+this work happened in has a hard ~45 second per-command ceiling and no
+surviving background processes, and a complete `next build` of this app
+needs roughly a minute of webpack time — so **no single end-to-end
+`pnpm build` was ever completed here.** What actually was completed, in a
+scratch copy with the Google Fonts fetch mocked (`prisma generate` is
+also network-blocked, but the generated client already existed
+locally), is a set of overlapping real webpack compile passes that
+together cover every route in the app: `✓ Compiled successfully` for the
+entire `src/app/(admin)` tree, and again for the entire storefront +
+`/design` + API + auth tree. The negative control is the strongest
+evidence: reverting the two original fixes reproduced Vercel's failure
+**byte for byte**, same error text and same import traces, and reverting
+the `catalog.ts` fix reproduced the Prisma one. The `next build` steps
+after webpack (type check, page-data collection) were never reached
+here; type checking was verified separately by splitting `tsc` into two
+chunks that together cover the same file set as `pnpm typecheck`.
+
+**Verification.** `pnpm lint` clean at `--max-warnings=0`, `tsc --noEmit`
+clean over the full file set (run in two chunks, see above), and **740
+tests passing across 82 files** — the 738 baseline plus the two new
+boundary-guard tests. No `server-only` guard was weakened or removed;
+all 21 fixes reversed an import direction instead.
