@@ -28,34 +28,19 @@ import { UserStatus } from "@/generated/prisma/client";
 import { NotFoundError, AppError } from "@/lib/errors";
 import { hashPassword } from "@/lib/password";
 import { recordAuditLog, type AuditActor } from "@/server/services/admin/audit-log";
-import type { CreateStaffInput, StaffRoleKey } from "@/lib/validation/admin/staff";
+import { STAFF_ROLE_DESCRIPTIONS } from "@/lib/validation/admin/staff";
+import type { CreateStaffInput } from "@/lib/validation/admin/staff";
 
-export const STAFF_ROLE_DESCRIPTIONS: Record<StaffRoleKey, { label: string; description: string }> =
-  {
-    OWNER: {
-      label: "Owner",
-      description: "Can do everything, including changing settings and adding staff.",
-    },
-    MANAGER: {
-      label: "Manager",
-      description:
-        "Can manage products, orders, stock and content. Cannot change settings or add staff.",
-    },
-    STAFF: {
-      label: "Shop staff",
-      description: "Can process orders and update stock. Cannot change prices or delete anything.",
-    },
-    CONTENT_EDITOR: {
-      label: "Content writer",
-      description: "Can write blog posts and edit website pages. Cannot see orders or customers.",
-    },
-    SUPPORT: {
-      label: "Customer support",
-      description:
-        "Can view orders and customers and reply to messages. Cannot change anything else.",
-    },
-    TECHNICIAN: { label: "Repair technician", description: "Can manage repair jobs only." },
-  };
+/**
+ * Re-exported unchanged from `@/lib/validation/admin/staff`, which is where
+ * the role label/description table actually lives — it has to be importable
+ * from `staff-role-select.tsx`, a Client Component, and this module is
+ * `server-only`. Kept exported here so the `/admin/users` server pages that
+ * already read it from this module are untouched, and so there is still
+ * exactly one definition. Same pattern as `server/auth/permissions.ts`
+ * re-exporting `@/lib/admin-roles`.
+ */
+export { STAFF_ROLE_DESCRIPTIONS };
 
 export interface AdminStaffListItem {
   id: string;

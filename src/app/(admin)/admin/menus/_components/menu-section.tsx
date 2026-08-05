@@ -15,7 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import type { MenuKey } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import type { MenuKey } from "@/generated/prisma/enums";
 import type { AdminMenuItem } from "@/server/services/admin/menus";
 import type { MenuItemTargetType } from "@/lib/validation/admin/menus";
 import { createMenuItemAction, deleteMenuItemAction, moveMenuItemAction } from "../_actions";

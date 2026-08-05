@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ReasonDialog } from "@/components/admin/reason-dialog";
-import { TicketStatus } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import { TicketStatus } from "@/generated/prisma/enums";
 import { transitionTicketAction } from "../../_actions";
 
 const STATUS_ACTION_LABEL: Partial<Record<TicketStatus, string>> = {

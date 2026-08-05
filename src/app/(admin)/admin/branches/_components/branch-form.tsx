@@ -15,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Province } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import { Province } from "@/generated/prisma/enums";
 import { createBranchAction, updateBranchAction } from "../_actions";
 
 const DAY_LABEL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

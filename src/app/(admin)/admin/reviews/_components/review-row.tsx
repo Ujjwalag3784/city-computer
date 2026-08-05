@@ -7,7 +7,8 @@ import { Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ReviewStatus } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import { ReviewStatus } from "@/generated/prisma/enums";
 import { setReviewStatusAction, replyToReviewAction } from "../_actions";
 import type { AdminReviewListItem } from "@/server/services/admin/reviews";
 

@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CouponType, CouponAppliesTo } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import { CouponType, CouponAppliesTo } from "@/generated/prisma/enums";
 import { createCouponAction, updateCouponAction } from "../_actions";
 
 export interface CouponFormValues {

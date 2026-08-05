@@ -13,12 +13,20 @@
  * Thresholds are docs/11-SEO-STRATEGY.md §3's exact length-budget table
  * ("<title> target 50-60, hard max 65, hint: amber <35 or >60, red >65" /
  * "meta description target 140-160, hard max 165, hint: amber <110 or
- * >160, red >165"). The two hard maxima are imported from `./metadata`'s
- * `TITLE_HARD_MAX`/`DESCRIPTION_HARD_MAX` — the same constants that
- * actually clamp `<title>`/`<meta description>` at render time — so the
- * admin hint and the real truncation behaviour can't drift apart.
+ * >160, red >165"). The two hard maxima are imported from `./limits`'s
+ * `TITLE_HARD_MAX`/`DESCRIPTION_HARD_MAX` — the same constants
+ * `./metadata` clamps real `<title>`/`<meta description>` output at — so
+ * the admin hint and the real truncation behaviour can't drift apart.
+ *
+ * They come from `./limits` rather than straight from `./metadata` (where
+ * they used to live) purely to keep this file client-safe: `./metadata`
+ * reaches `@/env` via `./site`, and `@/env` carries `import "server-only"`,
+ * so importing it from here dragged the whole server config chain into the
+ * client bundle through `seo-preview.tsx` and broke the production build.
+ * `./limits` is an import-free leaf, so the single-source-of-truth property
+ * survives intact. Do not reintroduce an import of `./metadata` here.
  */
-import { DESCRIPTION_HARD_MAX, TITLE_HARD_MAX } from "./metadata";
+import { DESCRIPTION_HARD_MAX, TITLE_HARD_MAX } from "./limits";
 
 export const TITLE_MIN = 35;
 export const TITLE_WARN_AT = 60;

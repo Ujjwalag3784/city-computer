@@ -3,7 +3,8 @@
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/admin/data-table";
 import type { AdminBuildablePartRow } from "@/server/services/admin/builder-parts";
-import type { PartDataConfidence } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import type { PartDataConfidence } from "@/generated/prisma/enums";
 
 export interface BuildablePartsTableProps {
   rows: AdminBuildablePartRow[];

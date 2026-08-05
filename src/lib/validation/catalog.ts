@@ -12,7 +12,10 @@
  * testable without a fake `URLSearchParams`.
  */
 import { z } from "zod";
-import { ConditionType } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the
+// client bundle, and this schema module is reached from the `"use client"`
+// `components/commerce/catalog-listing.tsx` (via `productSortSchema`).
+import { ConditionType } from "@/generated/prisma/enums";
 import { isValidSlugFormat } from "@/lib/slug";
 
 /** docs/06-DATA-MODEL.md §1: slugs are `^[a-z0-9]+(?:-[a-z0-9]+)*$`, ≤ 80 chars per segment — reusing `lib/slug.ts`'s own pattern (and its `eslint-disable` for the security linter's regex heuristic) rather than redeclaring it here. A category *path* is one or more slug segments joined by `/` (docs/06 §4's materialised path, e.g. `laptops/gaming`). */

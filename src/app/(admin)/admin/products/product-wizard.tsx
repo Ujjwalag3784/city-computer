@@ -8,7 +8,8 @@ import { PublishChecklist, type PublishChecklistItem } from "@/components/admin/
 import { Badge } from "@/components/ui/badge";
 import type { ComboboxOption } from "@/components/ui/combobox";
 import { paisaToRupees, rupeesToPaisa } from "@/lib/money";
-import type { ProductStatus } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import type { ProductStatus } from "@/generated/prisma/enums";
 import type { AdminSpecFieldOption, ProductWizardData } from "@/server/services/admin/product";
 import type { BasicInfoFormState, ProductSpecRow, WizardFormState } from "./_lib/wizard-types";
 import { emptyWizardState } from "./_lib/wizard-types";

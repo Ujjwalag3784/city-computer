@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { EnquiryStatus } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import { EnquiryStatus } from "@/generated/prisma/enums";
 import { setEnquiryStatusAction } from "../_actions";
 import type { AdminEnquiryListItem } from "@/server/services/admin/enquiries";
 

@@ -10,10 +10,12 @@ import {
   TITLE_WARN_AT,
   titleCounterCopy,
 } from "./serp-hint";
-import { DESCRIPTION_HARD_MAX, TITLE_HARD_MAX } from "./metadata";
+// `./limits`, not `./metadata`: the maxima live in an import-free leaf so
+// this client-safe module never reaches `@/env`'s `server-only` guard.
+import { DESCRIPTION_HARD_MAX, TITLE_HARD_MAX } from "./limits";
 
 describe("thresholds", () => {
-  it("track docs/11 §3's exact length-budget table, via the shared metadata constants", () => {
+  it("track docs/11 §3's exact length-budget table, via the shared limits constants", () => {
     expect(TITLE_MIN).toBe(35);
     expect(TITLE_WARN_AT).toBe(60);
     expect(TITLE_DANGER_AT).toBe(TITLE_HARD_MAX);

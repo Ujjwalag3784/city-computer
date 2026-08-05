@@ -10,8 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { STAFF_ROLE_KEYS, type StaffRoleKey } from "@/lib/validation/admin/staff";
-import { STAFF_ROLE_DESCRIPTIONS } from "@/server/services/admin/staff";
+// All three come from `lib/**` on purpose: this is a Client Component, and
+// `@/server/services/admin/staff` (where `STAFF_ROLE_DESCRIPTIONS` used to
+// be read from) is `server-only`.
+import {
+  STAFF_ROLE_DESCRIPTIONS,
+  STAFF_ROLE_KEYS,
+  type StaffRoleKey,
+} from "@/lib/validation/admin/staff";
 import { updateStaffRoleAction } from "../_actions";
 
 export function StaffRoleSelect({ userId, roleKey }: { userId: string; roleKey: StaffRoleKey }) {

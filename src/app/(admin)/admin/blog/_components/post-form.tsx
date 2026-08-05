@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/select";
 import { SeoPreview } from "@/components/admin/seo-preview";
 import { TiptapEditor } from "@/components/admin/tiptap-editor";
-import { PostStatus } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import { PostStatus } from "@/generated/prisma/enums";
 import { slugify } from "@/lib/slug";
 import { createPostAction, updatePostAction, deletePostAction } from "../_actions";
 

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { OrderStatus } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import { OrderStatus } from "@/generated/prisma/enums";
 import { transitionOrderAction } from "../../_actions";
 import { ReasonDialog } from "@/components/admin/reason-dialog";
 

@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { StockAdjuster, type StockAdjustReason } from "@/components/admin/stock-adjuster";
-import { StockMovementReason } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import { StockMovementReason } from "@/generated/prisma/enums";
 import { adjustStockAction } from "../_actions";
 
 /**

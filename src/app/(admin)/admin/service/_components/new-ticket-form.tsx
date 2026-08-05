@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ServiceDeviceType, TicketPriority } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import { ServiceDeviceType, TicketPriority } from "@/generated/prisma/enums";
 import { createTicketAction } from "../_actions";
 
 export interface NewTicketFormProps {

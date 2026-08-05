@@ -12,7 +12,8 @@ import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { Badge } from "@/components/ui/badge";
 import { MoneyInput } from "@/components/admin/money-input";
 import { discountPercent } from "@/lib/money";
-import type { ConditionType } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import type { ConditionType } from "@/generated/prisma/enums";
 import type { BasicInfoFormState } from "../_lib/wizard-types";
 import { checkDuplicateProductNameAction } from "../_actions";
 import type { SimilarProductCandidate } from "@/server/services/admin/product";

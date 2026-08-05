@@ -15,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PromotionType } from "@/generated/prisma/client";
+// `enums`, not `client` — `client.ts` drags the Prisma Node runtime into the client bundle.
+import { PromotionType } from "@/generated/prisma/enums";
 import { createCampaignAction, updateCampaignAction } from "../_actions";
 
 export interface CampaignFormValues {

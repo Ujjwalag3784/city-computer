@@ -10,13 +10,19 @@
  * fallback" is just `entity.metaTitle ?? buildTitle(...)` at each call
  * site. A single generic dispatcher would need a large discriminated union
  * mirroring every route's data shape for no real benefit over that.
+ *
+ * The two length maxima this file clamps at live in `./limits`, an
+ * import-free leaf module, because the client-side admin SERP hint
+ * (`./serp-hint`) needs the same numbers and cannot import this file —
+ * see `./limits`'s own header for the full reason.
  */
 import type { Metadata } from "next";
 import { routing } from "@/i18n/routing";
+import { DESCRIPTION_HARD_MAX, TITLE_HARD_MAX } from "./limits";
 import { SITE_NAME, absoluteUrl } from "./site";
 
-export const TITLE_HARD_MAX = 65;
-export const DESCRIPTION_HARD_MAX = 165;
+/** Re-exported unchanged from `./limits` so existing `import { TITLE_HARD_MAX } from "@/lib/seo/metadata"` call sites keep working and there is still exactly one definition of each. */
+export { DESCRIPTION_HARD_MAX, TITLE_HARD_MAX };
 
 /** Collapses whitespace and strips leading/trailing `|` runs left behind by an empty template variable — docs/11 §3.3. */
 export function cleanTemplateString(value: string): string {
