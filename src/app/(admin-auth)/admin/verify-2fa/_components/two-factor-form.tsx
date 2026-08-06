@@ -1,7 +1,18 @@
 "use client";
 
+/**
+ * The two-factor screen's interactive half — enrollment (QR + typeable key)
+ * and the per-session code check, in one form, because to the person in
+ * front of it they are the same action: type the six digits your phone is
+ * showing.
+ *
+ * Same feedback contract as the sign-in form: a persistently mounted
+ * `aria-live` region so a screen reader announces a rejected code, a pending
+ * state on the button, and `verifyTwoFactorAction` returning a message for
+ * every non-redirecting outcome.
+ */
 import Image from "next/image";
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,15 +30,22 @@ export interface TwoFactorFormProps {
 
 const INITIAL_STATE: TwoFactorFormState = {};
 
+/** Matches the sign-in form — see its `FIELD_FOCUS_RING` comment. */
+const FIELD_FOCUS_RING =
+  "focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-0";
+
 export function TwoFactorForm({ callbackUrl, qrCodeDataUrl, manualEntryKey }: TwoFactorFormProps) {
   const [state, formAction, isPending] = useActionState(verifyTwoFactorAction, INITIAL_STATE);
+  const errorId = useId();
+  const hintId = useId();
   const isEnrolling = Boolean(qrCodeDataUrl);
+  const hasError = Boolean(state.error);
 
   return (
     <div className="flex flex-col gap-6">
       {isEnrolling && qrCodeDataUrl ? (
-        <div className="flex flex-col gap-4">
-          <ol className="flex list-decimal flex-col gap-2 pl-5 text-body-sm text-on-surface-variant">
+        <div className="flex flex-col gap-5">
+          <ol className="flex list-decimal flex-col gap-2 pl-5 text-body-sm text-on-surface-variant marker:text-on-surface-variant">
             <li>
               Install an authenticator app on your phone — Google Authenticator, Microsoft
               Authenticator, Authy and 1Password all work.
@@ -36,14 +54,21 @@ export function TwoFactorForm({ callbackUrl, qrCodeDataUrl, manualEntryKey }: Tw
             <li>Type the 6-digit code it shows you into the box below.</li>
           </ol>
 
-          <div className="self-center rounded-lg bg-white p-3">
+          {/*
+            White plate behind the QR: the page surface is near-black and a
+            camera needs the code's own quiet zone to read it. `unoptimized`
+            because the source is a data URL the optimiser cannot fetch;
+            deliberately not `priority`, which would inline the entire
+            base64 PNG a second time as a <link rel="preload"> in the head.
+          */}
+          <div className="self-center rounded-xl bg-white p-3">
             <Image
               src={qrCodeDataUrl}
-              alt="Scan this QR code with your authenticator app to finish setting up two-factor sign-in."
-              width={240}
-              height={240}
+              alt="QR code linking this account to your authenticator app."
+              width={200}
+              height={200}
               unoptimized
-              priority
+              className="size-[200px]"
             />
           </div>
 
@@ -61,19 +86,21 @@ export function TwoFactorForm({ callbackUrl, qrCodeDataUrl, manualEntryKey }: Tw
         </p>
       )}
 
-      <form action={formAction} className="flex flex-col gap-5">
+      <form action={formAction} className="flex flex-col gap-6">
         <input type="hidden" name="callbackUrl" value={callbackUrl} />
 
-        {state.error ? (
-          <Alert variant="destructive" role="alert">
-            <AlertDescription>{state.error}</AlertDescription>
-          </Alert>
-        ) : null}
+        <div aria-live="polite" aria-atomic="true">
+          {state.error ? (
+            <Alert id={errorId} variant="destructive">
+              <AlertDescription className="text-danger">{state.error}</AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="token">6-digit code</Label>
+          <Label htmlFor="two-factor-token">6-digit code</Label>
           <Input
-            id="token"
+            id="two-factor-token"
             name="token"
             type="text"
             inputMode="numeric"
@@ -81,16 +108,22 @@ export function TwoFactorForm({ callbackUrl, qrCodeDataUrl, manualEntryKey }: Tw
             pattern="[0-9]{6}"
             maxLength={6}
             required
-            className="font-mono tracking-[0.4em]"
+            error={hasError}
+            aria-invalid={hasError}
+            aria-describedby={hasError ? `${errorId} ${hintId}` : hintId}
+            className={`text-center font-mono tracking-[0.4em] ${FIELD_FOCUS_RING}`}
           />
+          <p id={hintId} className="text-body-sm text-on-surface-variant">
+            Six digits, no spaces. The code changes every 30 seconds.
+          </p>
         </div>
 
-        <Button type="submit" size="lg" disabled={isPending}>
-          {isPending ? "Checking..." : isEnrolling ? "Finish setup and continue" : "Continue"}
+        <Button type="submit" size="lg" className="w-full" disabled={isPending}>
+          {isPending ? "Checking…" : isEnrolling ? "Finish setup and continue" : "Continue"}
         </Button>
       </form>
 
-      <form action={signOutAction}>
+      <form action={signOutAction} className="border-t border-glass-stroke pt-4">
         <Button type="submit" variant="ghost" size="sm" className="w-full">
           Sign out instead
         </Button>

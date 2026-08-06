@@ -35,14 +35,21 @@ export default async function LoginPage({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Sign in</CardTitle>
+      <CardHeader className="gap-2">
+        <CardTitle className="text-headline-md">Sign in</CardTitle>
         <CardDescription>
-          Staff accounts only for now. Use the email and password created with{" "}
-          <code className="font-mono text-body-sm">pnpm db:create-admin</code>.
+          {/*
+            Was "use the email and password created with `pnpm
+            db:create-admin`" — a build instruction for whoever set the site
+            up, rendered as guidance to whoever is standing in front of it.
+            Nobody signing into a shop's admin console runs pnpm.
+          */}
+          Staff accounts only for now. Use the email address (or phone number) and password set up
+          for you when your account was created.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-5">
+
+      <CardContent className="flex flex-col gap-6">
         {/*
           `middleware.ts` appends `?reason=session-expired` when an admin
           session falls outside either the 8-hour absolute or 30-minute idle
@@ -51,7 +58,7 @@ export default async function LoginPage({
         */}
         {reason === "session-expired" ? (
           <Alert variant="warning" role="status">
-            <AlertDescription>
+            <AlertDescription className="text-warning">
               Your session timed out. Staff sessions end after 8 hours, or after 30 minutes with no
               activity. Please sign in again.
             </AlertDescription>

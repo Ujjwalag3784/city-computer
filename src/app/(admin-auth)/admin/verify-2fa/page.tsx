@@ -72,11 +72,13 @@ export default async function VerifyTwoFactorPage({
   return (
     <main
       id="main-content"
-      className="flex min-h-screen flex-col items-center justify-center px-4 py-12"
+      className="flex min-h-svh flex-col items-center justify-center gap-8 bg-background px-4 py-10 sm:px-6 sm:py-16"
     >
+      <p className="text-title text-on-surface">City Computer Systems</p>
+
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>
+        <CardHeader className="gap-2">
+          <CardTitle className="text-headline-md">
             {prompt ? "Set up two-factor sign-in" : "Enter your two-factor code"}
           </CardTitle>
           <CardDescription>

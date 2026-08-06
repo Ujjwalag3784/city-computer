@@ -7,6 +7,21 @@ import { cn } from "@/lib/utils";
  * (default) or a translucent glass panel (`variant="glass"`), since the
  * exports define three different glass-panel recipes and docs/05 §1.6
  * collapses them to one (`--glass-bg` / `--glass-blur`).
+ *
+ * PADDING SYNTAX, do not "simplify" back: `p-(--space-card-padding)`, with
+ * parentheses. These utilities were originally written with square brackets
+ * instead, which is the Tailwind **v3** shorthand for a bare variable. v4
+ * removed it (upgrade guide, "Using variables in arbitrary values") and
+ * emits the value verbatim, so every card in the app was shipping
+ * `padding: --space-card-padding` — an invalid declaration the browser
+ * drops on the floor. That is why `/auth/login` rendered with its heading,
+ * inputs and button flush against the card border, and it was never
+ * specific to that page. `p-(--…)` is v4's shorthand for
+ * `p-[var(--…)]` and produces the intended 24px from globals.css.
+ *
+ * Known remaining instances of the v3 form elsewhere (all the same bug,
+ * none load-bearing for the auth pages, so left for a separate sweep):
+ * `grep -rn -- '-\[--' src`.
  */
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "surface" | "glass";
@@ -36,7 +51,7 @@ export const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("flex flex-col gap-1.5 p-[--space-card-padding]", className)}
+      className={cn("flex flex-col gap-1.5 p-(--space-card-padding)", className)}
       {...props}
     />
   ),
@@ -63,7 +78,7 @@ CardDescription.displayName = "CardDescription";
 
 export const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div className={cn("p-[--space-card-padding] pt-0", className)} ref={ref} {...props} />
+    <div className={cn("p-(--space-card-padding) pt-0", className)} ref={ref} {...props} />
   ),
 );
 CardContent.displayName = "CardContent";
@@ -72,7 +87,7 @@ export const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("flex items-center p-[--space-card-padding] pt-0", className)}
+      className={cn("flex items-center p-(--space-card-padding) pt-0", className)}
       {...props}
     />
   ),

@@ -21,9 +21,18 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main
       id="main-content"
-      className="flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-12"
+      className="flex min-h-svh flex-col items-center justify-center gap-8 bg-background px-4 py-10 sm:px-6 sm:py-16"
     >
-      <Link href="/" className="text-title-lg font-semibold text-on-surface">
+      {/*
+        `text-title`, not `text-title-lg`: globals.css defines
+        display-lg / headline-lg / headline-md / title / body-* and nothing
+        called `title-lg`, so the original class produced no CSS at all and
+        the wordmark rendered at the browser's default size.
+      */}
+      <Link
+        href="/"
+        className="text-title rounded text-on-surface transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
         City Computer Systems
       </Link>
       <div className="w-full max-w-md">{children}</div>

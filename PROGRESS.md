@@ -18,8 +18,8 @@ them):
 1. **The route tree did not load.** `c/[...categorySlug]/opengraph-image.tsx`
    (added in Phase 11, `b12ea7b`) produced the route
    `/c/[...categorySlug]/opengraph-image` — a catch-all followed by another
-   segment, which Next.js rejects with *"Catch-all must be the last part of
-   the URL."* `next dev` **refused to start** on it, and `next build` would
+   segment, which Next.js rejects with _"Catch-all must be the last part of
+   the URL."_ `next dev` **refused to start** on it, and `next build` would
    have failed the same way. Earlier sessions saw this symptom and recorded
    it as a Turbopack-only panic; it is not Turbopack-specific. Proven by
    bisection: moving that one file aside took the dev server from "refuses
@@ -114,7 +114,7 @@ storefront.** Traced rather than guessed:
   fails closed and none of them route through that file. Six new tests pin
   it.
 - Confirmed by running the site with Redis down: bounded `Redis client
-  error` logging, no crash, no hang, and `/auth/login` still 200.
+error` logging, no crash, no hang, and `/auth/login` still 200.
 
 **Migrations: `prisma migrate deploy`, not `db push`.**
 `prisma/migrations/20260727175048_pnpm_db_seed/migration.sql` is a real
@@ -1910,7 +1910,7 @@ Error: Event handlers cannot be passed to Client Component props.
 Nothing catches this before a real request. The prop types match, so
 `typecheck` is happy. The imports are legal, so `lint` and
 `client-boundary.test.ts` are happy. And whether a module renders on the
-server depends on which *route* reaches it, not on anything visible in the
+server depends on which _route_ reaches it, not on anything visible in the
 module, so `next build` is happy too.
 
 A walk of the server render graph found **22 crossings in 11 files** — not
@@ -1952,7 +1952,7 @@ untouched and still used by `inventory-table.tsx`, `brand-table.tsx` and
 **Root cause,** and this one is layered. The logs showed
 `{"errorno":"ETIMEDOUT","code":"ETIMEDOUT","syscall":"connect"}` against the
 free Upstash `rediss://` endpoint. The client was dialling Redis on module
-*import*, and `middleware.ts` reaches `session-state.ts` while the storefront
+_import_, and `middleware.ts` reaches `session-state.ts` while the storefront
 actions reach `rate-limit-store.ts` — so a storefront page view that never
 issues a single Redis command still opened a socket and still logged a
 timeout. Worse, a serverless instance frozen mid-connect leaves that timer to
@@ -1973,7 +1973,7 @@ unreachable Redis threw straight out of the middleware and returned HTTP 500
 for the whole admin console. That is not failing closed, that is crashing,
 and in Vercel's logs it was indistinguishable from the render bugs above. It
 now logs once and returns `false`, which the middleware already turns into a
-redirect to sign-in. The *writes* still reject on purpose: a
+redirect to sign-in. The _writes_ still reject on purpose: a
 `markAdminSessionIssued` that quietly did nothing would mint an admin session
 with no expiry clocks on it.
 
@@ -2015,8 +2015,8 @@ remaining direct `next/image` call, correctly, since it is already
 ### The permanent guard
 
 `src/lib/server-client-props.test.ts` is the sibling of
-`client-boundary.test.ts`. That one asks whether a *module* can land on the
-wrong side of the split; this one asks whether a *prop* can. It walks the
+`client-boundary.test.ts`. That one asks whether a _module_ can land on the
+wrong side of the split; this one asks whether a _prop_ can. It walks the
 server render graph from every Next file-convention entry point, stopping at
 `"use client"` (past which function props are legal) and at `"use server"`
 (an RPC boundary, not a render tree), and fails on any function-valued prop
@@ -2036,8 +2036,8 @@ worse than one with a documented edge.
 **Verified here:** `pnpm typecheck` clean, `pnpm lint` clean at
 `--max-warnings=0`, and **745 tests passing across 83 files** — the 742
 baseline plus three new ones. Structurally, there is now **no Server
-Component anywhere in `src/app/**` or `src/components/**` passing a
-function-valued prop to a `"use client"` component**, and no product image
+Component anywhere in `src/app/**`or`src/components/**`passing a
+function-valued prop to a`"use client"` component**, and no product image
 surface bypassing `ProductImage`.
 
 **Not verified here, and not claimed:** nothing was run against a real
@@ -2057,7 +2057,7 @@ ETIMEDOUT lines come back:
 
 1. **Check Upstash for an IP allow-list.** In the Upstash console, open the
    database and look for "Restrict access" / IP allow-listing. Vercel's
-   serverless IPs are dynamic, so *any* allow-list produces exactly this
+   serverless IPs are dynamic, so _any_ allow-list produces exactly this
    ETIMEDOUT symptom. It must be off, or set to allow all.
 2. **Confirm `REDIS_URL` is set for the Production environment** in Vercel
    Project Settings -> Environment Variables, and that it is the `rediss://`
@@ -2077,3 +2077,167 @@ switching to `@upstash/redis` is the documented next step. It costs a
 dependency, two new env vars in `env-core.ts`, and the ability to run against
 a plain local Redis container — a deliberate trade, not a free win, which is
 why it was not done pre-emptively.
+
+---
+
+## The sign-in page did nothing when you pressed the button — and looked unstyled while doing it
+
+`/auth/login` and `/admin/verify-2fa` were built in a hurry in `250e553` to
+fill the 404 that every admin redirect had been landing on since Phase 3.
+Neither had ever been rendered or exercised by a person until today. Both
+were broken, in two unrelated ways.
+
+### Bug 1 (fatal) — the Credentials provider was writing a JWT into a database-session cookie
+
+**Symptom.** An OWNER account created by `pnpm db:create-admin` types the
+right email and password, presses **Sign in**, and nothing at all happens.
+No error, no spinner, no navigation.
+
+**Root cause.** Auth.js's Credentials provider is a **JWT-strategy feature**,
+and this app runs `session.strategy: "database"` (docs/13 §2: "Session
+storage: Database-backed (not JWT)"). `@auth/core`'s callback route has one
+branch per provider type, and the credentials branch is hard-coded to the JWT
+path regardless of the configured strategy — it calls `callbacks.jwt`,
+`jwt.encode`, and `sessionStore.chunk(...)`, and it **never calls
+`adapter.createSession`**.
+
+`assertConfig` is supposed to reject exactly this combination, and would
+have, except its guard is `dbStrategy && onlyCredentials` — and
+`onlyCredentials` is false here, because the Google provider also exists in
+`authConfig.providers`. So the misconfiguration produced no error, no
+warning, and no log line. It simply worked incorrectly:
+
+1. `authorize()` succeeded, Argon2id verify and all.
+2. `__Secure-authjs.session-token` was set to an **encrypted JWT**.
+3. No `Session` row was written, so `withAdminSessionPolicy.createSession`
+   never ran and none of `session-state.ts`'s Redis clocks were started.
+4. `signIn` redirected to `/admin`.
+5. `adminMiddleware` called `auth()`, which under the database strategy
+   handed that JWT string to `adapter.getSessionAndUser` as if it were a
+   session token, found no row, and saw an unauthenticated request.
+6. It redirected straight back to `/auth/login`.
+
+The round trip is a client-side navigation back to the same component, so
+from the chair it is indistinguishable from a dead button. Sign-_out_ was
+broken by the same mismatch in reverse: `deleteSession` was being handed a
+JWT that matches no row, and the resulting throw was swallowed into a
+`SignOutError` log line.
+
+**Fix.** `authConfig.jwt.encode` is overridden in `server/auth/config.ts` to
+mint a real `Session` row through the same wrapped adapter and return its
+opaque `sessionToken` as the cookie value — which is precisely what
+`@auth/core`'s OAuth branch does one `if` above. Admin sessions therefore get
+the 8-hour absolute cap and both Redis clocks again, and sign-out deletes a
+row that exists. The alternative — flipping the app to `strategy: "jwt"` —
+was rejected outright: `revoke-sessions.ts`, the 8h/30min session windows and
+every per-session Redis key including the 2FA flag are all keyed on a real
+`Session` row, and a self-contained JWT cannot be revoked server-side at all.
+
+**Fix, part two: the page can no longer fail silently even if something
+else breaks.** `signInAction` is now total — every path out of it either
+navigates or returns a non-empty message, including the previously-`return
+{}` success fall-through. Message selection moved to
+`lib/auth/sign-in-error.ts`, which is pure and unit-tested, and which has to
+unwrap `AuthError`'s awkward `cause.err` envelope to find the original error.
+It distinguishes exactly three outcomes:
+
+- **credential failure** — one identical message for unknown identifier,
+  wrong password, suspended account and locked account. `authorize()` already
+  collapses all four to `null`; nothing here can separate them, and a test
+  asserts none of the three messages contains "locked", "suspended",
+  "exist" or "not found" so a future well-meaning branch fails CI.
+- **rate limited** — surfaced distinctly, and this is _not_ a weakening of
+  docs/13 §2. Both limiters fire _before_ the user lookup, keyed on the
+  submitted identifier and the caller's IP, so they trip identically whether
+  or not the account exists. Hiding it only meant a locked-out operator
+  stared at "check your password" for fifteen minutes.
+- **anything else** (Postgres down, Redis rejecting a write, a bug) — "we
+  couldn't complete sign-in just now". Leaks nothing, and is the difference
+  between "I typed it wrong" and "the site is broken" that this page could
+  not previously express.
+
+`/admin/verify-2fa` got the same treatment: `toSafeAppError`'s RFC 9457
+`detail` was being rendered straight to the operator, which for a tripped
+rate limit is the machine-facing "Retry after 900 seconds." and for a Zod
+failure is "One or more fields are invalid."
+
+### Bug 2 — every `Card` in the app has had zero padding since the Tailwind v4 upgrade
+
+**Symptom, as reported:** the sign-in card has no internal padding, its
+heading, description, label, input and button are crammed flush against each
+other and against the border, and the button is full-bleed to the card edge.
+
+**Root cause, and it was never specific to the auth pages.**
+`components/ui/card.tsx` sets its padding with `p-[--space-card-padding]` —
+the Tailwind **v3** shorthand for a bare CSS variable. Tailwind v4 removed
+that shorthand (upgrade guide, "Using variables in arbitrary values") in
+favour of `p-(--space-card-padding)`, and emits the unrecognised value
+verbatim: `padding: --space-card-padding`, an invalid declaration every
+browser drops. `CardHeader`, `CardContent` and `CardFooter` have therefore
+been rendering with **no padding at all** since the v4 upgrade, everywhere in
+the app. The auth pages are simply the first screens where a bare card with
+no compensating utility classes was the entire page.
+
+Fixed in the primitive, which fixes every card in the app. **44 further
+instances of the same v3 syntax remain** in page-level overrides
+(`pt-[--space-card-padding]`) and in `combobox.tsx`'s
+`w-[--radix-popover-trigger-width]` — all equally dead, none load-bearing for
+these two pages, all findable with `grep -rn -- '-\[--' src`. Left for a
+separate mechanical sweep rather than folded into an auth fix.
+
+Two smaller things in the same family: `(auth)/layout.tsx` styled the
+wordmark `text-title-lg`, which is not one of the typography utilities
+`globals.css` defines (`display-lg`/`headline-lg`/`headline-md`/`title`/
+`body-*`), so it produced no CSS; and the sign-in card's description was
+rendering **`pnpm db:create-admin` as user-facing copy on a production page**
+— a build instruction for whoever set the site up, shown to whoever is
+standing in front of it. Both pages were then rebuilt against the existing
+primitives and tokens: real vertical rhythm, `<label for>`/input pairs with
+matching ids, `autoComplete` (`username email` / `current-password` /
+`one-time-code`), an explicit `focus-visible` ring on the fields (`Input`
+only changed its border, which is easy to miss against the card stroke), a
+disabled + "Signing in…" pending state, `aria-invalid` +
+`aria-describedby` wiring, and a **persistently mounted** `aria-live` region
+rather than a conditionally mounted `<Alert>` — a live region that is
+inserted at the same moment its text appears is the classic way to get
+silence from a screen reader.
+
+### What was checked on the 2FA page
+
+Read end to end; no second fatal bug found, and its structure holds up:
+`beginTwoFactorEnrollmentForSession` pins the candidate secret in Redis with
+`SET NX` so a refresh cannot invalidate a QR already scanned into a phone,
+the enrollment branch is unreachable for an already-enrolled account,
+`middleware.ts`'s single-path loop guard skips only the 2FA redirect and
+still enforces IP, session, role and both windows, and both success paths end
+at the same Redis flag that `middleware.ts` and `guards.ts` actually check.
+**It could not have worked before this commit for a reason outside itself:**
+it starts with `auth()`, and until the fix above there was never a resolvable
+session to find. The `next/image` call on the QR data URL is correct
+(`unoptimized` is required and present); `priority` was dropped, since it
+would inline the whole base64 PNG a second time as a `<link rel="preload">`.
+
+### What is verified, and what is not
+
+**Verified here:** `pnpm typecheck` clean, `pnpm lint` clean at
+`--max-warnings=0`, **760 tests passing across 84 files** — the 745/83
+baseline plus 15 new tests for `lib/auth/sign-in-error.ts`. Both boundary
+guards (`client-boundary.test.ts`, `server-client-props.test.ts`) still pass.
+
+**Verified by reading the installed dependency, not by running it:** the
+root cause above is not inferred from symptoms. It is read directly out of
+`node_modules/@auth/core@0.41.3` — `lib/actions/callback/index.js`'s
+credentials branch (no `createSession`, unconditional `jwt.encode`),
+`lib/utils/assert.js:114-119` (the `onlyCredentials` guard that let it
+through), `lib/actions/session.js`'s database branch (the cookie value is
+passed to `getSessionAndUser` verbatim) and `lib/actions/signout.js` (same
+for `deleteSession`).
+
+**Not verified, and not claimed:** no sign-in was performed. This sandbox has
+no reachable database, `binaries.prisma.sh` is blocked so `prisma generate`
+cannot run, and the deployed URL is not reachable from here. Only a real
+login attempt can confirm that the new `Session` row is written, that the
+redirect chain lands on `/admin/verify-2fa`, that the QR code scans, and that
+a valid TOTP code enrols and opens `/admin`. The rendered appearance of the
+rebuilt pages is likewise unverified — the padding fix is a certainty at the
+CSS level, but nobody has looked at the result.
