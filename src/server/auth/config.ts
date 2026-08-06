@@ -148,8 +148,16 @@ function withAdminSessionPolicy(adapter: Adapter): Adapter {
 const DUMMY_HASH_FOR_TIMING =
   "$argon2id$v=19$m=19456,t=2,p=1$MDAwMDAwMDAwMDAwMDAwMA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
+/**
+ * One instance, referenced twice: as `authConfig.adapter`, and directly by
+ * `authConfig.jwt.encode` below — which has to mint its session through the
+ * *same* wrapped adapter, or an admin session would be created without the
+ * 8-hour cap and the Redis clocks `withAdminSessionPolicy` attaches.
+ */
+const sessionAdapter = wrapPrismaAdapter();
+
 export const authConfig: NextAuthConfig = {
-  adapter: wrapPrismaAdapter(),
+  adapter: sessionAdapter,
   session: {
     strategy: "database",
     maxAge: CUSTOMER_SESSION_MAX_AGE_SECONDS,
@@ -239,6 +247,73 @@ export const authConfig: NextAuthConfig = {
   pages: {
     signIn: "/auth/login",
     error: "/auth/login",
+  },
+  /**
+   * THE FIX FOR "SIGNING IN DID NOTHING". Read this before touching it.
+   *
+   * Auth.js's Credentials provider is a JWT-strategy feature. Its branch of
+   * `@auth/core`'s callback route is hard-coded to the JWT path regardless
+   * of `session.strategy`:
+   *
+   *     const token = await callbacks.jwt({ token: defaultToken, user, … })
+   *     const newToken = await jwt.encode({ ...jwt, token, salt })
+   *     cookies.push(...sessionStore.chunk(newToken, { expires }))
+   *
+   * — it never calls `adapter.createSession`. `assertConfig` is *supposed*
+   * to reject that combination, but its guard is
+   * `dbStrategy && onlyCredentials`, and `onlyCredentials` is false here
+   * because the Google provider exists. So the mismatch passed silently:
+   * a successful password sign-in set `__Secure-authjs.session-token` to an
+   * encrypted JWT, wrote no `Session` row, and started none of
+   * `session-state.ts`'s Redis clocks. Every subsequent request read that
+   * cookie under `strategy: "database"`, handed the JWT string to
+   * `adapter.getSessionAndUser` as if it were a session token, found
+   * nothing, and treated the caller as signed out — so `adminMiddleware`
+   * bounced them straight back to `/auth/login`. From the operator's chair
+   * that is a form that does nothing at all. Sign-*out* was broken by the
+   * same mismatch, `deleteSession` being handed a JWT that matches no row.
+   *
+   * Overriding `encode` is the documented way to close the gap while
+   * keeping database sessions: mint the row ourselves and return its opaque
+   * `sessionToken` as the cookie value, which is exactly what the OAuth
+   * branch does one `if` above. Going the other way — flipping the app to
+   * `strategy: "jwt"` — was rejected: `revoke-sessions.ts`, the 8-hour
+   * absolute / 30-minute idle windows, and every per-session Redis key
+   * (including the 2FA flag) are all keyed on a real `Session` row, and a
+   * self-contained JWT cannot be revoked server-side at all. docs/13 §2
+   * says "Session storage: Database-backed (not JWT)" for those reasons.
+   *
+   * Under `strategy: "database"` this override is only ever reached from
+   * that one credentials branch — `session()` decodes JWTs only on the JWT
+   * path, and the OAuth branch skips `jwt.encode` entirely — so there is no
+   * fallback path to preserve, and a token with no subject is a bug worth
+   * failing loudly on rather than papering over with another
+   * silently-unusable cookie. If `session.strategy` above is ever changed
+   * to "jwt", delete this whole block: it would then be minting orphan
+   * database rows on every sign-in.
+   */
+  jwt: {
+    async encode({ token }) {
+      const userId = token?.sub;
+      if (!userId) {
+        throw new Error(
+          "authConfig.jwt.encode: credentials sign-in produced a token with no subject; refusing to issue a session cookie that cannot resolve to a session.",
+        );
+      }
+      if (!sessionAdapter.createSession) {
+        throw new Error("authConfig.jwt.encode: adapter has no createSession");
+      }
+
+      // Customer default; `withAdminSessionPolicy.createSession` overrides
+      // this to the 8-hour absolute cap for admin-role users and starts
+      // their Redis clocks, exactly as it does for an OAuth sign-in.
+      const created = await sessionAdapter.createSession({
+        sessionToken: crypto.randomUUID(),
+        userId,
+        expires: new Date(Date.now() + CUSTOMER_SESSION_MAX_AGE_SECONDS * 1000),
+      });
+      return created.sessionToken;
+    },
   },
   callbacks: {
     session: sessionCallback,

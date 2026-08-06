@@ -30,6 +30,33 @@ export interface TwoFactorFormState {
   error?: string;
 }
 
+/**
+ * Every failure below has to come back as a sentence someone can act on —
+ * this screen sits between a correct password and the admin console, so a
+ * blank response here is as much of a dead end as the sign-in form's was.
+ *
+ * `toSafeAppError` alone was not enough: it returns the RFC 9457 `detail`
+ * field, which for a tripped rate limit is the machine-facing
+ * "Retry after 900 seconds." and for a Zod failure is the generic "One or
+ * more fields are invalid." Both are technically non-empty and neither
+ * tells the operator what to do.
+ */
+function twoFactorErrorMessage(error: unknown): string {
+  const safe = toSafeAppError(error);
+
+  if (safe.code === "RATE_LIMITED") {
+    return "Too many code attempts. For security, this is paused for up to 15 minutes — please try again after that.";
+  }
+
+  // A validation failure carries the per-field message from
+  // `totpVerifySchema` ("Enter the 6-digit code from your authenticator
+  // app."), which is the useful one.
+  const firstIssue = safe.issues?.[0]?.message;
+  if (firstIssue) return firstIssue;
+
+  return safe.detail ?? safe.message;
+}
+
 export async function verifyTwoFactorAction(
   _previousState: TwoFactorFormState,
   formData: FormData,
@@ -60,8 +87,7 @@ export async function verifyTwoFactorAction(
       await confirmTwoFactorEnrollmentForSession(session.user.id, session.sessionToken, input);
     }
   } catch (error) {
-    const safe = toSafeAppError(error);
-    return { error: safe.detail ?? safe.message };
+    return { error: twoFactorErrorMessage(error) };
   }
 
   // Outside the try/catch on purpose: `redirect` works by throwing

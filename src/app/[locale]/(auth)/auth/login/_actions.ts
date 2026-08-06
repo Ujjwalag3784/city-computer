@@ -13,28 +13,26 @@
  * (docs/13 §2's "5 attempts / 15 min per IP and per identifier"), the
  * Argon2id verify, the dummy-hash timing normalisation, and the
  * ACTIVE/locked-until checks. This action deliberately adds no checks of its
- * own — it parses the form, hands it to `signIn`, and turns any failure into
- * one indistinguishable message, per docs/13 §2's enumeration-resistance
- * rule ("Registration, login and reset return identical messages").
+ * own — it parses the form, hands it to `signIn`, and maps the outcome to a
+ * message via `lib/auth/sign-in-error.ts`, which owns docs/13 §2's
+ * enumeration-resistance rule ("Registration, login and reset return
+ * identical messages") and is unit-tested against it.
+ *
+ * The contract this file has to hold up, because the page it serves shipped
+ * without it: **every** path out of `signInAction` either navigates or
+ * returns a non-empty `error`. `useActionState` renders whatever comes back
+ * and nothing else; an outcome that returns `{}` without redirecting is a
+ * form that visibly does nothing, which is precisely how this page failed.
  */
 import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/server/auth";
 import { loginSchema } from "@/lib/validation/auth";
 import { safeInternalPath } from "@/lib/safe-redirect";
+import { signInFailureMessage, SIGN_IN_UNAVAILABLE_MESSAGE } from "@/lib/auth/sign-in-error";
 
 export interface SignInFormState {
   error?: string;
 }
-
-/**
- * One message for every failure mode — wrong password, no such account, a
- * suspended account, a locked account, or a tripped rate limit. The
- * rate-limit hint is included unconditionally rather than only when the
- * limit actually fired, precisely so its presence never reveals which case
- * this was.
- */
-const SIGN_IN_FAILED =
-  "That email/phone and password combination didn't work. Check them and try again — after several failed attempts you may need to wait 15 minutes.";
 
 export async function signInAction(
   _previousState: SignInFormState,
@@ -56,15 +54,21 @@ export async function signInAction(
   try {
     await signIn("credentials", { ...parsed.data, redirectTo: callbackUrl });
   } catch (error) {
-    // `signIn` signals success by throwing Next.js's NEXT_REDIRECT — it must
-    // reach the framework, so only `AuthError` is swallowed here.
+    // `signIn` signals *success* by calling `redirect()`, which throws
+    // Next.js's NEXT_REDIRECT — that has to reach the framework or the
+    // browser never moves, so only `AuthError` is swallowed here.
     if (error instanceof AuthError) {
-      return { error: SIGN_IN_FAILED };
+      return { error: signInFailureMessage(error) };
     }
     throw error;
   }
 
-  return {};
+  // Not reachable while `signIn` is called with `redirect` left at its
+  // default of true: it always ends in either NEXT_REDIRECT or an AuthError.
+  // Kept as a message rather than `return {}` so that if a future Auth.js
+  // ever does return here, the operator sees *something* instead of the
+  // silent form this page launched with.
+  return { error: SIGN_IN_UNAVAILABLE_MESSAGE };
 }
 
 /**
