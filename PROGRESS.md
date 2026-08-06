@@ -1880,3 +1880,200 @@ proving itself) and then fails on `Can't reach database server at
 argument validation or at the database connection instead of at
 `server-only`" is the success signal — the same one `506e22e` used.
 `pnpm db:seed` still gets to its first query too.
+
+## The first deploy served nothing — three production bugs, and a review that found four more
+
+**What you saw.** The Vercel build went green and the site was still
+unusable. Every page returned HTTP 500. Every product photo 404'd. The
+runtime logs also scrolled endlessly with Redis connection timeouts. Three
+separate faults, none of which `pnpm build` can catch, because all three
+only happen when a real request arrives.
+
+A previous session diagnosed all three and wrote the fixes, then ran out of
+budget immediately before committing. This session reviewed that work line
+by line, corrected what was wrong, finished it, and committed it as
+`16a9572` and `1c9cf64`. The review is the interesting part, so it is
+recorded honestly below rather than folded into a "done" tick.
+
+### Bug 1 — 22 function props crossing the server/client boundary
+
+**Root cause.** React serialises every prop a Server Component passes into a
+Client Component so the value can travel in the RSC payload. Functions have
+no serialisation, so the render throws at request time:
+
+```
+Error: Event handlers cannot be passed to Client Component props.
+  {onAddToCart: function onAddToCart, outOfStock: ..., className: ...}
+  digest: '2126013844'
+```
+
+Nothing catches this before a real request. The prop types match, so
+`typecheck` is happy. The imports are legal, so `lint` and
+`client-boundary.test.ts` are happy. And whether a module renders on the
+server depends on which *route* reaches it, not on anything visible in the
+module, so `next build` is happy too.
+
+A walk of the server render graph found **22 crossings in 11 files** — not
+the one the log named:
+
+- `commerce/product-card.tsx` forwarded `onAddToCart={() => onAddToCart?.()}`
+  to the `"use client"` `AddToCartButton`, once per card variant (x2). The
+  arrow is freshly created whether or not a caller passed a handler, so `/`,
+  the PDP's related rail and every blog post's related rail all 500'd.
+- **ten** `app/(admin)/admin/*/page.tsx` Server Components — blog, branches,
+  campaigns, coupons, customers, orders, pages, products, service, users —
+  passed `columns` (every entry holding a `render: (row) => ReactNode`) and
+  `getRowId={(row) => row.id}` to the `"use client"` `DataTable` (x2 each).
+  The entire admin console was down, not just the storefront.
+
+**The fix, and why it is not "make everything a Client Component".** The
+handler moved to the interactive leaf. `commerce/product-card-add-to-cart.tsx`
+is a client leaf that calls Phase 6's `addToCartAction` itself and pushes the
+action's own re-resolved `CartView` into the store — the same contract
+`cart-drawer-host.tsx` already established. `ProductCard` now passes only
+`variantId`, `outOfStock` and `className`, so it renders identically from a
+Server Component or from inside `CatalogListing`, with no caller-side wiring.
+
+`admin/data-table-static.tsx` renders byte-identical table markup on the
+server, where handing a `render` function to a child crosses no boundary.
+
+**Reviewed specifically for over-reach, because ten pages is a lot to
+change.** It is not over-reach: none of those ten pages used `sortable`,
+`selectable`, `loading`, `onSortChange` or `onSelectionChange` — they sort
+and paginate through the URL query string. No row action was lost; the
+per-row `<Link>`s and the products page's `InlinePriceCell`/`InlineStockCell`
+client components still render exactly as before, and those pages now ship
+zero client JS for their table. The genuinely interactive `DataTable` is
+untouched and still used by `inventory-table.tsx`, `brand-table.tsx` and
+`buildable-parts-table.tsx`, all of which are already `"use client"`.
+
+### Bug 2 — Redis timing out from Vercel's serverless runtime
+
+**Root cause,** and this one is layered. The logs showed
+`{"errorno":"ETIMEDOUT","code":"ETIMEDOUT","syscall":"connect"}` against the
+free Upstash `rediss://` endpoint. The client was dialling Redis on module
+*import*, and `middleware.ts` reaches `session-state.ts` while the storefront
+actions reach `rate-limit-store.ts` — so a storefront page view that never
+issues a single Redis command still opened a socket and still logged a
+timeout. Worse, a serverless instance frozen mid-connect leaves that timer to
+fire on the next thaw, manufacturing timeouts from nothing.
+
+Four changes: `lazyConnect` (nothing dials until a command runs, so the
+storefront never connects at all), a 3s `commandTimeout` that also covers
+queued time (`maxRetriesPerRequest` bounds retries, not wall-clock), caching
+the singleton in production too so re-evaluation stops leaking connections
+against Upstash's concurrent cap, and throttling the error handler to one
+line a minute with a suppressed count.
+
+**What the review changed.** The previous session's docstring claimed
+`session-state.ts` "fails closed — no Redis, no `/admin`, deliberately".
+It did not. `isAdminSessionWithinLimits` had no error handling, and
+`middleware.ts` awaits it on every authenticated `/admin/*` request — so an
+unreachable Redis threw straight out of the middleware and returned HTTP 500
+for the whole admin console. That is not failing closed, that is crashing,
+and in Vercel's logs it was indistinguishable from the render bugs above. It
+now logs once and returns `false`, which the middleware already turns into a
+redirect to sign-in. The *writes* still reject on purpose: a
+`markAdminSessionIssued` that quietly did nothing would mint an admin session
+with no expiry clocks on it.
+
+Checked and deliberately not done: no explicit `tls: {}` (ioredis defaults
+`tls: true` for a `rediss://` URL and sets the SNI servername itself), no
+`family: 4` (ioredis already defaults to dual-stack), and no swallowing of
+errors anywhere — `rate-limit-store.ts` keeps its documented fail-open and
+now reaches it in ~3s instead of ~30s.
+
+### Bug 3 — every product image 404
+
+**Root cause.** One cause, not two. `prisma/seed/catalog.ts` minted a `Media`
+row per demo product pointing at `/images/placeholder/{slug}-gallery-01-{hash}.avif`
+— a per-product file that was never generated, in a `public/` directory this
+repo did not have at all. `next/image`'s optimiser relays the upstream
+status, so the local 404 came back out of `/_next/image` as a 404 too.
+
+Fixed with **one 1.7KB committed SVG** (`public/images/placeholder/product.svg`
+— `public/` totals 16KB; no binary images were added to git) plus
+`commerce/product-image.tsx`, which falls back to it for an absent or failing
+`src`. The seed's `update` branch now rewrites `url`/`mimeType` instead of
+being a no-op, so re-running `pnpm db:seed` repairs the already-deployed demo
+rather than only helping fresh databases.
+
+**What the review changed — a regression the fix itself introduced.** Because
+the committed placeholder is an **SVG**, any surface still calling
+`next/image` directly would hand the optimiser an SVG source and get HTTP
+**400** back (`dangerouslyAllowSVG` is deliberately off, and enabling it for
+one placeholder would let any future remote pattern serve scriptable SVG
+through the optimiser). Four components were still on a bare `<Image>`:
+`thumb-strip.tsx`, `compare-table.tsx`, `part-row.tsx` and
+`builder-slot-card.tsx`. Left alone, the fix would have turned a 404 into a
+400 on every PDP thumbnail strip and every PC-builder part row. All four now
+route through `ProductImage`, and that requirement is written into its
+docstring so the next person does not undo it. The 2FA QR code is the one
+remaining direct `next/image` call, correctly, since it is already
+`unoptimized` and is not a product photo.
+
+### The permanent guard
+
+`src/lib/server-client-props.test.ts` is the sibling of
+`client-boundary.test.ts`. That one asks whether a *module* can land on the
+wrong side of the split; this one asks whether a *prop* can. It walks the
+server render graph from every Next file-convention entry point, stopping at
+`"use client"` (past which function props are legal) and at `"use server"`
+(an RPC boundary, not a render tree), and fails on any function-valued prop
+reaching a `"use client"` tag — reporting file, line and prop name, which the
+runtime error never did.
+
+It was verified the only way worth trusting: by reintroducing a real
+`onAddToCart={() => {}}` into `product-card.tsx` and confirming the suite
+went red naming that exact line, then reverting. Its blind spots are stated
+in the file rather than papered over — a function arriving via a parameter,
+an import, or a call's return value is not caught, because that needs real
+type-flow analysis, and a guard that half-works while claiming otherwise is
+worse than one with a documented edge.
+
+### What is verified, and what is not
+
+**Verified here:** `pnpm typecheck` clean, `pnpm lint` clean at
+`--max-warnings=0`, and **745 tests passing across 83 files** — the 742
+baseline plus three new ones. Structurally, there is now **no Server
+Component anywhere in `src/app/**` or `src/components/**` passing a
+function-valued prop to a `"use client"` component**, and no product image
+surface bypassing `ProductImage`.
+
+**Not verified here, and not claimed:** nothing was run against a real
+request. This sandbox has no reachable database, `binaries.prisma.sh` is
+blocked so `prisma generate` cannot run, and there is a hard ~45s
+per-command ceiling. Only a live deploy can confirm that `/` now returns 200,
+that images resolve, and that Redis connects. The static proof is strong for
+bugs 1 and 3 — the analysis reproduces the exact error React reported — and
+weakest for bug 2, where the remaining unknown is network reachability
+between Vercel and Upstash, which no amount of code can settle.
+
+### What you have to do yourself
+
+The code fixes are committed, but **bug 2 may have a cause on the Upstash or
+Vercel side that no code change can reach.** After deploying, if the
+ETIMEDOUT lines come back:
+
+1. **Check Upstash for an IP allow-list.** In the Upstash console, open the
+   database and look for "Restrict access" / IP allow-listing. Vercel's
+   serverless IPs are dynamic, so *any* allow-list produces exactly this
+   ETIMEDOUT symptom. It must be off, or set to allow all.
+2. **Confirm `REDIS_URL` is set for the Production environment** in Vercel
+   Project Settings -> Environment Variables, and that it is the `rediss://`
+   TLS connection string from the Upstash console (port 6379) — **not** the
+   REST URL. Environment variable changes need a redeploy to take effect.
+3. **Check the database is not paused or deleted,** and note its region.
+   If it is far from your Vercel function region (Settings -> Functions ->
+   Region, `iad1` by default), move one to match the other; a cross-continent
+   TLS handshake on every cold start is slow even when it succeeds.
+4. **Re-run `pnpm db:seed` against production** once deployed. The image fix
+   only takes effect for `Media` rows the seed rewrites — the code fallback
+   covers the rest, but the seeded rows should point at the real file.
+
+If all four check out and it still times out, the answer is not more ioredis
+tuning: Upstash's own docs recommend their HTTP client for serverless, and
+switching to `@upstash/redis` is the documented next step. It costs a
+dependency, two new env vars in `env-core.ts`, and the ability to run against
+a plain local Redis container — a deliberate trade, not a free win, which is
+why it was not done pre-emptively.
