@@ -18,15 +18,11 @@ import {
 import type { CartView } from "@/server/services/commerce/cart";
 import type { CouponPreview } from "@/server/services/commerce/coupon";
 
-/** Same 1x1 fallback `cart-drawer-host.tsx` uses — see that file's comment for why there's no real placeholder asset. */
-const BLANK_IMAGE_DATA_URL =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
-
 function toLineItems(view: CartView): CartLineItemData[] {
   return view.items.map((item) => ({
     variantId: item.variantId,
     productSlug: item.productSlug,
-    imageUrl: item.imageUrl ?? BLANK_IMAGE_DATA_URL,
+    imageUrl: item.imageUrl ?? undefined,
     imageAlt: item.imageAlt,
     displayTitle: item.productName,
     variantLabel: item.variantLabel ?? undefined,

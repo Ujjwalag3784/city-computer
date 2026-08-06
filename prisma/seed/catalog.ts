@@ -21,6 +21,18 @@ function tiptapParagraph(text: string) {
   };
 }
 
+/**
+ * The one committed placeholder every demo product's media row points at:
+ * `public/images/placeholder/product.svg`. Not imported from
+ * `components/commerce/product-image.tsx`'s `PRODUCT_IMAGE_PLACEHOLDER`
+ * because this file runs under plain `tsx` (`pnpm db:seed`) and must not
+ * pull a React module — and, per `client-boundary.test.ts`, must not pull
+ * anything that could reach a `server-only` guard — into a one-shot script.
+ * Two constants, one string, kept honest by this comment.
+ */
+const PLACEHOLDER_MEDIA_URL = "/images/placeholder/product.svg";
+const PLACEHOLDER_MEDIA_MIME_TYPE = "image/svg+xml";
+
 function checksumFor(seedKey: string) {
   return createHash("sha256").update(`citycomputer-seed:${seedKey}`).digest("hex");
 }
@@ -369,8 +381,23 @@ async function seedOneProduct(demo: DemoProduct) {
     },
   });
 
-  // Placeholder media — real photography happens in Phase 5+. Filename
-  // rule per docs/06 §4/§11.7.1: {productSlug}-{role}-{index}-{hash8}.
+  // Placeholder media — real photography happens in Phase 5+. `key` still
+  // follows the filename rule per docs/06 §4/§11.7.1
+  // ({productSlug}-{role}-{index}-{hash8}) so the convention is recorded for
+  // whenever real photos land, but `url` points at the ONE committed
+  // placeholder that actually exists on disk.
+  //
+  // It used to point at `/images/placeholder/${filename}` — a per-product
+  // .avif that was never generated, in a `public/` directory this repo did
+  // not have. The first production deploy's logs were consequently a wall of
+  // `GET /images/placeholder/…-gallery-01-….avif 404` plus matching
+  // `/_next/image 404`s (the optimiser returns the upstream status), and
+  // every product on the demo rendered a broken image.
+  //
+  // `update` now rewrites `url`/`mimeType` instead of being a no-op, so
+  // re-running `pnpm db:seed` repairs rows an earlier seed already wrote —
+  // an upsert that only fixed fresh databases would have left the deployed
+  // demo broken.
   const checksum = checksumFor(slug);
   const hash8 = checksum.slice(0, 8);
   const filename = `${slug}-gallery-01-${hash8}.avif`;
@@ -378,13 +405,17 @@ async function seedOneProduct(demo: DemoProduct) {
     where: { checksum },
     create: {
       key: `products/${filename}`,
-      url: `/images/placeholder/${filename}`,
-      mimeType: "image/avif",
+      url: PLACEHOLDER_MEDIA_URL,
+      mimeType: PLACEHOLDER_MEDIA_MIME_TYPE,
       sizeBytes: 0,
       checksum,
       altText: `${displayTitle} — ${brand.name}`,
     },
-    update: {},
+    update: {
+      url: PLACEHOLDER_MEDIA_URL,
+      mimeType: PLACEHOLDER_MEDIA_MIME_TYPE,
+      altText: `${displayTitle} — ${brand.name}`,
+    },
   });
   await db.productMedia.upsert({
     where: { productId_mediaId: { productId: product.id, mediaId: media.id } },

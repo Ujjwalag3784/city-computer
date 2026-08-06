@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { ProductImage } from "@/components/commerce/product-image";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuantityStepper } from "@/components/commerce/quantity-stepper";
@@ -56,7 +56,8 @@ export interface CartLineItemData {
    */
   variantId: string;
   productSlug: string;
-  imageUrl: string;
+  /** Optional — `ProductImage` renders the committed placeholder when absent. */
+  imageUrl?: string;
   imageAlt: string;
   displayTitle: string;
   /** e.g. "16GB RAM · 512GB SSD". */
@@ -96,10 +97,9 @@ export function CartLineItem({ item, onQuantityChange, onRemove, className }: Ca
   return (
     <div className={cn("flex gap-4 py-4", className)}>
       <Link href={productHref} className="relative block size-20 shrink-0 overflow-hidden rounded">
-        <Image
+        <ProductImage
           src={imageUrl}
           alt={imageAlt}
-          fill
           sizes="80px"
           className={cn("aspect-square object-cover", isOutOfStock && "opacity-75")}
         />

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DataTable, type DataTableColumn } from "@/components/admin/data-table";
+import { DataTableStatic, type DataTableColumn } from "@/components/admin/data-table-static";
 import { auth } from "@/server/auth";
 import { requirePermission } from "@/server/auth/permissions";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
@@ -90,7 +90,7 @@ export default async function AdminUsersPage() {
         </Button>
       </div>
 
-      <DataTable
+      <DataTableStatic
         columns={columns}
         rows={staff}
         getRowId={(row) => row.id}

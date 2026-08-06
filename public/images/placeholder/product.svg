@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="No product photo yet">
+  <!--
+    The one committed stand-in for a missing product photo. Referenced by
+    `src/components/commerce/product-image.tsx` (its fallback) and by
+    `prisma/seed/catalog.ts` (demo catalogue Media rows, which used to point
+    at per-product .avif filenames that were never generated and 404'd).
+
+    Colours are the literal Obsidian Peak token values from
+    `src/app/globals.css` — --surface-container-high (#2a2a2c),
+    --surface-container-highest (#353437) and --outline (#948f99) — rather
+    than CSS variables, because an <img>-loaded SVG cannot see the page's
+    custom properties. If those tokens change, this file has to change with
+    them; it is the only place in the repo that hard-codes them.
+
+    Deliberately drawn flat and low-detail: it renders through
+    `object-contain` at anything from a 48px cart thumbnail to a full-width
+    PDP frame, and it is rendered `unoptimized` (next/image will not put an
+    SVG through its optimiser without `dangerouslyAllowSVG`, which this
+    project does not enable).
+  -->
+  <rect width="400" height="400" fill="#2a2a2c"/>
+  <rect x="0.5" y="0.5" width="399" height="399" fill="none" stroke="#353437" stroke-width="1"/>
+  <g stroke="#948f99" stroke-width="8" stroke-linejoin="round" stroke-linecap="round" fill="none" opacity="0.55">
+    <rect x="112" y="128" width="176" height="144" rx="16"/>
+    <circle cx="158" cy="174" r="14"/>
+    <path d="M120 256l52-52 40 40 28-28 40 40"/>
+  </g>
+  <text x="200" y="312" fill="#948f99" opacity="0.7" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="22" text-anchor="middle">No photo yet</text>
+</svg>

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { ProductImage } from "@/components/commerce/product-image";
 import { Sparkles, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -137,10 +137,9 @@ export function BuilderSlotCard({
         {state === "filled" && part && (
           <div className="flex items-center gap-3">
             <div className="relative size-12 shrink-0 overflow-hidden rounded bg-surface-container-high">
-              <Image
+              <ProductImage
                 src={part.imageUrl}
                 alt={part.imageAlt}
-                fill
                 sizes="48px"
                 className="object-contain"
               />

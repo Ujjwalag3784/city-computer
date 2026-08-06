@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
+import { ProductImage } from "@/components/commerce/product-image";
 import { cn } from "@/lib/utils";
 
 export interface ThumbStripProps {
@@ -124,7 +124,7 @@ export function ThumbStrip({
             )}
           >
             <span className="relative aspect-square size-full overflow-hidden rounded">
-              <Image src={image.src} alt={image.alt} fill sizes="44px" className="object-cover" />
+              <ProductImage src={image.src} alt={image.alt} sizes="44px" className="object-cover" />
             </span>
           </button>
         );

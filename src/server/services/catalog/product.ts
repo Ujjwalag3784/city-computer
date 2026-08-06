@@ -41,6 +41,13 @@ export interface ProductImageRef {
 export interface ProductSummary {
   id: string;
   slug: string;
+  /**
+   * The cheapest active variant's id — the same row `priceFrom` is derived
+   * from, so a card's quick-add adds exactly the item whose price it
+   * displays. `null` only for the malformed "product with no active
+   * variant" case flagged in `toProductSummary` below.
+   */
+  defaultVariantId: string | null;
   displayTitle: string;
   brand: { slug: string; name: string };
   primaryCategory: { slug: string; name: string };
@@ -239,6 +246,7 @@ function toProductSummary(
   return {
     id: product.id,
     slug: product.slug,
+    defaultVariantId: minPriceVariant?.id ?? null,
     displayTitle: product.displayTitle,
     brand: { slug: product.brand.slug, name: product.brand.name },
     primaryCategory: { slug: product.primaryCategory.slug, name: categoryName },

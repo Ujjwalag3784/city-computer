@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { ProductImage } from "@/components/commerce/product-image";
 import { AlertTriangle, Check } from "lucide-react";
 import { PriceBlock } from "@/components/commerce/price-block";
 import { StockBadge } from "@/components/commerce/stock-badge";
@@ -110,7 +110,7 @@ export function PartRow({ part, selected = false, onSelect, className }: PartRow
       )}
     >
       <div className="relative size-14 shrink-0 overflow-hidden rounded bg-surface-container-high">
-        <Image src={imageUrl} alt={imageAlt} fill sizes="56px" className="object-contain" />
+        <ProductImage src={imageUrl} alt={imageAlt} sizes="56px" className="object-contain" />
       </div>
 
       <div className="flex flex-1 flex-col gap-1 overflow-hidden text-left">

@@ -491,32 +491,20 @@ export function CommerceSection() {
       <ShowcaseSection title="Product display">
         <ComponentDemo label="ProductCard — grid / list / compact">
           <div className="grid gap-6 sm:grid-cols-3">
-            <ProductCard
-              product={PRODUCTS[0]!}
-              variant="grid"
-              onAddToCart={async () => {
-                await new Promise((resolve) => setTimeout(resolve, 500));
-              }}
-            />
-            <ProductCard
-              product={PRODUCTS[1]!}
-              variant="list"
-              onAddToCart={async () => {
-                await new Promise((resolve) => setTimeout(resolve, 500));
-              }}
-              className="sm:col-span-2"
-            />
+            {/* No `onAddToCart` prop any more: `ProductCard` owns its own
+                add-to-cart wiring (see product-card.tsx's header — a
+                function prop here was what 500'd the real storefront).
+                These demo cards carry no `variantId`, so clicking their
+                button shows `AddToCartButton`'s error state instead of
+                mutating a real cart from the showcase. */}
+            <ProductCard product={PRODUCTS[0]!} variant="grid" />
+            <ProductCard product={PRODUCTS[1]!} variant="list" className="sm:col-span-2" />
           </div>
           <ProductCard product={PRODUCTS[2]!} variant="compact" className="max-w-48" />
         </ComponentDemo>
 
         <ComponentDemo label="ProductGrid — populated">
-          <ProductGrid
-            products={PRODUCTS}
-            onAddToCart={async () => {
-              await new Promise((resolve) => setTimeout(resolve, 500));
-            }}
-          />
+          <ProductGrid products={PRODUCTS} />
         </ComponentDemo>
 
         <ComponentDemo label="ProductGrid — loading state">

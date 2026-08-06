@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
+import { ProductImage } from "@/components/commerce/product-image";
 import { ThumbStrip } from "@/components/commerce/thumb-strip";
 import { cn } from "@/lib/utils";
 
@@ -66,11 +66,9 @@ export function Gallery({ images, className }: GalleryProps) {
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-glass-stroke bg-surface-container">
-        <Image
-          key={active.src}
+        <ProductImage
           src={active.src}
           alt={active.alt}
-          fill
           sizes="(min-width: 1024px) 58vw, 100vw"
           priority={activeIndex === 0}
           className="object-contain transition-transform duration-700 hover:scale-105"

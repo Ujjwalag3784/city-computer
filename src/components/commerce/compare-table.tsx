@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { ProductImage } from "@/components/commerce/product-image";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { PriceBlock } from "@/components/commerce/price-block";
@@ -127,10 +127,9 @@ export function CompareTable({ products, onRemove, className }: CompareTableProp
                       href={`/p/${product.slug}`}
                       className="relative block aspect-square size-16 overflow-hidden rounded-lg bg-surface-container-high"
                     >
-                      <Image
+                      <ProductImage
                         src={product.imageUrl}
                         alt={product.imageAlt}
-                        fill
                         sizes="64px"
                         className="object-cover"
                       />

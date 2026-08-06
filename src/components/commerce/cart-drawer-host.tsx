@@ -23,15 +23,11 @@ import {
  * computing the new state locally, so a price/stock warning that appears
  * as a side effect of the shopper's own edit is never missed.
  */
-/** A 1x1 transparent pixel — this codebase has no placeholder-image asset yet (checked: no `public/` image fallback exists), and a product genuinely missing every media row is meant to be an unreachable edge case (docs/09 §5's product wizard requires at least one photo before publish), not one worth inventing a new asset file for. */
-const BLANK_IMAGE_DATA_URL =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
-
 function toLineItems(view: CartView): CartLineItemData[] {
   return view.items.map((item) => ({
     variantId: item.variantId,
     productSlug: item.productSlug,
-    imageUrl: item.imageUrl ?? BLANK_IMAGE_DATA_URL,
+    imageUrl: item.imageUrl ?? undefined,
     imageAlt: item.imageAlt,
     displayTitle: item.productName,
     variantLabel: item.variantLabel ?? undefined,

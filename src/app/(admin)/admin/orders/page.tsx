@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DataTable, type DataTableColumn } from "@/components/admin/data-table";
+import { DataTableStatic, type DataTableColumn } from "@/components/admin/data-table-static";
 import { AdminSearchBox } from "@/components/admin/admin-search-box";
 import { AdminFilterChips } from "@/components/admin/admin-filter-chips";
 import { auth } from "@/server/auth";
@@ -182,7 +182,7 @@ export default async function AdminOrdersPage({
         q={query.q}
       />
 
-      <DataTable
+      <DataTableStatic
         columns={columns}
         rows={result.items}
         getRowId={(row) => row.id}

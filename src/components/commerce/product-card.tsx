@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
-import { AddToCartButton } from "@/components/commerce/add-to-cart-button";
+import { ProductImage } from "@/components/commerce/product-image";
+import { ProductCardAddToCart } from "@/components/commerce/product-card-add-to-cart";
 import { PriceBlock } from "@/components/commerce/price-block";
 import { RatingStars } from "@/components/commerce/rating-stars";
 import { StockBadge } from "@/components/commerce/stock-badge";
@@ -16,21 +16,55 @@ import { cn } from "@/lib/utils";
  * result onto this shape.
  *
  * No `"use client"` here: the card shell is plain presentational
- * composition around a `next/link`. It renders `AddToCartButton`, itself a
- * client component, as a child — a server/plain component can render a
- * client child without becoming one itself.
+ * composition around a `next/link`. It renders a client component
+ * (`ProductCardAddToCart`) as a child — a server/plain component can render
+ * a client child without becoming one itself, **as long as every prop it
+ * passes is serialisable**.
+ *
+ * That last clause is load-bearing and was the bug behind the first
+ * production 500s. This component used to take an `onAddToCart` callback
+ * and forward `onAddToCart={() => onAddToCart?.()}` to `AddToCartButton`.
+ * A freshly-created arrow function is a function whether or not the caller
+ * supplied one, so on every route that renders a card from a Server
+ * Component (`/`, the PDP's related rail, a blog post's related rail) React
+ * hit "Event handlers cannot be passed to Client Component props" while
+ * serialising the RSC payload and the whole route returned HTTP 500.
+ *
+ * The prop is therefore gone. Quick-add is owned end-to-end by
+ * `product-card-add-to-cart.tsx`, a `"use client"` leaf that calls
+ * `addToCartAction` itself; this component hands it only
+ * `product.variantId`, `outOfStock` and a `className`. Nothing
+ * non-serialisable crosses the boundary, so a card renders identically from
+ * a Server Component or from inside a Client Component (`CatalogListing`,
+ * the `/design` showcase) with no caller-side wiring at all. See
+ * `lib/server-client-props.test.ts` for the guard that keeps it that way.
  *
  * The card's `Link` to `/p/${product.slug}` wraps only the non-interactive
  * "go to PDP" content (image, brand, title, rating, price, stock). Per the
  * spec's own warning, nesting a real `<button>` inside an `<a>` is invalid
  * HTML that breaks keyboard/screen-reader semantics (docs/05 §5 A5/A9), so
- * `AddToCartButton` always sits as a sibling outside the `Link`, inside an
- * outer non-link container (`Card` for `variant="grid"`, a plain `div` for
- * `list`) — never `<a><button /></a>`.
+ * the add-to-cart control always sits as a sibling outside the `Link`,
+ * inside an outer non-link container (`Card` for `variant="grid"`, a plain
+ * `div` for `list`) — never `<a><button /></a>`.
  */
 export interface ProductCardData {
   slug: string;
-  imageUrl: string;
+  /**
+   * The variant a quick-add from this card should add — the cheapest active
+   * variant, i.e. the same row `price`/`compareAtPrice` below come from, so
+   * the button adds exactly the item whose price the shopper just read.
+   * Optional because a product with no active variant row still has to
+   * render (`toProductSummary` logs that case) and because the `/design`
+   * showcase's demo cards have no real catalogue behind them.
+   */
+  variantId?: string;
+  /**
+   * Optional: a product with no media row passes nothing and `ProductImage`
+   * renders the committed placeholder. Callers must NOT invent a blank-pixel
+   * data URL for this — that is what used to hide missing photos behind an
+   * invisible box instead of showing a deliberate placeholder.
+   */
+  imageUrl?: string;
   imageAlt: string;
   displayTitle: string;
   brand?: string;
@@ -47,7 +81,6 @@ export interface ProductCardData {
 export interface ProductCardProps {
   product: ProductCardData;
   variant?: "grid" | "list" | "compact";
-  onAddToCart?: () => void | Promise<void>;
   className?: string;
   /**
    * docs/11-SEO-STRATEGY.md §7's image-SEO acceptance item: the first
@@ -66,7 +99,6 @@ const linkFocusClassName =
 export function ProductCard({
   product,
   variant = "grid",
-  onAddToCart,
   className,
   priority = false,
 }: ProductCardProps) {
@@ -83,10 +115,9 @@ export function ProductCard({
     return (
       <Link href={href} className={cn("flex flex-col gap-2", linkFocusClassName, className)}>
         <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-surface-container-high">
-          <Image
+          <ProductImage
             src={product.imageUrl}
             alt={product.imageAlt}
-            fill
             sizes="(min-width: 1024px) 200px, 40vw"
             className="object-contain"
             priority={priority}
@@ -110,10 +141,9 @@ export function ProductCard({
       >
         <Link href={href} className={cn("shrink-0", linkFocusClassName)}>
           <div className="relative aspect-square w-32 overflow-hidden rounded-lg bg-surface-container-high">
-            <Image
+            <ProductImage
               src={product.imageUrl}
               alt={product.imageAlt}
-              fill
               sizes="128px"
               className="object-contain"
               priority={priority}
@@ -136,8 +166,8 @@ export function ProductCard({
             <StockBadge status={product.stockStatus} quantity={product.stockQuantity} />
           </Link>
 
-          <AddToCartButton
-            onAddToCart={() => onAddToCart?.()}
+          <ProductCardAddToCart
+            variantId={product.variantId}
             outOfStock={outOfStock}
             className="mt-1 w-full sm:w-fit"
           />
@@ -156,10 +186,9 @@ export function ProductCard({
     >
       <Link href={href} className={cn("flex flex-1 flex-col", linkFocusClassName)}>
         <div className="relative aspect-square w-full overflow-hidden bg-surface-container-high">
-          <Image
+          <ProductImage
             src={product.imageUrl}
             alt={product.imageAlt}
-            fill
             sizes="(min-width: 1024px) 33vw, 50vw"
             className="object-contain transition-transform duration-500 ease-out group-hover:scale-105"
             priority={priority}
@@ -181,8 +210,8 @@ export function ProductCard({
       </Link>
 
       <CardFooter className="pt-0">
-        <AddToCartButton
-          onAddToCart={() => onAddToCart?.()}
+        <ProductCardAddToCart
+          variantId={product.variantId}
           outOfStock={outOfStock}
           className="w-full"
         />

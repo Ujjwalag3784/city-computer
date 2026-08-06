@@ -32,24 +32,25 @@ import type {
   CatalogListingPagination,
 } from "@/components/commerce/catalog-listing";
 
-/**
- * A fully transparent 1×1 GIF, used as `ProductCardData.imageUrl` when a
- * product has no media row at all. Renders as an empty box against
- * `ProductCard`'s `bg-surface-container-high`, not a broken-image icon.
- * Distinct from (and a fallback of last resort *behind*) the seed data's
- * own placeholder media rows, which point at `.avif` files that were
- * never actually generated (`prisma/seed/catalog.ts`: "real photography
- * happens in Phase 5+") — those will 404 through `next/image` exactly as
- * intended until real product photography exists; this constant only
- * covers the case where there is no media row to even attempt.
+/*
+ * A product with no media row at all no longer needs a stand-in string
+ * here: `ProductCardData.imageUrl` is optional and `ProductImage` renders
+ * `public/images/placeholder/product.svg` for an absent or failing source.
+ * This used to be a transparent 1×1 GIF whose own comment said the seed's
+ * `.avif` placeholder rows "will 404 through `next/image` exactly as
+ * intended" — they were not intended, they were the reason every product on
+ * the first deploy showed a broken image, and both halves are fixed now
+ * (see `prisma/seed/catalog.ts` and `components/commerce/product-image.tsx`).
  */
-const PLACEHOLDER_PRODUCT_IMAGE =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 export function toProductCardData(summary: ProductSummary): ProductCardData {
   return {
     slug: summary.slug,
-    imageUrl: summary.image?.url ?? PLACEHOLDER_PRODUCT_IMAGE,
+    // `?? undefined` rather than passing the `null` through: `ProductCardData`
+    // is the components layer's own optional-prop shape, and a `null` would
+    // not satisfy `variantId?: string`.
+    variantId: summary.defaultVariantId ?? undefined,
+    imageUrl: summary.image?.url,
     imageAlt: summary.image?.alt ?? summary.displayTitle,
     displayTitle: summary.displayTitle,
     brand: summary.brand.name,

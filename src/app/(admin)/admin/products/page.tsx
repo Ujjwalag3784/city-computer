@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { ImageIcon, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DataTable, type DataTableColumn } from "@/components/admin/data-table";
+import { DataTableStatic, type DataTableColumn } from "@/components/admin/data-table-static";
 import { auth } from "@/server/auth";
 import { permissionSetHas, requirePermission } from "@/server/auth/permissions";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
@@ -38,7 +38,9 @@ function pageHref(query: ProductListQuery, page: number): string {
  * Bulk select/actions (docs/09 §5.2's "Bulk select -> change price by %,
  * change category, publish, hide, export") are NOT built in this pass —
  * out of this session's stated scope ("inline price & stock quick-editing"
- * only), and `DataTable`'s `selectable` prop is left `false` accordingly.
+ * only) — which is also why this page renders the server-side
+ * `DataTableStatic` rather than the interactive `DataTable`: it needs
+ * neither row selection nor click-to-sort.
  * `product:view`-only roles (STAFF) still see this whole page — the
  * per-cell `canEditPrice`/`canEditStock` checks are what actually
  * enforces "STAFF ... no price edit" (docs/09 §3), not a page-level gate.
@@ -168,7 +170,7 @@ export default async function AdminProductsPage({
       <ProductSearchBox initialValue={query.q ?? ""} />
       <FilterChips active={query.filter} q={query.q} />
 
-      <DataTable
+      <DataTableStatic
         columns={columns}
         rows={result.items}
         getRowId={(row) => row.id}

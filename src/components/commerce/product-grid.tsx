@@ -15,7 +15,13 @@ import { cn } from "@/lib/utils";
  * search-results-style pages. There is no `"compact"` variant here — that
  * one is `ProductCard`-only, for standalone carousels, not this grid.
  *
- * No `"use client"` needed: purely presentational, no local state.
+ * No `"use client"` needed: purely presentational, no local state — and,
+ * since `ProductCard` now owns its own add-to-cart wiring, this component
+ * passes nothing but serialisable data down, so it is equally safe to render
+ * from a Server Component (`/`, the PDP and blog related rails) or from
+ * inside a Client Component (`CatalogListing`). It used to accept an
+ * `onAddToCart` callback and forward it per card, which is what turned the
+ * storefront homepage into an HTTP 500 — see `product-card.tsx`'s header.
  *
  * Implements both states docs/05 §7 "States every component must define"
  * requires here:
@@ -38,7 +44,6 @@ export interface ProductGridProps {
   products: ProductCardData[];
   variant?: "grid" | "list";
   loading?: boolean;
-  onAddToCart?: (product: ProductCardData) => void | Promise<void>;
   /** Rendered below the empty-state message when the grid has no results, e.g. a "Clear filters" button. */
   emptyAction?: ReactNode;
   className?: string;
@@ -63,7 +68,6 @@ export function ProductGrid({
   products,
   variant = "grid",
   loading = false,
-  onAddToCart,
   emptyAction,
   className,
 }: ProductGridProps) {
@@ -104,7 +108,6 @@ export function ProductGrid({
           key={product.slug}
           product={product}
           variant={variant}
-          onAddToCart={() => onAddToCart?.(product)}
           // First row only (docs/11 §7's image-SEO item) — `next/image`
           // itself warns against marking every image `priority`, which
           // would defeat the point.
