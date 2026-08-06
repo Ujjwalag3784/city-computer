@@ -27,6 +27,7 @@
  */
 import "server-only";
 import { redis } from "@/server/redis";
+import { logger } from "@/lib/logger";
 
 /**
  * docs/13 §2: "Admin: 8-hour absolute". Exported so `config.ts`'s wrapped
@@ -82,13 +83,31 @@ export async function touchAdminSessionActivity(sessionToken: string): Promise<v
  * missing — whether because it never existed (not an admin session, or
  * never touched) or because its TTL elapsed — fails closed: this session
  * cannot be treated as a live admin session, full stop.
+ *
+ * An *unreachable* Redis fails closed too, but deliberately as a `false`
+ * rather than a throw. `middleware.ts` awaits this on every authenticated
+ * `/admin/*` request, so before this `catch` existed an ETIMEDOUT against
+ * Upstash propagated straight out of the middleware and returned HTTP 500
+ * for the entire admin console — a crash that, in Vercel's logs, was
+ * indistinguishable from the render bugs fixed alongside it. Returning
+ * `false` denies the session exactly as firmly (the caller redirects to
+ * sign-in) while keeping the cause legible in one log line. Note this only
+ * softens the *read* on the hot path: the writes below still reject, because
+ * they sit on explicit actions where a silent no-op would be the dangerous
+ * outcome — a `markAdminSessionIssued` that quietly did nothing would mint a
+ * session with no clocks on it at all.
  */
 export async function isAdminSessionWithinLimits(sessionToken: string): Promise<boolean> {
-  const [issued, active] = await Promise.all([
-    redis.exists(issuedKey(sessionToken)),
-    redis.exists(activeKey(sessionToken)),
-  ]);
-  return issued === 1 && active === 1;
+  try {
+    const [issued, active] = await Promise.all([
+      redis.exists(issuedKey(sessionToken)),
+      redis.exists(activeKey(sessionToken)),
+    ]);
+    return issued === 1 && active === 1;
+  } catch (error) {
+    logger.error({ error }, "Redis unreachable checking admin session limits - denying access");
+    return false;
+  }
 }
 
 /** Records that this session has passed TOTP or recovery-code verification. Called once, right after a successful `verifyTotpToken`/`matchRecoveryCode`. */
