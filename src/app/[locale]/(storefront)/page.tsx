@@ -87,7 +87,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <a
-              href={`/${locale}/build`}
+              href={`/${locale}/build/new`}
               className="inline-flex h-12 items-center justify-center gap-2 rounded bg-primary px-8 font-mono text-label-mono font-semibold text-on-primary transition-all hover:bg-primary-container hover:shadow-glow-strong active:scale-95"
             >
               BUILD YOUR AI PC
