@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   Boxes,
@@ -50,7 +50,16 @@ import { cn } from "@/lib/utils";
 export interface AdminNavItem {
   label: string;
   href: string;
-  icon: ComponentType<{ className?: string }>;
+  /**
+   * An already-rendered icon element (e.g. `<LayoutDashboard
+   * className="size-5 shrink-0" />`), not the bare component reference.
+   * `nav.ts` builds this list in a Server Component and hands it to the
+   * `"use client"` `AdminShell` — a raw `lucide-react` component is a
+   * `forwardRef` object React cannot serialise across that boundary
+   * ("Functions cannot be passed directly to Client Components"), so the
+   * icon has to already be a plain element by the time it crosses.
+   */
+  icon: ReactNode;
   badgeCount?: number;
 }
 
@@ -61,20 +70,46 @@ export interface AdminNavItem {
  * in a later phase, callers should pass real counts via `AdminSidebarProps.items`
  * instead of relying on this default export.
  */
+const ICON_CLASS = "size-5 shrink-0";
+
 export const DEFAULT_ADMIN_NAV_ITEMS: AdminNavItem[] = [
-  { label: "Today", href: "/admin", icon: LayoutDashboard },
-  { label: "Orders", href: "/admin/orders", icon: ShoppingBag, badgeCount: 4 },
-  { label: "Products", href: "/admin/products", icon: Package },
-  { label: "Stock", href: "/admin/inventory", icon: Boxes, badgeCount: 7 },
-  { label: "Customers", href: "/admin/customers", icon: Users },
-  { label: "Repairs", href: "/admin/service", icon: Wrench, badgeCount: 2 },
-  { label: "Messages", href: "/admin/enquiries", icon: MessageSquare, badgeCount: 3 },
-  { label: "PC Builder", href: "/admin/pc-builder", icon: Cpu },
-  { label: "Content", href: "/admin/content", icon: FileText },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
+  { label: "Today", href: "/admin", icon: <LayoutDashboard className={ICON_CLASS} /> },
+  {
+    label: "Orders",
+    href: "/admin/orders",
+    icon: <ShoppingBag className={ICON_CLASS} />,
+    badgeCount: 4,
+  },
+  { label: "Products", href: "/admin/products", icon: <Package className={ICON_CLASS} /> },
+  {
+    label: "Stock",
+    href: "/admin/inventory",
+    icon: <Boxes className={ICON_CLASS} />,
+    badgeCount: 7,
+  },
+  { label: "Customers", href: "/admin/customers", icon: <Users className={ICON_CLASS} /> },
+  {
+    label: "Repairs",
+    href: "/admin/service",
+    icon: <Wrench className={ICON_CLASS} />,
+    badgeCount: 2,
+  },
+  {
+    label: "Messages",
+    href: "/admin/enquiries",
+    icon: <MessageSquare className={ICON_CLASS} />,
+    badgeCount: 3,
+  },
+  { label: "PC Builder", href: "/admin/pc-builder", icon: <Cpu className={ICON_CLASS} /> },
+  { label: "Content", href: "/admin/content", icon: <FileText className={ICON_CLASS} /> },
+  { label: "Settings", href: "/admin/settings", icon: <Settings className={ICON_CLASS} /> },
 ];
 
-const HELP_ITEM: AdminNavItem = { label: "Help", href: "/admin/help", icon: HelpCircle };
+const HELP_ITEM: AdminNavItem = {
+  label: "Help",
+  href: "/admin/help",
+  icon: <HelpCircle className={ICON_CLASS} />,
+};
 
 const navRowClasses =
   "flex min-h-12 items-center gap-3 rounded px-3 text-body-md text-on-surface transition-colors border-l-2 border-transparent hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-surface-container";
@@ -122,7 +157,6 @@ export function AdminSidebarContent({
       <ul className="flex flex-1 flex-col gap-1 overflow-y-auto">
         {items.map((item) => {
           const isActive = isNavItemActive(item.href, activeHref);
-          const Icon = item.icon;
           return (
             <li key={item.href}>
               <Link
@@ -130,7 +164,7 @@ export function AdminSidebarContent({
                 aria-current={isActive ? "page" : undefined}
                 className={cn(navRowClasses, isActive && navRowActiveClasses)}
               >
-                <Icon className="size-5 shrink-0" />
+                {item.icon}
                 <span className="flex-1">{item.label}</span>
                 {typeof item.badgeCount === "number" && item.badgeCount > 0 && (
                   <Badge variant="danger">{item.badgeCount}</Badge>
@@ -151,7 +185,7 @@ export function AdminSidebarContent({
           isNavItemActive(HELP_ITEM.href, activeHref) && navRowActiveClasses,
         )}
       >
-        <HELP_ITEM.icon className="size-5 shrink-0" />
+        {HELP_ITEM.icon}
         <span className="flex-1">{HELP_ITEM.label}</span>
       </Link>
     </nav>

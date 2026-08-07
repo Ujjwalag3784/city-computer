@@ -9,8 +9,19 @@
  * Route-private (`_lib/`, not promoted to `components/` or `server/`):
  * this mapping only exists to build `(admin)/layout.tsx`'s nav, nothing
  * else in the app needs it.
+ *
+ * `icon` is built with `createElement` (not JSX — this is a `.ts`, not a
+ * `.tsx`, file) rather than stored as the bare `lucide-react` component
+ * reference. `(admin)/layout.tsx` is a Server Component and `AdminShell`
+ * is `"use client"`; a `forwardRef` component object crossing that
+ * boundary as prop data fails at request time with "Functions cannot be
+ * passed directly to Client Components" (React can serialise a rendered
+ * *element*, never the component function itself). Rendering the icon
+ * here, before it crosses, is the fix — see `admin-sidebar.tsx`'s
+ * `AdminNavItem.icon` doc comment for the client side of this.
  */
 import "server-only";
+import { createElement } from "react";
 import {
   Boxes,
   Cpu,
@@ -26,6 +37,8 @@ import {
 import type { AdminNavItem } from "@/components/admin/admin-sidebar";
 import type { TodayDashboardData } from "@/server/services/admin/dashboard";
 import { isAdminRoleKey, type AdminRoleKey } from "@/server/auth/permissions";
+
+const ICON_CLASS = "size-5 shrink-0";
 
 /**
  * docs/09-ADMIN-DAD-MODE.md §3's module map lists per-*route* access
@@ -52,7 +65,7 @@ const NAV_DEFINITIONS: {
     key: "today",
     label: "Today",
     href: "/admin",
-    icon: LayoutDashboard,
+    icon: createElement(LayoutDashboard, { className: ICON_CLASS }),
     // §3: "All staff."
     allowedRoles: ["OWNER", "MANAGER", "STAFF", "CONTENT_EDITOR", "SUPPORT", "TECHNICIAN"],
   },
@@ -60,14 +73,14 @@ const NAV_DEFINITIONS: {
     key: "orders",
     label: "Orders",
     href: "/admin/orders",
-    icon: ShoppingBag,
+    icon: createElement(ShoppingBag, { className: ICON_CLASS }),
     allowedRoles: ["OWNER", "MANAGER", "STAFF", "SUPPORT"],
   },
   {
     key: "products",
     label: "Products",
     href: "/admin/products",
-    icon: Package,
+    icon: createElement(Package, { className: ICON_CLASS }),
     // STAFF can view but "no price edit" — still shown the row; the
     // product list/wizard pages enforce the finer no-price-edit rule.
     allowedRoles: ["OWNER", "MANAGER", "STAFF"],
@@ -76,35 +89,35 @@ const NAV_DEFINITIONS: {
     key: "stock",
     label: "Stock",
     href: "/admin/inventory",
-    icon: Boxes,
+    icon: createElement(Boxes, { className: ICON_CLASS }),
     allowedRoles: ["OWNER", "MANAGER", "STAFF"],
   },
   {
     key: "customers",
     label: "Customers",
     href: "/admin/customers",
-    icon: Users,
+    icon: createElement(Users, { className: ICON_CLASS }),
     allowedRoles: ["OWNER", "MANAGER", "SUPPORT"],
   },
   {
     key: "repairs",
     label: "Repairs",
     href: "/admin/service",
-    icon: Wrench,
+    icon: createElement(Wrench, { className: ICON_CLASS }),
     allowedRoles: ["OWNER", "MANAGER", "TECHNICIAN", "STAFF"],
   },
   {
     key: "messages",
     label: "Messages",
     href: "/admin/enquiries",
-    icon: MessageSquare,
+    icon: createElement(MessageSquare, { className: ICON_CLASS }),
     allowedRoles: ["OWNER", "MANAGER", "SUPPORT"],
   },
   {
     key: "pc-builder",
     label: "PC Builder",
     href: "/admin/builder/parts",
-    icon: Cpu,
+    icon: createElement(Cpu, { className: ICON_CLASS }),
     // Union of `/admin/builder/parts` (+TECHNICIAN), `/admin/builder/rules`
     // (OWNER+TECHNICIAN only), `/admin/builder/builds` (OWNER+MANAGER).
     allowedRoles: ["OWNER", "MANAGER", "TECHNICIAN"],
@@ -113,7 +126,7 @@ const NAV_DEFINITIONS: {
     key: "content",
     label: "Content",
     href: "/admin/blog",
-    icon: FileText,
+    icon: createElement(FileText, { className: ICON_CLASS }),
     // Union of blog/pages (+CONTENT_EDITOR), media (+CONTENT_EDITOR),
     // categories/brands/coupons/campaigns/reviews (OWNER+MANAGER only).
     allowedRoles: ["OWNER", "MANAGER", "CONTENT_EDITOR"],
@@ -122,7 +135,7 @@ const NAV_DEFINITIONS: {
     key: "settings",
     label: "Settings",
     href: "/admin/settings",
-    icon: Settings,
+    icon: createElement(Settings, { className: ICON_CLASS }),
     // §3: `/admin/settings/*`, `/admin/users`, `/admin/branches`,
     // `/admin/activity` are all OWNER only. `/admin/reports` (OWNER+
     // MANAGER) is reachable from within Settings for a MANAGER even
