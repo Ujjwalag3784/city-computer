@@ -144,23 +144,40 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const categoryPath = categorySlug.join("/");
 
   let category: Awaited<ReturnType<typeof getCategoryByPath>>;
+  let trail: Awaited<ReturnType<typeof getCategoryBreadcrumbTrail>>;
+  let result: Awaited<ReturnType<typeof listProducts>>;
+  let listInput: ReturnType<typeof parseStorefrontListParams>;
   try {
     category = await getCategoryByPath(categoryPath, prismaLocale);
+
+    // `listProducts` resolves `categoryPath` back to a category via
+    // `getCategoryDescendantIdsByPath` internally, a *second* lookup of the
+    // same category this function already confirmed exists two lines
+    // above. That second lookup throws the identical `NotFoundError` this
+    // catch already handles — previously it ran outside this try block, so
+    // any failure there (this route was seen throwing "Category not found"
+    // for a category confirmed present in the database, both directly and
+    // via this exact query, moments apart — a transient condition this
+    // investigation could not pin down further) reached the generic error
+    // boundary as a raw crash instead of the same graceful 404 a
+    // permanently-missing category already gets. Both lookups are now
+    // covered by one catch, so any `NotFoundError` from either produces
+    // the same honest "page not found" instead of "Something went wrong."
+    const [breadcrumbTrail, filterableSpecKeys] = await Promise.all([
+      getCategoryBreadcrumbTrail(categoryPath, prismaLocale),
+      getFilterableSpecKeys(category.id),
+    ]);
+    trail = breadcrumbTrail;
+
+    listInput = parseStorefrontListParams(resolvedSearchParams, {
+      categoryPath,
+      filterableSpecKeys,
+    });
+    result = await listProducts(listInput, prismaLocale);
   } catch (error) {
     if (error instanceof NotFoundError) notFound();
     throw error;
   }
-
-  const [trail, filterableSpecKeys] = await Promise.all([
-    getCategoryBreadcrumbTrail(categoryPath, prismaLocale),
-    getFilterableSpecKeys(category.id),
-  ]);
-
-  const listInput = parseStorefrontListParams(resolvedSearchParams, {
-    categoryPath,
-    filterableSpecKeys,
-  });
-  const result = await listProducts(listInput, prismaLocale);
 
   // Single source of truth for the visible trail and the BreadcrumbList
   // JSON-LD below.

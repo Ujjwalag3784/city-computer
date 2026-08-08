@@ -75,7 +75,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html
       lang={locale}
-      className={`dark ${GeistSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+      className={`${GeistSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body>
         {children}
