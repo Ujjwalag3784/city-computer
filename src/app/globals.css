@@ -1,13 +1,29 @@
 /*
- * Obsidian Peak — Tailwind v4 token map.
- * Source of truth: docs/05-DESIGN-SYSTEM.md. All 14 corrections from
- * docs/01-DISCOVERY-AND-AUDIT.md §C.3 are already applied below — this file
- * does not reproduce the Stitch exports' bugs (remapped radius scale,
- * conflicting base colour, four glass definitions, three nav heights, four
- * currency formats). See the inline comments tagged CORRECTED.
+ * Alpine Tech — Tailwind v4 token map. Replaces the original dark
+ * "Obsidian Peak" palette below with a new light-mode redesign (2026-08-08
+ * Stitch export, `alpine_tech/DESIGN.md`), per the same "one token, every
+ * component inherits it" architecture docs/05-DESIGN-SYSTEM.md already
+ * established — only the *values* in this file changed, not the class
+ * names, so no component file needed editing for the palette swap itself.
  *
- * Rule: no component may use a literal hex, an arbitrary radius, or a raw
- * font-family value. Everything goes through a token defined here
+ * The six exported screens didn't agree with each other (two — Product
+ * Detail, Shop listing — were still the old dark palette; the four light
+ * ones each used a different accent blue: #00d1ff / #0ea5e9 / #00677f /
+ * #0062a7). Reconciled on `alpine_tech/DESIGN.md`'s own stated colours
+ * (primary #00677f, primary-container #00d1ff) as the single source of
+ * truth, per the product owner's explicit call — not any one screen's
+ * drifted value. Tokens with no Alpine Tech equivalent in the DESIGN.md
+ * (`--obsidian-surface`, `--glass-stroke`, `--glass-bg`, `--silver-text`)
+ * were re-derived from what the *light* screens' own inline Tailwind
+ * configs actually used, since those are what real screens rendered —
+ * `--glass-stroke: rgba(0,0,0,.1)` etc. below all trace to that, not a
+ * guess. Radius, spacing, and font-family tokens are intentionally
+ * untouched: both DESIGN.md files agree on the same scale, and every real
+ * screen's inline config keeps the existing Geist/Inter/JetBrains Mono
+ * split rather than the DESIGN.md prose's "all Geist" claim.
+ *
+ * Rule unchanged: no component may use a literal hex, an arbitrary radius,
+ * or a raw font-family value. Everything goes through a token defined here
  * (docs/05 §10, gate for "Definition of done").
  */
 
@@ -19,77 +35,82 @@
 /* ---------------------------------------------------------------------- */
 
 :root {
-  /* Surfaces and elevation */
-  /* CORRECTED (01 §C.3 #2): the exports conflict between #09090B and
-     #131315 for the page base, and Admin/Builder override the body to
-     #09090B in raw CSS while other screens use the #131315 token. One base
-     wins: --background is the true page floor, --surface is the very
-     first raised layer on top of it. */
-  --background: #09090b;
-  --surface: #131315;
-  --surface-dim: #131315;
-  --surface-container-lowest: #0e0e10;
-  --surface-container-low: #1c1b1d;
-  --surface-container: #201f22;
-  --surface-container-high: #2a2a2c;
-  --surface-container-highest: #353437;
-  --surface-bright: #39393b;
-  --surface-variant: #353437;
-  --obsidian-surface: #121417;
+  /* Surfaces and elevation — alpine_tech/DESIGN.md's colours block. */
+  --background: #f9f9ff;
+  --surface: #f9f9ff;
+  --surface-dim: #cfdaf2;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f0f3ff;
+  --surface-container: #e7eeff;
+  --surface-container-high: #dee8ff;
+  --surface-container-highest: #d8e3fb;
+  --surface-bright: #f9f9ff;
+  --surface-variant: #d8e3fb;
+  /* Not in alpine_tech/DESIGN.md — re-derived from the real light screens'
+     own inline config, where every product/category card used a plain
+     white card background (docs/05's "Cards ... white with a Level 2
+     shadow" component rule). */
+  --obsidian-surface: #ffffff;
 
   /* Primary — electric blue */
-  --primary: #a4e6ff;
-  --on-primary: #003543;
+  --primary: #00677f;
+  --on-primary: #ffffff;
   --primary-container: #00d1ff;
   --on-primary-container: #00566a;
   --primary-fixed: #b7eaff;
   --primary-fixed-dim: #4cd6ff;
-  --surface-tint: var(--primary-fixed-dim);
+  --surface-tint: #00677f;
   --on-primary-fixed: #001f28;
   --on-primary-fixed-variant: #004e60;
-  --inverse-primary: #00677f;
+  --inverse-primary: #4cd6ff;
 
   /* Text and outlines */
-  --on-surface: #e5e1e4;
-  --on-surface-variant: #bbc9cf;
-  --silver-text: #e4e4e7;
-  --outline: #859399;
-  --outline-variant: #3c494e;
-  --glass-stroke: rgba(255, 255, 255, 0.1);
-  --inverse-surface: #e5e1e4;
-  --inverse-on-surface: #313032;
+  --on-surface: #111c2d;
+  --on-surface-variant: #3c494e;
+  --silver-text: #3c494e;
+  --outline: #6c797f;
+  --outline-variant: #bbc9cf;
+  /* Re-derived from the light screens' inline config (same value on every
+     one of them) — alpine_tech/DESIGN.md doesn't name this token. */
+  --glass-stroke: rgba(0, 0, 0, 0.1);
+  --inverse-surface: #263143;
+  --inverse-on-surface: #ecf1ff;
 
   /* Secondary / tertiary */
-  --secondary: #c5c6cc;
-  --on-secondary: #2e3135;
-  --secondary-container: #46494e;
-  --on-secondary-container: #b6b8be;
-  --tertiary: #dcdbe5;
-  --on-tertiary: #2f3038;
-  --tertiary-container: #c0bfc9;
-  --on-tertiary-container: #4d4e56;
+  --secondary: #565e74;
+  --on-secondary: #ffffff;
+  --secondary-container: #dae2fd;
+  --on-secondary-container: #5c647a;
+  --tertiary: #5a5f62;
+  --on-tertiary: #ffffff;
+  --tertiary-container: #bdc1c5;
+  --on-tertiary-container: #4a4f52;
 
   /* Error */
-  --error: #ffb4ab;
-  --on-error: #690005;
-  --error-container: #93000a;
-  --on-error-container: #ffdad6;
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --on-error-container: #93000a;
 
-  /* Semantic status colours — ADDED (docs/05 §1.5), the exports have none */
-  --success: #7be8a8;
-  --on-success: #003919;
-  --warning: #ffd48a;
-  --on-warning: #4a2c00;
+  /* Semantic status colours — kept as distinct hand-picked hues (not part
+     of either DESIGN.md), re-tuned from the old dark-mode-legible values
+     to ones with enough contrast against the new light surfaces. */
+  --success: #1a7d43;
+  --on-success: #ffffff;
+  --warning: #8a5700;
+  --on-warning: #ffffff;
   --info: var(--primary);
   --on-info: var(--on-primary);
   --danger: var(--error);
   --on-danger: var(--on-error);
 
-  /* Effects */
-  /* CORRECTED (01 §C.3 #4): the exports define .glass-panel three
-     different ways (0.7/0.8 alpha, 12/20px blur) and four separate glow
-     classes. One value each, everywhere. */
-  --glass-bg: rgba(18, 20, 23, 0.75);
+  /* Effects — re-derived from the light screens' own `.glass-card` rule
+     (`rgba(255,255,255,.7)` + 12px blur); alpine_tech/DESIGN.md doesn't
+     use glassmorphism at all (its "Elevation" section is shadow-only), but
+     `.glass-panel` is still used by real components (25 files) and a
+     frosted-white panel is a reasonable light-mode reading of the same
+     "translucent layer over content" idea. */
+  --glass-bg: rgba(255, 255, 255, 0.75);
   --glass-blur: 12px;
   /* CORRECTED (01 §C.3 #5): three different nav heights (64/72/80px)
      across screens. One height, referenced everywhere a nav/header/step
@@ -215,9 +236,16 @@
      Tailwind utilities (docs/05 §1.6) rather than an inline style
      anywhere they're used. Static values, declared directly here rather
      than aliased from :root — there's no runtime-variable indirection to
-     preserve for these two. */
-  --shadow-glow: 0 0 20px rgba(0, 209, 255, 0.15);
-  --shadow-glow-strong: 0 0 20px rgba(0, 209, 255, 0.35);
+     preserve for these two.
+     Values switched from a blue "ambient glow" (right for a dark,
+     glassmorphic surface) to alpine_tech/DESIGN.md's own "Elevation &
+     Depth" shadows — a neon glow on a white surface reads as a mistake,
+     not a premium accent, and that section explicitly calls for "ambient
+     shadows and tonal layering rather than heavy borders or glass
+     effects." Level 2 (Interactive) and Level 3 (Modals) values used
+     as-is; class names kept unchanged so no caller needed editing. */
+  --shadow-glow: 0 4px 20px rgba(15, 23, 42, 0.08);
+  --shadow-glow-strong: 0 20px 40px rgba(0, 0, 0, 0.1);
 
   /* Animations for tw-animate-css / shadcn (accordion, etc.) */
   --animate-accordion-down: accordion-down 200ms cubic-bezier(0.2, 0, 0, 1);
@@ -253,7 +281,7 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
