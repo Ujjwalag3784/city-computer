@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getCategoryTree } from "@/server/services/catalog/category";
 import { listProducts } from "@/server/services/catalog/product";
+import { getTrendingProductSummaries } from "@/server/services/catalog/trending";
+import { getDefaultDeliveryPromise } from "@/server/services/commerce/delivery-promise";
 import { ProductGrid } from "@/components/commerce/product-grid";
 import { JsonLd } from "@/components/seo/json-ld";
 import { buildItemListJsonLd } from "@/lib/seo/jsonld/item-list";
@@ -52,6 +56,8 @@ export async function generateMetadata({
 }
 
 const FEATURED_PRODUCT_COUNT = 8;
+const RAIL_PRODUCT_COUNT = 8;
+const TRENDING_PRODUCT_COUNT = 4;
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -59,10 +65,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const t = await getTranslations("home");
   const tc = await getTranslations("common");
 
-  const [categoryTree, featured] = await Promise.all([
-    getCategoryTree(prismaLocale),
-    listProducts({ sort: "relevance", perPage: FEATURED_PRODUCT_COUNT }, prismaLocale),
-  ]);
+  const [categoryTree, featured, trending, newArrivals, saleItems, deliveryPromise] =
+    await Promise.all([
+      getCategoryTree(prismaLocale),
+      listProducts({ sort: "relevance", perPage: FEATURED_PRODUCT_COUNT }, prismaLocale),
+      getTrendingProductSummaries(TRENDING_PRODUCT_COUNT, prismaLocale),
+      listProducts({ sort: "-createdAt", perPage: RAIL_PRODUCT_COUNT }, prismaLocale),
+      listProducts({ sort: "-discount", onSale: true, perPage: RAIL_PRODUCT_COUNT }, prismaLocale),
+      getDefaultDeliveryPromise(),
+    ]);
 
   // Homepage tiles are top-level categories only (`depth === 0`) —
   // sub-categories like "Gaming Laptops" belong one click deeper, inside
@@ -138,8 +149,56 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               </p>
             </div>
           </div>
-          <ProductGrid products={featured.items.map(toProductCardData)} />
+          <ProductGrid
+            products={featured.items.map(toProductCardData)}
+            deliveryPromise={deliveryPromise ?? undefined}
+          />
         </section>
+
+        {trending.length > 0 && (
+          <HomeRailSection
+            id="trending-now-heading"
+            title="Trending now"
+            description="What's actually selling this week, ranked by real orders."
+            // No "View all" here on purpose: this ranking is computed from
+            // recent sales, not a `/shop` sort option a link could
+            // reproduce (see `trending.ts`'s own comment on why `-sales`
+            // isn't reused) — there is nowhere honest to send "View all".
+          >
+            <ProductGrid
+              products={trending.map(toProductCardData)}
+              deliveryPromise={deliveryPromise ?? undefined}
+            />
+          </HomeRailSection>
+        )}
+
+        {newArrivals.items.length > 0 && (
+          <HomeRailSection
+            id="new-arrivals-heading"
+            title="New arrivals"
+            description="The newest products added to the catalogue."
+            viewAllHref="/shop?sort=-createdAt"
+          >
+            <ProductGrid
+              products={newArrivals.items.map(toProductCardData)}
+              deliveryPromise={deliveryPromise ?? undefined}
+            />
+          </HomeRailSection>
+        )}
+
+        {saleItems.items.length > 0 && (
+          <HomeRailSection
+            id="sale-items-heading"
+            title="Sale items"
+            description="Products currently marked down from their regular price."
+            viewAllHref="/shop?sort=-discount&onSale=true"
+          >
+            <ProductGrid
+              products={saleItems.items.map(toProductCardData)}
+              deliveryPromise={deliveryPromise ?? undefined}
+            />
+          </HomeRailSection>
+        )}
       </div>
 
       <JsonLd
@@ -153,5 +212,47 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         })}
       />
     </div>
+  );
+}
+
+/**
+ * Shared heading + optional "View all" link for the three merchandising
+ * rails below Featured Products — same `border-b` heading shape that
+ * section already used, pulled out once these rails made it a
+ * three-times-repeated block instead of a one-off.
+ */
+function HomeRailSection({
+  id,
+  title,
+  description,
+  viewAllHref,
+  children,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  viewAllHref?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-6">
+      <div className="flex items-end justify-between border-b border-glass-stroke pb-4">
+        <div>
+          <h2 id={id} className="font-display text-headline-lg text-on-surface">
+            {title}
+          </h2>
+          <p className="text-body-sm text-on-surface-variant">{description}</p>
+        </div>
+        {viewAllHref && (
+          <Link
+            href={viewAllHref}
+            className="rounded text-body-sm text-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            View all →
+          </Link>
+        )}
+      </div>
+      {children}
+    </section>
   );
 }

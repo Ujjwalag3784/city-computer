@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Truck } from "lucide-react";
 import { ProductImage } from "@/components/commerce/product-image";
 import { ProductCardAddToCart } from "@/components/commerce/product-card-add-to-cart";
 import { PriceBlock } from "@/components/commerce/price-block";
@@ -90,6 +91,17 @@ export interface ProductCardProps {
    * defaults to `false` so every existing call site is unaffected.
    */
   priority?: boolean;
+  /**
+   * A short, real delivery line — e.g. "Delivery in 1–2 days (Inside
+   * Kathmandu Valley) · NPR 150" — from `server/services/commerce/
+   * delivery-promise.ts`. Page-level context, not product data, so it's a
+   * separate prop rather than a `ProductCardData` field: it's identical
+   * for every card on a page and callers fetch it once (that service is
+   * `cache()`-wrapped) rather than duplicating a query per product.
+   * Omitted entirely (no fallback text) on `variant="compact"`, matching
+   * that variant's own "image + title + price only" contract.
+   */
+  deliveryPromise?: string;
 }
 
 /** Shared focus ring for the plain, non-`Button` `Link`s below (docs/05 §5 A9). */
@@ -101,12 +113,20 @@ export function ProductCard({
   variant = "grid",
   className,
   priority = false,
+  deliveryPromise,
 }: ProductCardProps) {
   const href = `/p/${product.slug}`;
   const outOfStock = product.stockStatus === "out-of-stock";
   // Narrowed once here, rather than a `typeof` check plus an `as number`
   // cast at each render site below.
   const rating = typeof product.rating === "number" ? product.rating : null;
+
+  const deliveryLine = deliveryPromise ? (
+    <p className="flex items-center gap-1.5 text-body-sm text-on-surface-variant">
+      <Truck className="size-3.5 shrink-0" aria-hidden="true" />
+      <span>{deliveryPromise}</span>
+    </p>
+  ) : null;
 
   if (variant === "compact") {
     // Minimal — image + title + price only, no rating/stock/add-to-cart, so
@@ -164,6 +184,7 @@ export function ProductCard({
             )}
             <PriceBlock price={product.price} compareAtPrice={product.compareAtPrice} size="md" />
             <StockBadge status={product.stockStatus} quantity={product.stockQuantity} />
+            {deliveryLine}
           </Link>
 
           <ProductCardAddToCart
@@ -206,6 +227,7 @@ export function ProductCard({
           )}
           <PriceBlock price={product.price} compareAtPrice={product.compareAtPrice} size="md" />
           <StockBadge status={product.stockStatus} quantity={product.stockQuantity} />
+          {deliveryLine}
         </CardContent>
       </Link>
 

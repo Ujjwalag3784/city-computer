@@ -178,7 +178,7 @@ const SHOP_LINKS: FooterLink[] = [
   { label: "Desktops", href: "/c/desktops" },
   { label: "Components", href: "/c/components" },
   { label: "PC builder", href: "/build" },
-  { label: "Deals", href: "/shop?sort=discount" },
+  { label: "Deals", href: "/shop?sort=-discount&onSale=true" },
 ];
 
 const SUPPORT_LINKS: FooterLink[] = [

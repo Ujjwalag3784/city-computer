@@ -149,7 +149,7 @@ export function LayoutSection() {
       <PreviewBox title="AnnouncementBar" bleed>
         <AnnouncementBar
           message="Free delivery inside Kathmandu Valley on orders over Rs. 5,000."
-          href="/shop?sort=discount"
+          href="/shop?sort=-discount&onSale=true"
           linkLabel="Shop deals"
         />
       </PreviewBox>

@@ -53,8 +53,8 @@ export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { label: "Peripherals", href: "/c/peripherals" },
   { label: "Monitors", href: "/c/monitors" },
   { label: "Gaming", href: "/c/gaming" },
-  { label: "PC Builder", href: "/build" },
-  { label: "Deals", href: "/shop?sort=discount" },
+  { label: "PC Builder", href: "/build/new" },
+  { label: "Deals", href: "/shop?sort=-discount&onSale=true" },
 ];
 
 const SECONDARY_NAV_ITEMS: NavItem[] = [

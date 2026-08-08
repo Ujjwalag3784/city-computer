@@ -47,6 +47,8 @@ export interface ProductGridProps {
   /** Rendered below the empty-state message when the grid has no results, e.g. a "Clear filters" button. */
   emptyAction?: ReactNode;
   className?: string;
+  /** Forwarded to every `ProductCard` — see that component's own doc comment on why this is a grid-level prop, not per-product data. */
+  deliveryPromise?: string;
 }
 
 const SKELETON_COUNT = 6;
@@ -70,6 +72,7 @@ export function ProductGrid({
   loading = false,
   emptyAction,
   className,
+  deliveryPromise,
 }: ProductGridProps) {
   const layoutClassName = cn(
     variant === "grid" ? "grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3" : "flex flex-col gap-4",
@@ -112,6 +115,7 @@ export function ProductGrid({
           // itself warns against marking every image `priority`, which
           // would defeat the point.
           priority={index < 3}
+          deliveryPromise={deliveryPromise}
         />
       ))}
     </div>
