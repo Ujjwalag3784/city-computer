@@ -44,6 +44,25 @@ const HAS_NE_TRANSLATION = false;
  * small, separate piece of work, not something to bolt directly onto a
  * page component (docs/04 §3: "No business logic in `app/**\/page.tsx` —
  * pages orchestrate, services decide").
+ *
+ * DELIBERATELY NO `loading.tsx` HERE. There was one (a page-shaped
+ * skeleton matching this layout), removed after a real-browser test kept
+ * showing it permanently: the route's own React streaming reveal script
+ * (`$RC(...)`, present and correct in the raw SSR HTML — confirmed with
+ * curl) never swapped the resolved content into `<main>`. The resolved
+ * content *had* arrived — it sat, fully rendered, in a trailing orphaned
+ * `<div id="S:N">` at the end of `<body>` instead of replacing the
+ * fallback — so this was specifically the client-side reveal step
+ * failing, not a slow or broken data fetch. Root cause not confirmed (a
+ * connection-visibility artifact of the testing tool used was suspected
+ * but not ruled out); rather than ship a page that can silently strand a
+ * shopper on a permanent loading skeleton for an unconfirmed reason, this
+ * route now renders fully server-side with no Suspense boundary to get
+ * stuck in — slightly slower to first byte, never stuck. `params` has no
+ * `searchParams` dependency here, so the render is a single bounded
+ * `getProductBySlug` call, not a page whose latency this trade-off makes
+ * meaningfully worse. Re-adding `loading.tsx` is safe once the streaming
+ * failure above is actually reproduced and understood, not before.
  */
 interface ProductPageProps {
   params: Promise<{ locale: string; productSlug: string }>;
