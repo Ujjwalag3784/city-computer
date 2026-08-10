@@ -82,9 +82,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   return (
     <div className="flex flex-col gap-16 pb-16">
-      {/* Hero Section matching Obsidian Peak Landing Page Spec */}
-      <section className="relative flex min-h-[75vh] items-center justify-center overflow-hidden border-b border-glass-stroke bg-obsidian-surface px-4 py-16 sm:px-8">
-        <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-container/15 via-background to-background" />
+      {/* Hero Section — "Machined White" datasheet treatment (docs/05, 2026-08-09 revision) */}
+      <section className="relative flex min-h-[75vh] items-center justify-center overflow-hidden border-b border-glass-stroke bg-obsidian-surface bg-grid-fade px-4 py-16 sm:px-8">
+        <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-container/10 via-transparent to-transparent" />
         <div className="relative z-10 mx-auto flex max-w-[1280px] flex-col items-center text-center">
           <span className="mb-4 inline-block font-mono text-label-mono-xs tracking-[0.2em] text-primary">
             PREMIUM TECH HARDWARE

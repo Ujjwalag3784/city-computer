@@ -1,26 +1,29 @@
 /*
- * Alpine Tech — Tailwind v4 token map. Replaces the original dark
- * "Obsidian Peak" palette below with a new light-mode redesign (2026-08-08
- * Stitch export, `alpine_tech/DESIGN.md`), per the same "one token, every
- * component inherits it" architecture docs/05-DESIGN-SYSTEM.md already
- * established — only the *values* in this file changed, not the class
- * names, so no component file needed editing for the palette swap itself.
+ * "Machined White" — Tailwind v4 token map, replacing the flat Alpine Tech
+ * palette below (2026-08-09). Alpine Tech was a straight colour-value swap
+ * from the original dark Obsidian Peak theme onto the same layout/type —
+ * correct, but the owner's own read was "very basic." This pass changes
+ * more than colour: real typography (IBM Plex — a family with actual
+ * technical-hardware heritage, not a generic UI grotesk) and a second,
+ * sparing accent (copper) alongside the existing teal, both grounded in
+ * the subject (a computer-hardware retailer) rather than decoration.
  *
- * The six exported screens didn't agree with each other (two — Product
- * Detail, Shop listing — were still the old dark palette; the four light
- * ones each used a different accent blue: #00d1ff / #0ea5e9 / #00677f /
- * #0062a7). Reconciled on `alpine_tech/DESIGN.md`'s own stated colours
- * (primary #00677f, primary-container #00d1ff) as the single source of
- * truth, per the product owner's explicit call — not any one screen's
- * drifted value. Tokens with no Alpine Tech equivalent in the DESIGN.md
- * (`--obsidian-surface`, `--glass-stroke`, `--glass-bg`, `--silver-text`)
- * were re-derived from what the *light* screens' own inline Tailwind
- * configs actually used, since those are what real screens rendered —
- * `--glass-stroke: rgba(0,0,0,.1)` etc. below all trace to that, not a
- * guess. Radius, spacing, and font-family tokens are intentionally
- * untouched: both DESIGN.md files agree on the same scale, and every real
- * screen's inline config keeps the existing Geist/Inter/JetBrains Mono
- * split rather than the DESIGN.md prose's "all Geist" claim.
+ * Process, so the next person doesn't wonder why this wasn't guessed at
+ * directly: built as a small, self-contained HTML preview first (embedded
+ * fonts, both light/dark themes, real product content) and shown to the
+ * product owner for a reaction *before* touching this file — avoiding a
+ * second blind redesign after Alpine Tech's own "basic" verdict. Approved
+ * direction, then ported here. The owner also asked for off-white as the
+ * committed default rather than following OS dark-mode preference, unlike
+ * every previous palette in this file — see `:root`'s own note below.
+ *
+ * Same architecture as every previous palette here: one token, every
+ * component inherits it via `@theme inline` below — no component file
+ * needed editing for this change. Radius and spacing scales are
+ * deliberately untouched (this is a colour/type pass, not a layout
+ * rewrite); `--copper`/`--on-copper`/`--copper-container` are new tokens
+ * with no prior-palette equivalent, added for sale badges and warm accents
+ * the datasheet-styled product cards use.
  *
  * Rule unchanged: no component may use a literal hex, an arbitrary radius,
  * or a raw font-family value. Everything goes through a token defined here
@@ -35,24 +38,30 @@
 /* ---------------------------------------------------------------------- */
 
 :root {
-  /* Surfaces and elevation — alpine_tech/DESIGN.md's colours block. */
-  --background: #f9f9ff;
-  --surface: #f9f9ff;
-  --surface-dim: #cfdaf2;
+  /* Surfaces and elevation — "machined aluminum" off-white, a cool,
+     faintly green-grey neutral chosen to read as precision hardware
+     rather than the warm cream/paper tone most "off-white" redesigns
+     default to. Committed unconditionally (no prefers-color-scheme
+     branch in this file, same as every palette before it) — the owner
+     asked for off-white as the fixed default, not something that flips
+     with OS dark-mode preference. */
+  --background: #f1f3f1;
+  --surface: #fbfcfb;
+  --surface-dim: #e3e8e6;
   --surface-container-lowest: #ffffff;
-  --surface-container-low: #f0f3ff;
-  --surface-container: #e7eeff;
-  --surface-container-high: #dee8ff;
-  --surface-container-highest: #d8e3fb;
-  --surface-bright: #f9f9ff;
-  --surface-variant: #d8e3fb;
-  /* Not in alpine_tech/DESIGN.md — re-derived from the real light screens'
-     own inline config, where every product/category card used a plain
-     white card background (docs/05's "Cards ... white with a Level 2
-     shadow" component rule). */
+  --surface-container-low: #f6f8f7;
+  --surface-container: #eef1f0;
+  --surface-container-high: #e6eae8;
+  --surface-container-highest: #dde2e0;
+  --surface-bright: #ffffff;
+  --surface-variant: #dde2e0;
+  /* Product/category card ground — plain white, per the same "Cards ...
+     white with a Level 2 shadow" rule the previous palette already used
+     this token for. */
   --obsidian-surface: #ffffff;
 
-  /* Primary — electric blue */
+  /* Primary — circuit teal, carried over from Alpine Tech for brand
+     continuity (this is not a rebrand, just a richer execution). */
   --primary: #00677f;
   --on-primary: #ffffff;
   --primary-container: #00d1ff;
@@ -64,19 +73,31 @@
   --on-primary-fixed-variant: #004e60;
   --inverse-primary: #4cd6ff;
 
-  /* Text and outlines */
-  --on-surface: #111c2d;
-  --on-surface-variant: #3c494e;
-  --silver-text: #3c494e;
-  --outline: #6c797f;
-  --outline-variant: #bbc9cf;
-  /* Re-derived from the light screens' inline config (same value on every
-     one of them) — alpine_tech/DESIGN.md doesn't name this token. */
-  --glass-stroke: rgba(0, 0, 0, 0.1);
-  --inverse-surface: #263143;
-  --inverse-on-surface: #ecf1ff;
+  /* Copper — new second accent, absent from every previous palette here.
+     Sale badges, "new" tags, and warm highlights on the datasheet-styled
+     product cards. Kept deliberately rare (docs/05 §1's "used sparingly"
+     discipline already established for --primary) so it reads as a
+     considered accent, not a second brand colour competing with teal. */
+  --copper: #a85a2a;
+  --on-copper: #ffffff;
+  --copper-container: #f5e9de;
+  --on-copper-container: #6b3814;
 
-  /* Secondary / tertiary */
+  /* Text and outlines */
+  --on-surface: #12181a;
+  --on-surface-variant: #4b5654;
+  --silver-text: #4b5654;
+  --outline: #7c8785;
+  --outline-variant: #d7dedb;
+  /* Card/nav hairlines — dark-on-light now, same role Alpine Tech's
+     glass-stroke played, values re-picked for the new ground rather than
+     carried over verbatim. */
+  --glass-stroke: rgba(18, 24, 26, 0.1);
+  --inverse-surface: #12181a;
+  --inverse-on-surface: #f1f3f1;
+
+  /* Secondary / tertiary — unchanged in role, re-tuned to sit on the new
+     off-white ground. */
   --secondary: #565e74;
   --on-secondary: #ffffff;
   --secondary-container: #dae2fd;
@@ -92,9 +113,8 @@
   --error-container: #ffdad6;
   --on-error-container: #93000a;
 
-  /* Semantic status colours — kept as distinct hand-picked hues (not part
-     of either DESIGN.md), re-tuned from the old dark-mode-legible values
-     to ones with enough contrast against the new light surfaces. */
+  /* Semantic status colours — same values Alpine Tech picked; still
+     enough contrast against the new (slightly darker) off-white ground. */
   --success: #1a7d43;
   --on-success: #ffffff;
   --warning: #8a5700;
@@ -104,13 +124,11 @@
   --danger: var(--error);
   --on-danger: var(--on-error);
 
-  /* Effects — re-derived from the light screens' own `.glass-card` rule
-     (`rgba(255,255,255,.7)` + 12px blur); alpine_tech/DESIGN.md doesn't
-     use glassmorphism at all (its "Elevation" section is shadow-only), but
-     `.glass-panel` is still used by real components (25 files) and a
-     frosted-white panel is a reasonable light-mode reading of the same
-     "translucent layer over content" idea. */
-  --glass-bg: rgba(255, 255, 255, 0.75);
+  /* Effects — `.glass-panel` (25 real call sites) keeps working as a
+     frosted panel; re-tuned to the darker off-white ground so the blur
+     reads against something, rather than nearly disappearing against
+     Alpine Tech's near-white background. */
+  --glass-bg: rgba(251, 252, 251, 0.82);
   --glass-blur: 12px;
   /* CORRECTED (01 §C.3 #5): three different nav heights (64/72/80px)
      across screens. One height, referenced everywhere a nav/header/step
@@ -157,6 +175,11 @@
   --color-on-primary-fixed: var(--on-primary-fixed);
   --color-on-primary-fixed-variant: var(--on-primary-fixed-variant);
   --color-inverse-primary: var(--inverse-primary);
+
+  --color-copper: var(--copper);
+  --color-on-copper: var(--on-copper);
+  --color-copper-container: var(--copper-container);
+  --color-on-copper-container: var(--on-copper-container);
 
   --color-on-surface: var(--on-surface);
   --color-on-surface-variant: var(--on-surface-variant);
@@ -212,14 +235,18 @@
   --color-destructive-foreground: var(--on-error);
 
   /* Fonts (docs/05 §2) — set via next/font in src/app/layout.tsx, which
-     writes the actual --font-display/--font-sans/--font-mono values as
-     CSS variables on <html>. Overriding Tailwind's default font-sans /
-     font-mono here means every unstyled element (and every shadcn
-     primitive, which uses font-sans by default) already gets Inter /
-     JetBrains Mono with no per-component font-family class needed. */
-  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+     writes the actual --font-plex-condensed/--font-plex-sans/
+     --font-plex-mono values as CSS variables on <html>. Overriding
+     Tailwind's default font-sans / font-mono here means every unstyled
+     element (and every shadcn primitive, which uses font-sans by
+     default) already gets IBM Plex Sans / IBM Plex Mono with no
+     per-component font-family class needed.
+     IBM Plex over Geist/Inter/JetBrains Mono (2026-08-09): a family with
+     real technical/hardware documentation heritage, not a generic UI
+     grotesk — see this file's header comment for the full rationale. */
+  --font-display: var(--font-plex-condensed), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 
   /* Radius — CORRECTED (01 §C.3 #1): the exports remap rounded-full to
      12px, which silently breaks every avatar, status chip, and progress
@@ -425,4 +452,18 @@
 
 @utility nav-height {
   height: var(--nav-h);
+}
+
+/* Faint blueprint/PCB-grid texture — from the approved design preview's
+   hero treatment. A subtle nod to the subject (spec sheets, circuit
+   boards) rather than a stock photo or gradient mesh; masked to fade out
+   toward the section edges so it reads as ambient texture, not a pattern
+   fighting the headline for attention. */
+@utility bg-grid-fade {
+  background-image: linear-gradient(var(--glass-stroke) 1px, transparent 1px),
+    linear-gradient(90deg, var(--glass-stroke) 1px, transparent 1px);
+  background-size: 34px 34px;
+  background-position: center -1px;
+  mask-image: radial-gradient(ellipse 100% 90% at 50% 0%, #000 40%, transparent 92%);
+  -webkit-mask-image: radial-gradient(ellipse 100% 90% at 50% 0%, #000 40%, transparent 92%);
 }

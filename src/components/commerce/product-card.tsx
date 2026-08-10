@@ -201,7 +201,7 @@ export function ProductCard({
   return (
     <Card
       className={cn(
-        "group flex flex-col overflow-hidden transition-all duration-300 hover:border-primary-container/60 hover:shadow-glow",
+        "group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-primary-container/60 hover:shadow-glow",
         className,
       )}
     >

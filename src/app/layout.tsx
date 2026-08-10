@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import { GeistSans } from "geist/font/sans";
+import { IBM_Plex_Sans, IBM_Plex_Sans_Condensed, IBM_Plex_Mono } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import { JsonLd } from "@/components/seo/json-ld";
 import { buildOrganizationJsonLd } from "@/lib/seo/jsonld/organization";
@@ -9,29 +8,39 @@ import { buildWebsiteJsonLd } from "@/lib/seo/jsonld/website";
 import { SITE_URL } from "@/lib/seo/site";
 import "./globals.css";
 
-// docs/05-DESIGN-SYSTEM.md §2 — three families, self-hosted via next/font
-// (zero layout shift, no third-party request; fixes audit defect 01 A.4 #8,
-// Material Symbols/webfont loading). Geist comes from Vercel's own `geist`
-// package rather than next/font/google, which doesn't carry it.
+// 2026-08-09 design direction change: swapped Geist/Inter/JetBrains Mono
+// for the IBM Plex family (Condensed for display, Sans for body, Mono for
+// prices/specs/labels) — approved from a self-contained preview built and
+// shown to the owner first (see globals.css's header comment for the full
+// palette/type rationale). IBM Plex has real technical-product heritage
+// (designed by IBM for their own hardware documentation), which is why it
+// reads as "datasheet," not decorative, on product specs and prices.
 //
-// JUDGMENT CALL: docs/05 asks for Inter subset "latin + devanagari", but
-// Google's Inter distribution does not ship Devanagari glyphs at all (it's
-// a Latin/Cyrillic/Greek family) — there is no `devanagari` subset for
-// Inter to request. Nepali (ne locale) body text falls back to the next
-// font in the stack (see --font-sans in globals.css), which is the
-// standard, acceptable pattern here; flagging this rather than silently
-// dropping the requirement.
-const inter = Inter({
+// JUDGMENT CALL, same one the previous Inter setup made: IBM Plex Sans has
+// no Devanagari glyphs (that's a separate family, "IBM Plex Sans
+// Devanagari," not a subset of this one). Nepali (`ne` locale) body text
+// falls back to the next font in the stack (`--font-sans` in globals.css),
+// same acceptable pattern as before, not a regression this change
+// introduces.
+const plexCondensed = IBM_Plex_Sans_Condensed({
   subsets: ["latin"],
+  weight: ["600", "700"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-plex-condensed",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
+  weight: ["400", "500", "600"],
   display: "swap",
-  variable: "--font-jetbrains-mono",
+  variable: "--font-plex-sans",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
+  variable: "--font-plex-mono",
 });
 
 /**
@@ -75,7 +84,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html
       lang={locale}
-      className={`${GeistSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+      className={`${plexCondensed.variable} ${plexSans.variable} ${plexMono.variable}`}
     >
       <body>
         {children}
