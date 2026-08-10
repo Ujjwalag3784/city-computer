@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { CookieConsent } from "@/components/layout/cookie-consent";
 import { CartDrawerHost } from "@/components/commerce/cart-drawer-host";
 import { PRIMARY_NAV_ITEMS } from "@/config/navigation";
+import { auth } from "@/server/auth";
 import { subscribeNewsletterAction } from "./_actions";
 
 /**
@@ -21,8 +22,19 @@ import { subscribeNewsletterAction } from "./_actions";
  * once — `SiteHeader`'s skip-link (docs/05 §5 A11) targets that id, so
  * every page under this layout automatically gets a working skip-to-
  * content link without repeating the `<main>` wrapper per page.
+ *
+ * `async` + `auth()`: the one place the storefront checks who (if anyone)
+ * is signed in, so `SiteHeader`'s `AccountMenu` can render the right pair
+ * of items (docs/AUDIT.md §1a's Account-icon bug, fixed via
+ * `account-menu.tsx`). Every storefront page pays this cost once per
+ * request via layout caching, not once per page.
  */
-export default function StorefrontLayout({ children }: { children: ReactNode }) {
+export default async function StorefrontLayout({ children }: { children: ReactNode }) {
+  const session = await auth();
+  const user = session
+    ? { name: session.user.name ?? null, email: session.user.email ?? null }
+    : null;
+
   return (
     <>
       <AnnouncementBar
@@ -30,7 +42,7 @@ export default function StorefrontLayout({ children }: { children: ReactNode }) 
         href="/pages/warranty"
         linkLabel="Learn more"
       />
-      <SiteHeader variant="with-search" navItems={PRIMARY_NAV_ITEMS} />
+      <SiteHeader variant="with-search" navItems={PRIMARY_NAV_ITEMS} user={user} />
 
       <main id="main-content">{children}</main>
 

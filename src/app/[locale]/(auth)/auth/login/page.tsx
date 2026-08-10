@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Link } from "@/i18n/navigation";
 import { safeInternalPath } from "@/lib/safe-redirect";
 import { LoginForm } from "./_components/login-form";
 
@@ -32,20 +33,35 @@ export default async function LoginPage({
 }) {
   const { callbackUrl, reason } = await searchParams;
   const safeCallbackUrl = safeInternalPath(callbackUrl, "/admin");
+  // This page now serves two audiences (docs/AUDIT.md's Critical Path 5
+  // gap: customer registration/login didn't exist at all before this).
+  // `authorize()` and the session policy already treat staff and
+  // customers identically at the credential-check level — the only thing
+  // that differs is which copy makes sense to read, and that's a function
+  // of *where this sign-in was going to send them*, not a separate route.
+  // Every existing admin redirect (middleware.ts, (admin)/layout.tsx) sets
+  // `callbackUrl` to an `/admin/...` path; every customer-facing entry
+  // point (the header's Account menu) sets it to `/account` or similar.
+  const isStaffContext = safeCallbackUrl.startsWith("/admin");
 
   return (
     <Card>
       <CardHeader className="gap-2">
         <CardTitle className="text-headline-md">Sign in</CardTitle>
         <CardDescription>
-          {/*
-            Was "use the email and password created with `pnpm
-            db:create-admin`" — a build instruction for whoever set the site
-            up, rendered as guidance to whoever is standing in front of it.
-            Nobody signing into a shop's admin console runs pnpm.
-          */}
-          Staff accounts only for now. Use the email address (or phone number) and password set up
-          for you when your account was created.
+          {isStaffContext ? (
+            // Was "use the email and password created with `pnpm
+            // db:create-admin`" — a build instruction for whoever set the
+            // site up, rendered as guidance to whoever is standing in
+            // front of it. Nobody signing into a shop's admin console
+            // runs pnpm.
+            <>
+              Staff sign-in. Use the email address (or phone number) and password set up for you
+              when your account was created.
+            </>
+          ) : (
+            <>Use the email address (or phone number) and password from your account.</>
+          )}
         </CardDescription>
       </CardHeader>
 
@@ -66,6 +82,21 @@ export default async function LoginPage({
         ) : null}
 
         <LoginForm callbackUrl={safeCallbackUrl} />
+
+        {!isStaffContext && (
+          <p className="text-center text-body-sm text-on-surface-variant">
+            New here?{" "}
+            <Link
+              href={{
+                pathname: "/auth/register",
+                query: safeCallbackUrl !== "/admin" ? { callbackUrl: safeCallbackUrl } : undefined,
+              }}
+              className="rounded text-on-surface underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              Create an account
+            </Link>
+          </p>
+        )}
       </CardContent>
     </Card>
   );

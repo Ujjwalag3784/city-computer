@@ -208,6 +208,37 @@ function toDetail(order: OrderWithRelations): OrderDetail {
   };
 }
 
+export interface OrderSummaryItem {
+  id: string;
+  orderNumber: string;
+  placedAt: Date;
+  status: OrderStatus;
+  totalPaisa: number;
+}
+
+/**
+ * The signed-in shopper's own order history, newest first — added for
+ * `/account` (remediation audit, `docs/AUDIT.md`: no customer order
+ * history existed anywhere; the Account icon had nothing to open into).
+ * Same ownership path as `getOrderDetailIfOwner` below (`Order.customerId`
+ * -> `Customer.userId` must match the session's `userId`), just listing
+ * instead of a single lookup — deliberately a separate query rather than
+ * fetching every order then filtering in JS, since a returning customer's
+ * order count isn't bounded.
+ */
+export async function listOrdersForCustomerUser(userId: string): Promise<OrderSummaryItem[]> {
+  const customer = await db.customer.findUnique({ where: { userId }, select: { id: true } });
+  if (!customer) return [];
+
+  const orders = await db.order.findMany({
+    where: { customerId: customer.id },
+    orderBy: { placedAt: "desc" },
+    select: { id: true, orderNumber: true, placedAt: true, status: true, totalPaisa: true },
+  });
+
+  return orders;
+}
+
 /** Signed-in shopper viewing their own order — `null` for "doesn't exist" and "exists but isn't yours" alike, on purpose (see file doc comment). */
 export async function getOrderDetailIfOwner(
   orderNumber: string,

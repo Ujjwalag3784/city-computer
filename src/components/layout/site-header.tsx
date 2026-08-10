@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Search, User } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { MobileNav, DEFAULT_NAV_ITEMS, type NavItem } from "@/components/layout/mobile-nav";
 import { CartHeaderButton } from "@/components/commerce/cart-header-button";
+import { AccountMenu, type AccountMenuUser } from "@/components/layout/account-menu";
 
 /**
  * SiteHeader — docs/05-DESIGN-SYSTEM.md §6 component inventory:
@@ -41,6 +42,17 @@ import { CartHeaderButton } from "@/components/commerce/cart-header-button";
  * reads the live count from `stores/cart-store.ts`, falling back to
  * `cartCount` only before that store has hydrated (or on the `/design`
  * showcase route, which never hydrates it at all).
+ *
+ * The Account icon used to be exactly as inert as the wishlist one — no
+ * `onClick`/`href` (remediation audit, `docs/AUDIT.md` §1a's second named
+ * bug: "the person/account icon in the header does nothing on click").
+ * Unlike wishlist, a real feature existed to wire it to (auth already had
+ * a customer role, a session policy, everything except pages and a menu —
+ * see `account-menu.tsx`'s own doc comment), so this one got built out
+ * rather than removed. `(storefront)/layout.tsx` is the one caller that
+ * fetches `auth()` and passes a real `user`; the `/design` showcase
+ * renders this component without that prop, which is fine — `AccountMenu`
+ * treats a missing `user` exactly like a signed-out one.
  */
 export interface SiteHeaderProps {
   /** Which chrome to render. Defaults to `"full"`. */
@@ -51,6 +63,8 @@ export interface SiteHeaderProps {
   cartCount?: number;
   /** Right-aligned slot rendered only in `variant="minimal"` (e.g. a "Secure checkout" label). */
   minimalActions?: ReactNode;
+  /** Signed-in shopper, or `null`/`undefined` when signed out. Drives `AccountMenu`'s two states. */
+  user?: AccountMenuUser | null;
 }
 
 const iconButtonFocusRing =
@@ -61,6 +75,7 @@ export function SiteHeader({
   navItems = DEFAULT_NAV_ITEMS,
   cartCount = 0,
   minimalActions,
+  user = null,
 }: SiteHeaderProps) {
   return (
     <header>
@@ -122,9 +137,7 @@ export function SiteHeader({
                   </Button>
                 )}
 
-                <Button variant="ghost" size="md" iconOnly aria-label="Account">
-                  <User />
-                </Button>
+                <AccountMenu user={user} />
 
                 <CartHeaderButton fallbackCount={cartCount} />
 
