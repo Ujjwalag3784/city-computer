@@ -83,7 +83,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <div className="flex flex-col gap-16 pb-16">
       {/* Hero Section — "Machined White" datasheet treatment (docs/05, 2026-08-09 revision) */}
-      <section className="relative flex min-h-[75vh] items-center justify-center overflow-hidden border-b border-glass-stroke bg-obsidian-surface bg-grid-fade px-4 py-16 sm:px-8">
+      <section className="relative flex min-h-[75vh] items-center justify-center overflow-hidden border-b border-glass-stroke bg-obsidian-surface px-4 py-16 sm:px-8">
+        {/* `bg-grid-fade`'s mask-image fades its OWN background out toward the
+            edges — it must stay on this decorative, content-free layer.
+            Applying it to the section itself (this file's first cut) faded
+            the fully-opaque text and buttons along with it, since a CSS
+            mask affects everything inside the element it's set on, not just
+            the background-image it was meant for. */}
+        <div className="absolute inset-0 z-0 bg-grid-fade" aria-hidden="true" />
         <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-container/10 via-transparent to-transparent" />
         <div className="relative z-10 mx-auto flex max-w-[1280px] flex-col items-center text-center">
           <span className="mb-4 inline-block font-mono text-label-mono-xs tracking-[0.2em] text-primary">
