@@ -52,9 +52,17 @@ export interface AdminShellProps {
   activeHref?: string;
   /** Forwarded to `AdminTopBar` — see that component's own doc comment. */
   onSearch?: (query: string) => Promise<GlobalSearchGroup[]>;
+  /** Forwarded to `AdminTopBar`'s user-menu label. Defaults to `AdminTopBar`'s own "Owner" placeholder when omitted. */
+  userName?: string;
 }
 
-export function AdminShell({ children, navItems, activeHref, onSearch }: AdminShellProps) {
+export function AdminShell({
+  children,
+  navItems,
+  activeHref,
+  onSearch,
+  userName,
+}: AdminShellProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const pathname = usePathname();
   const resolvedActiveHref = activeHref ?? pathname ?? undefined;
@@ -75,7 +83,11 @@ export function AdminShell({ children, navItems, activeHref, onSearch }: AdminSh
       <AdminSidebar items={navItems} activeHref={resolvedActiveHref} />
 
       <div className="flex min-h-screen flex-1 flex-col">
-        <AdminTopBar onMobileMenuClick={() => setMobileSidebarOpen(true)} onSearch={onSearch} />
+        <AdminTopBar
+          onMobileMenuClick={() => setMobileSidebarOpen(true)}
+          onSearch={onSearch}
+          userName={userName}
+        />
         <main id="main-content" className="flex-1 overflow-y-auto bg-background p-4 lg:p-6">
           {children}
         </main>

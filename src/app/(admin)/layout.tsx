@@ -56,7 +56,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   );
 
   return (
-    <AdminShell navItems={navItems} onSearch={globalAdminSearchAction}>
+    <AdminShell
+      navItems={navItems}
+      onSearch={globalAdminSearchAction}
+      userName={activeSession.user.name ?? activeSession.user.email ?? undefined}
+    >
       {children}
     </AdminShell>
   );

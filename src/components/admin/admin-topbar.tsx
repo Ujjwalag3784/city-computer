@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Menu, Search } from "lucide-react";
+import { ArrowLeft, HelpCircle, LogOut, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -16,6 +16,7 @@ import {
 import { CommandDialog, CommandEmpty, CommandInput, CommandList } from "@/components/ui/command";
 import { GlobalSearch, type GlobalSearchGroup } from "@/components/admin/global-search";
 import { cn } from "@/lib/utils";
+import { signOutAction } from "@/app/[locale]/(auth)/auth/login/_actions";
 
 /** Docs/09 §9: "Debounced 200ms, p95 < 150ms." */
 const SEARCH_DEBOUNCE_MS = 200;
@@ -51,10 +52,14 @@ const SEARCH_DEBOUNCE_MS = 200;
  * icon-only so it gets an explicit `aria-label` plus the admin 48×48 hit
  * target (`Button` `size="lg" iconOnly`) per docs/09 §11 ("Touch targets
  * 48×48 CSS px minimum") rather than the general 44×44 in docs/05 §5 A9.
- * There is no real Auth.js session wiring yet, so the user menu's "Profile" /
- * "Help" / "Sign out" items are inert placeholders — wiring real auth and a
- * real sign-out action happens in a later phase (see docs/09 §14 RBAC / a
- * future Auth.js task).
+ *
+ * The user menu's "Sign out" and "Help" items used to be inert placeholders
+ * (remediation audit, `docs/AUDIT.md`) — fixed here rather than left for a
+ * later phase, since both destinations already existed: `signOutAction`
+ * (the same one `/auth/login`'s form uses) and the real `/admin/help`
+ * route. "Profile" had no page behind it anywhere in this codebase, so
+ * — same call as the storefront header's Wishlist icon — it was removed
+ * rather than left inert; add it back once a real admin profile page exists.
  */
 
 export interface AdminTopBarProps {
@@ -208,11 +213,22 @@ export function AdminTopBar({ onMobileMenuClick, userName = "Owner", onSearch }:
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {/* No real Auth.js session wiring yet — these are inert placeholders until a later phase. */}
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Help</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/admin/help" className="flex items-center gap-2">
+                <HelpCircle className="size-4" />
+                Help
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Sign out</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                void signOutAction();
+              }}
+              className="flex items-center gap-2"
+            >
+              <LogOut className="size-4" />
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
