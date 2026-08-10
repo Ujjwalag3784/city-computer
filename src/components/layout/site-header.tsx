@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Heart, Search, User } from "lucide-react";
+import { Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { MobileNav, DEFAULT_NAV_ITEMS, type NavItem } from "@/components/layout/mobile-nav";
@@ -28,10 +27,18 @@ import { CartHeaderButton } from "@/components/commerce/cart-header-button";
  * `aria-label` and a 44×44 hit target via `Button`'s `iconOnly` prop
  * (docs/05 §5 A2, A9).
  *
- * Wishlist count is still a plain optional number prop — no wishlist
- * feature/store exists yet. The cart badge is different as of docs/17
- * Phase 6: `CartHeaderButton` (the one Client Component this file renders)
- * reads the real count from `stores/cart-store.ts`, falling back to
+ * The Wishlist icon this header used to render is gone (removed
+ * 2026-08-10, remediation audit `docs/AUDIT.md` §1a): it had no `onClick`
+ * or `href` — a fully inert control — and no wishlist feature exists
+ * anywhere in this codebase (no store, no Prisma model, no service) to
+ * wire it to. Per the remediation brief's own rule, "an inert button is
+ * worse than no button" — removed rather than left to look broken. If a
+ * real wishlist feature gets built later, this is where its entry point
+ * belongs.
+ *
+ * The cart badge is real, unlike the wishlist one that used to sit next
+ * to it: `CartHeaderButton` (the one Client Component this file renders)
+ * reads the live count from `stores/cart-store.ts`, falling back to
  * `cartCount` only before that store has hydrated (or on the `/design`
  * showcase route, which never hydrates it at all).
  */
@@ -40,8 +47,6 @@ export interface SiteHeaderProps {
   variant?: "full" | "with-search" | "minimal";
   /** Primary nav taxonomy, shared with `MobileNav`. Defaults to `DEFAULT_NAV_ITEMS`. */
   navItems?: NavItem[];
-  /** Shown on the wishlist badge when greater than 0. Defaults to 0 (badge hidden). */
-  wishlistCount?: number;
   /** Fallback shown on the cart badge only before `stores/cart-store.ts` has hydrated a real count (see `CartHeaderButton`). Defaults to 0 (badge hidden). */
   cartCount?: number;
   /** Right-aligned slot rendered only in `variant="minimal"` (e.g. a "Secure checkout" label). */
@@ -54,7 +59,6 @@ const iconButtonFocusRing =
 export function SiteHeader({
   variant = "full",
   navItems = DEFAULT_NAV_ITEMS,
-  wishlistCount = 0,
   cartCount = 0,
   minimalActions,
 }: SiteHeaderProps) {
@@ -117,24 +121,6 @@ export function SiteHeader({
                     <Search />
                   </Button>
                 )}
-
-                <Button
-                  variant="ghost"
-                  size="md"
-                  iconOnly
-                  aria-label="Wishlist"
-                  className="relative"
-                >
-                  <Heart />
-                  {wishlistCount > 0 && (
-                    <Badge
-                      variant="primary"
-                      className="absolute -right-1 -top-1 min-w-4 justify-center px-1"
-                    >
-                      {wishlistCount}
-                    </Badge>
-                  )}
-                </Button>
 
                 <Button variant="ghost" size="md" iconOnly aria-label="Account">
                   <User />

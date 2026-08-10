@@ -57,9 +57,14 @@ export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { label: "Deals", href: "/shop?sort=-discount&onSale=true" },
 ];
 
+// "Wishlist" (-> /account/wishlist) removed 2026-08-10 alongside the
+// header icon — see site-header.tsx's doc comment. "Account" (-> /account)
+// is left as-is for now: that route doesn't exist either (no customer
+// account system exists anywhere in this codebase — remediation audit
+// `docs/AUDIT.md` §1a), but whether to build one or remove this entry is
+// a product decision, not a call this fix makes unilaterally.
 const SECONDARY_NAV_ITEMS: NavItem[] = [
   { label: "Account", href: "/account" },
-  { label: "Wishlist", href: "/account/wishlist" },
   { label: "Track your order", href: "/track" },
 ];
 

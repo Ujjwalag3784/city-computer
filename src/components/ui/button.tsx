@@ -30,8 +30,18 @@ const buttonVariants = cva(
       variant: {
         primary: "bg-primary text-on-primary hover:bg-primary/90",
         ghost: "bg-transparent text-on-surface hover:bg-surface-container-high",
+        // CORRECTED (2026-08-10, remediation audit): was `border-glass-stroke`
+        // — a 10%-opacity border (rgba(18,24,26,.1) on the current light
+        // theme) that reads as barely-there against any surface, reported
+        // as admin pagination's "Next"/"Previous" controls (both
+        // `variant="outline"`, 12 admin pages) "doing nothing" — they were
+        // fully wired, just visually indistinguishable from disabled.
+        // `border-outline` is docs/05's real, deliberately-visible neutral
+        // role, not a hairline meant to nearly disappear. Fixed once, here,
+        // rather than per call site, since every `outline` button in the
+        // app shares this one class list.
         outline:
-          "border border-glass-stroke bg-transparent text-on-surface hover:bg-surface-container-high hover:border-primary-container",
+          "border border-outline bg-transparent text-on-surface hover:bg-surface-container-high hover:border-primary-container",
         mono: "bg-surface-container text-on-surface font-mono hover:bg-surface-container-high",
         destructive: "bg-error text-on-error hover:bg-error/90",
         icon: "bg-transparent text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",

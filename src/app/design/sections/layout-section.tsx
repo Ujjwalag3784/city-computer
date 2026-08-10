@@ -110,7 +110,7 @@ export function LayoutSection() {
       </div>
 
       <PreviewBox title="SiteHeader — variant: full" bleed className="h-96">
-        <SiteHeader variant="full" wishlistCount={2} cartCount={3} />
+        <SiteHeader variant="full" cartCount={3} />
         <div className="flex flex-col gap-4 p-6">
           <p className="text-body-sm text-on-surface-variant">
             Scroll this box — the header stays pinned via `position: sticky`, contained to this
