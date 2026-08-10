@@ -89,9 +89,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             Applying it to the section itself (this file's first cut) faded
             the fully-opaque text and buttons along with it, since a CSS
             mask affects everything inside the element it's set on, not just
-            the background-image it was meant for. */}
+            the background-image it was meant for.
+            No radial colour wash layered on top (removed 2026-08-10): a
+            10%-opacity cyan gradient over an already-light background read
+            as an overall haze rather than a highlight — reported by the
+            owner as the hero looking "erased." One clean texture layer,
+            not two stacked translucent ones, is the more premium choice
+            here, not the busier one. */}
         <div className="absolute inset-0 z-0 bg-grid-fade" aria-hidden="true" />
-        <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-container/10 via-transparent to-transparent" />
         <div className="relative z-10 mx-auto flex max-w-[1280px] flex-col items-center text-center">
           <span className="mb-4 inline-block font-mono text-label-mono-xs tracking-[0.2em] text-primary">
             PREMIUM TECH HARDWARE
@@ -106,13 +111,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="flex flex-wrap items-center justify-center gap-4">
             <a
               href={`/${locale}/build/new`}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded bg-primary px-8 font-mono text-label-mono font-semibold text-on-primary transition-all hover:bg-primary-container hover:shadow-glow-strong active:scale-95"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded bg-primary px-8 font-mono text-label-mono font-semibold text-on-primary shadow-glow transition-all hover:bg-primary-container hover:shadow-glow-strong active:scale-95"
             >
               BUILD YOUR AI PC
             </a>
+            {/* CORRECTED 2026-08-10: this border was `border-glass-stroke`
+                (10% opacity — rgba(18,24,26,.1)), which on the off-white
+                hero background rendered as barely a hairline, reported by
+                the owner as the button "not even appearing." `border-outline`
+                is a real, deliberately-visible neutral (docs/05's outline
+                role), not a hairline meant to nearly disappear. */}
             <a
               href="#shop-by-category-heading"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded border border-glass-stroke bg-transparent px-8 font-mono text-label-mono font-medium text-on-surface transition-colors hover:border-primary-container hover:bg-surface-container-high"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded border-2 border-outline bg-transparent px-8 font-mono text-label-mono font-medium text-on-surface transition-colors hover:border-primary hover:bg-surface-container-high"
             >
               EXPLORE CATALOG
             </a>
