@@ -25,6 +25,8 @@ const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 export interface RequestPasswordResetResult {
   /** Only present when a real, verified-email account was matched. Absent in every other case (no account, phone-only account) — see the enumeration-resistance note on why a caller must not treat this as an error. */
   resetToken?: string;
+  /** The verified address the reset link must be sent to. Present exactly when `resetToken` is. */
+  email?: string;
 }
 
 export async function requestPasswordReset(
@@ -67,7 +69,7 @@ export async function requestPasswordReset(
     },
   });
 
-  return { resetToken: rawToken };
+  return { resetToken: rawToken, email: user.email };
 }
 
 export async function resetPassword(input: unknown): Promise<void> {

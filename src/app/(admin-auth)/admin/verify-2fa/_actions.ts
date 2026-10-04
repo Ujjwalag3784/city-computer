@@ -23,11 +23,21 @@ import { safeInternalPath } from "@/lib/safe-redirect";
 import { toSafeAppError } from "@/lib/errors";
 import {
   confirmTwoFactorEnrollmentForSession,
+  ensureRecoveryCodes,
+  verifyRecoveryCodeForSession,
   verifyTwoFactorForSession,
 } from "@/server/services/auth/two-factor";
 
 export interface TwoFactorFormState {
   error?: string;
+  /**
+   * Set when the 2FA step succeeded AND the account had no unused recovery
+   * codes, so a fresh set was just issued. The form shows them once, then
+   * links on to `next` — returning them instead of redirecting is the only
+   * way they ever reach the screen.
+   */
+  recoveryCodes?: string[];
+  next?: string;
 }
 
 /**
@@ -79,12 +89,27 @@ export async function verifyTwoFactorAction(
     // sign-in (docs/13 §2: 5 attempts / 15 minutes), keyed per account.
     await rateLimit("auth", `2fa:${session.user.id}`);
 
-    const input = { token: formData.get("token")?.toString() ?? "" };
+    const usingRecoveryCode = formData.get("mode") === "recovery";
 
-    if (session.user.twoFactorEnabled) {
-      await verifyTwoFactorForSession(session.sessionToken, session.user.id, input);
+    if (usingRecoveryCode) {
+      await verifyRecoveryCodeForSession(session.sessionToken, session.user.id, {
+        code: formData.get("code")?.toString() ?? "",
+      });
     } else {
-      await confirmTwoFactorEnrollmentForSession(session.user.id, session.sessionToken, input);
+      const input = { token: formData.get("token")?.toString() ?? "" };
+      if (session.user.twoFactorEnabled) {
+        await verifyTwoFactorForSession(session.sessionToken, session.user.id, input);
+      } else {
+        await confirmTwoFactorEnrollmentForSession(session.user.id, session.sessionToken, input);
+      }
+    }
+
+    // The session is 2FA-verified at this point. If the account has no
+    // unused backup codes (first enrollment, enrolled before codes existed,
+    // or just spent the last one), issue a fresh set and show it once.
+    const recoveryCodes = await ensureRecoveryCodes(session.user.id);
+    if (recoveryCodes) {
+      return { recoveryCodes, next: target };
     }
   } catch (error) {
     return { error: twoFactorErrorMessage(error) };

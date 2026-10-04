@@ -6,7 +6,77 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session: deploy readiness — and it turned out the app could not
+**Latest session (4 Oct 2026): fixed what was broken on the live site, and
+built the missing account-recovery pages.** Checked against the real deploy
+(`city-computer-tp4m.vercel.app`) in a browser, not guessed.
+
+**Broken on the live site, now fixed:**
+
+- **Every product image was broken.** `public/images/placeholder/product.svg`
+  — the fallback for every product photo — had `--surface-container-high`
+  inside an XML comment. `--` is illegal in an XML comment, so browsers
+  refused the whole file even though the server returned it with 200.
+  Fixed, plus `src/lib/assets/public-svg.test.ts` so a malformed SVG fails CI.
+- **Every product said "Out of stock" and nothing could be bought.** The
+  seed never created a single `StockLevel` row. `prisma/seed/catalog.ts` now
+  gives each demo product 10 units at the default branch, with a matching
+  `INITIAL` stock movement. Create-only: re-running the seed never overwrites
+  stock the shop has entered.
+- **The sitemap told Google the site was empty.** Next.js passes a
+  `generateSitemaps()` id as a string (`"0"`); `sitemap.ts` switched on
+  numbers, so every shard fell through and returned an empty `<urlset>`.
+  And `/sitemap.xml` itself (what `robots.txt` advertises) was a 404 —
+  Next does not generate an index for split sitemaps, despite what the old
+  comment said. Fixed with `parseSitemapShardId` and an index served from
+  `app/api/sitemap-index` via a rewrite. Unit tested.
+- **"Build a PC" (header) and "PC builder" (footer) were 404s** — they link
+  to `/build`, which never existed. `/build` now redirects to `/build/new`.
+- **"Track an order" was a 404** — `/track` never existed. Added a plain
+  (no-JS) form that forwards a valid order number to `/order/[orderNumber]`,
+  which keeps its own phone-number check.
+- **45 more dead Tailwind v3 classes** (`pt-[--space-card-padding]`,
+  `w-[--radix-popover-trigger-width]`) converted to v4 `-(--var)` syntax —
+  the sweep the previous session deferred. Card spacing across admin pages,
+  checkout and the EMI calculator now actually applies.
+
+**Account pages, now built:**
+
+- **Email sending** (`src/server/mail/`) through Resend's HTTP API — no new
+  dependency. Never throws; without `RESEND_API_KEY` it logs and skips.
+  Links are built from `NEXT_PUBLIC_SITE_URL`, never the Host header.
+- **`/auth/forgot-password`** and **`/auth/reset-password`** — wired to the
+  `requestPasswordReset`/`resetPassword` services that existed since
+  Phase 3. Identical response whether or not the account exists, and the
+  email goes out via `after()` so timing doesn't reveal it either.
+- **`/auth/verify-email`** — confirms on a button press, not on page load,
+  so mail link-scanners can't spend the single-use token. Sign-up now sends
+  this email.
+- **2FA backup codes** — the long-standing `RecoveryCode` gap is closed. New
+  table + hand-written migration (`20261004120000_recovery_codes`). After
+  any successful 2FA step, an account with no unused codes is issued ten
+  (Argon2id-hashed, shown once, copy/print). `/admin/verify-2fa` has a
+  "Lost your phone? Use a backup code" option; spending a code is a
+  conditional update, so the same code can't win twice.
+- Login page: "Forgot your password?" link, and a confirmation after reset.
+
+**Verified here:** `pnpm typecheck` clean (the full tree in one run — a
+`prisma generate` workaround, `PRISMA_SCHEMA_ENGINE_BINARY=/bin/true`, lets
+the client generate without the blocked engine download), `pnpm lint` clean,
+**787 tests pass** (up from 760). **Not verified here:** `next build` (Google
+Fonts is blocked from this sandbox; Vercel builds on push), and the new
+migration has not been run against a real Postgres.
+
+**What you need to do on the live site after this deploys:**
+
+1. `pnpm db:deploy` against the production `DATABASE_URL` — applies the
+   backup-code table. The 2FA screen will error for Owner/Manager until it
+   runs.
+2. `pnpm db:seed` against the same database — fixes the old `.avif` image
+   URLs still stored from the first seed, and adds the demo stock.
+3. In Vercel, set `RESEND_API_KEY` and `MAIL_FROM_TRANSACTIONAL` (a verified
+   Resend domain) so reset and confirmation emails actually send.
+
+**Previous session: deploy readiness — and it turned out the app could not
 have been deployed or even started at all.** Full runbook in
 `DEPLOY_VERCEL.md`. Honest summary of what was found, added and verified:
 

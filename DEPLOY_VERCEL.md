@@ -7,7 +7,7 @@ have to invent a value (a password, a project name), it says so.
 Total time: about 45 minutes, most of it waiting for things to finish.
 Everything used here is free.
 
-**Read this first — what you are and are not getting.** This is a *demo*
+**Read this first — what you are and are not getting.** This is a _demo_
 deployment. The shop front, the product pages, the PC builder, the cart,
 checkout with Cash on Delivery and Bank Transfer, and the whole admin
 console are real and work against a real database. What is **not** built at
@@ -38,7 +38,7 @@ section at the end covers the likely causes.
 ## Step 1 — Create the database (free, ~5 minutes)
 
 Use **Neon**. It is the easiest to pair with Vercel, its free tier is
-generous, and it gives you the *pooled* connection string this app needs
+generous, and it gives you the _pooled_ connection string this app needs
 without extra work.
 
 1. Go to <https://neon.com> and click **Sign up**. Sign in with GitHub — it
@@ -46,11 +46,11 @@ without extra work.
 2. It will offer to create your first project. Name it `citycomputer`.
    - **Postgres version**: leave the default.
    - **Region**: pick the one closest to Nepal — usually
-     *Asia Pacific (Singapore)* or *AWS ap-southeast-1*.
+     _Asia Pacific (Singapore)_ or _AWS ap-southeast-1_.
 3. Click **Create project**. It takes a few seconds.
 4. You land on a page showing a **Connection string** box. There is a
    toggle or checkbox near it labelled **Pooled connection** (sometimes
-   shown as *Connection pooling*). **Turn it on.**
+   shown as _Connection pooling_). **Turn it on.**
 5. Click the copy button. You now have something like:
 
    ```
@@ -88,7 +88,7 @@ running the code:
   step" flag. There are no database columns for any of the three; they live
   in Redis (`src/server/auth/session-state.ts`, which explains why).
 - `src/middleware.ts` checks those Redis values on **every single
-  `/admin` request**, and it is written to fail *closed*: if it cannot
+  `/admin` request**, and it is written to fail _closed_: if it cannot
   confirm the session is inside both windows, you do not get in. With no
   Redis, there is nothing to confirm.
 - The two-factor step for an Owner account writes its "verified" flag to
@@ -117,6 +117,7 @@ So: 3 minutes now, or a demo where `/admin` never opens.
    ```
 
    (Two `s`es in `rediss://` is correct — it means encrypted.)
+
 4. Paste it into your text file as `REDIS_URL`.
 
 ---
@@ -134,10 +135,10 @@ has a default or is allowed to be missing.
 
 ### 3.1 Required — the app refuses to start without these
 
-| Name | Value |
-| --- | --- |
-| `DATABASE_URL` | Your pooled Neon string from step 1. |
-| `AUTH_SECRET` | A long random string. Generate it — see below. |
+| Name           | Value                                          |
+| -------------- | ---------------------------------------------- |
+| `DATABASE_URL` | Your pooled Neon string from step 1.           |
+| `AUTH_SECRET`  | A long random string. Generate it — see below. |
 
 If either is missing, the deployment crashes immediately with
 `Invalid environment variables — refusing to start.`
@@ -160,12 +161,12 @@ file. **Never put this in a message, a screenshot, or the repository.**
 
 ### 3.2 Needed in practice — set these too
 
-| Name | Value | What breaks without it |
-| --- | --- | --- |
-| `REDIS_URL` | Your Upstash string from step 2. | Has a default of `redis://localhost:6379`, so the app *starts* — but nothing is listening, so `/admin` never opens. This is the trap this guide exists to warn you about. |
-| `NEXT_PUBLIC_SITE_URL` | Your live address, e.g. `https://citycomputer.vercel.app` — **no trailing slash**. | Defaults to `http://localhost:3000`, which would put localhost links into every page's SEO tags, the sitemap, and the social-preview images. |
-| `AUTH_URL` | The same address as above. | Sign-in usually still works (it can guess from the request), but setting it removes the guesswork. |
-| `APP_ENV` | `production` | Anything else makes `/robots.txt` tell Google not to index the site at all. Correct for a preview, wrong for a real demo. |
+| Name                   | Value                                                                              | What breaks without it                                                                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REDIS_URL`            | Your Upstash string from step 2.                                                   | Has a default of `redis://localhost:6379`, so the app _starts_ — but nothing is listening, so `/admin` never opens. This is the trap this guide exists to warn you about. |
+| `NEXT_PUBLIC_SITE_URL` | Your live address, e.g. `https://citycomputer.vercel.app` — **no trailing slash**. | Defaults to `http://localhost:3000`, which would put localhost links into every page's SEO tags, the sitemap, and the social-preview images.                              |
+| `AUTH_URL`             | The same address as above.                                                         | Sign-in usually still works (it can guess from the request), but setting it removes the guesswork.                                                                        |
+| `APP_ENV`              | `production`                                                                       | Anything else makes `/robots.txt` tell Google not to index the site at all. Correct for a preview, wrong for a real demo.                                                 |
 
 You will not know your Vercel address until step 4, so: do step 4 first with
 just the four values you already have, then come back and add
@@ -183,8 +184,11 @@ feature reports "not configured" instead of erroring.
   tier is the usual pick). Without all five, `/admin/media` and the
   receipt upload say storage isn't set up.
 - **Email** — `RESEND_API_KEY`, `MAIL_FROM`, `MAIL_FROM_TRANSACTIONAL`,
-  `MAIL_REPLY_TO`. Note that even *with* these, no order emails get sent —
-  that code was never written (see the top of this document).
+  `MAIL_REPLY_TO`. These now send the **password-reset** and **confirm your
+  email** messages (`src/server/mail/`). The `MAIL_FROM*` address must be on
+  a domain you have verified in Resend. Without them, sign-up still works,
+  but "Forgot password?" cannot deliver its link. Order emails are still not
+  written.
 - **Payment gateways** — `ESEWA_*`, `KHALTI_*`, `FONEPAY_*`,
   `CONNECTIPS_*`. Setting these does nothing today. The integrations do not
   exist.
@@ -214,10 +218,10 @@ feature reports "not configured" instead of erroring.
 2. On your dashboard, click **Add New...** → **Project**.
 3. You get a list of your GitHub repositories. Find **`city-computer`** and
    click **Import**. If it isn't listed, click
-   *Adjust GitHub App Permissions* and grant Vercel access to it.
+   _Adjust GitHub App Permissions_ and grant Vercel access to it.
 4. The **Configure Project** screen appears. Almost everything is already
    correct — Vercel detects Next.js and pnpm on its own.
-   - **Framework Preset**: should already say *Next.js*. Leave it.
+   - **Framework Preset**: should already say _Next.js_. Leave it.
    - **Build and Output Settings**: leave every field empty/default. Do
      **not** type a build command. The repository's own
      `package.json` build script is
@@ -286,8 +290,11 @@ pnpm db:deploy
 That is `prisma migrate deploy`. **This is the correct command, not
 `prisma db push`** — the repository does contain a real migration
 (`prisma/migrations/20260727175048_pnpm_db_seed/migration.sql`, 2,614 lines)
-and it was checked to cover all 90 tables in the schema. You should see
-`1 migration found` and then `applied`.
+and it was checked to cover all 90 tables in the schema. A second, small
+migration (`20261004120000_recovery_codes`) adds the 2FA backup-code table.
+On a fresh database you should see `2 migrations found` and both applied; on
+a database that already ran the first one, `db:deploy` applies only the new
+one.
 
 ### 5.2 Add the starting data
 
@@ -374,18 +381,18 @@ Replace `YOUR-SITE` with your Vercel address in each link.
 
 ### 6.1 The shop front
 
-| What to show | Address |
-| --- | --- |
-| Home page | `https://YOUR-SITE/` |
-| A product page | `https://YOUR-SITE/` → click any product card |
-| A category page | `https://YOUR-SITE/c/laptops` |
-| **The PC builder** | `https://YOUR-SITE/build/new` |
-| EMI calculator | `https://YOUR-SITE/emi-calculator` |
-| Repair booking | `https://YOUR-SITE/service` |
-| Blog | `https://YOUR-SITE/blog` |
-| Store locator | `https://YOUR-SITE/stores` |
+| What to show       | Address                                       |
+| ------------------ | --------------------------------------------- |
+| Home page          | `https://YOUR-SITE/`                          |
+| A product page     | `https://YOUR-SITE/` → click any product card |
+| A category page    | `https://YOUR-SITE/c/laptops`                 |
+| **The PC builder** | `https://YOUR-SITE/build/new`                 |
+| EMI calculator     | `https://YOUR-SITE/emi-calculator`            |
+| Repair booking     | `https://YOUR-SITE/service`                   |
+| Blog               | `https://YOUR-SITE/blog`                      |
+| Store locator      | `https://YOUR-SITE/stores`                    |
 
-The PC builder is the most impressive thing here. Pick *Standard* mode, then
+The PC builder is the most impressive thing here. Pick _Standard_ mode, then
 deliberately choose parts that do not fit together — a small case with a big
 graphics card — and it will explain, in plain English, exactly what is
 wrong. That is a real rule engine with 37 database-driven rules behind it,
@@ -407,7 +414,7 @@ You are sent to `/admin/verify-2fa` automatically. Once, ever, per account:
 1. On your phone, install an authenticator app if you do not have one —
    **Google Authenticator**, **Microsoft Authenticator**, **Authy** and
    **1Password** all work.
-2. Open it, choose *add account* / the **+** button, and **scan the square
+2. Open it, choose _add account_ / the **+** button, and **scan the square
    QR code** on the screen. If the camera will not cooperate, the page also
    shows the same key as text you can type in.
 3. The app now shows a 6-digit number that changes every 30 seconds. Type
@@ -483,7 +490,7 @@ to fail closed, so an unreachable Redis is indistinguishable from an expired
 session and you get bounced. The clue is in Vercel's **Runtime Logs**:
 repeated `Redis client error` with `ECONNREFUSED` or a connection timeout.
 
-The other possibility, if the site is *not* broken, is that it worked
+The other possibility, if the site is _not_ broken, is that it worked
 correctly: staff sessions really do expire after 8 hours, or after 30
 minutes of doing nothing. The sign-in page says so when that happens.
 
@@ -501,7 +508,7 @@ Three real causes, in order of likelihood:
    Wait 15 minutes. The message deliberately does not distinguish this from
    a wrong password.
 2. You ran `pnpm db:create-admin` while your terminal was still pointed at
-   a *local* database instead of the Neon one, so the account exists on your
+   a _local_ database instead of the Neon one, so the account exists on your
    laptop and not on the live site. Re-do the `export DATABASE_URL=...`
    line, then re-run step 5.4.
 3. You ran step 5.4 before step 5.2. The roles come from the seed; the

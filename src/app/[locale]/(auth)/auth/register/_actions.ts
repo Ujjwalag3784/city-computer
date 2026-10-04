@@ -25,6 +25,7 @@
  * is fine, since login not working is exactly the failure this needs to
  * surface.
  */
+import { after } from "next/server";
 import { AuthError } from "next-auth";
 import { signIn } from "@/server/auth";
 import { registerSchema } from "@/lib/validation/auth";
@@ -33,6 +34,9 @@ import { safeInternalPath } from "@/lib/safe-redirect";
 import { getRequestIpFromHeaders } from "@/lib/request-ip";
 import { AppError } from "@/lib/errors";
 import { signInFailureMessage, SIGN_IN_UNAVAILABLE_MESSAGE } from "@/lib/auth/sign-in-error";
+import { sendTransactionalEmail } from "@/server/mail/send";
+import { verifyEmailEmail } from "@/server/mail/templates";
+import { verifyEmailUrl } from "@/server/mail/links";
 
 export interface RegisterFormState {
   /** General, non-field-specific error (rate limited, or the post-registration sign-in itself failing). */
@@ -69,7 +73,16 @@ export async function registerAction(
   const ip = await getRequestIpFromHeaders();
 
   try {
-    await registerUser(parsed.data, ip);
+    const { verificationToken } = await registerUser(parsed.data, ip);
+    // Only a genuinely new email account gets a token. Sent after the
+    // response so a slow mail provider never delays sign-in, and so the
+    // timing of "new account" and "already registered" stays the same.
+    const email = parsed.data.email;
+    if (verificationToken && email) {
+      after(async () => {
+        await sendTransactionalEmail(email, verifyEmailEmail(verifyEmailUrl(verificationToken)));
+      });
+    }
   } catch (error) {
     if (error instanceof AppError) {
       if (error.code === "RATE_LIMITED") {

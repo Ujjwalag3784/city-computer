@@ -29,9 +29,9 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string; reason?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; reason?: string; reset?: string }>;
 }) {
-  const { callbackUrl, reason } = await searchParams;
+  const { callbackUrl, reason, reset } = await searchParams;
   const safeCallbackUrl = safeInternalPath(callbackUrl, "/admin");
   // This page now serves two audiences (docs/AUDIT.md's Critical Path 5
   // gap: customer registration/login didn't exist at all before this).
@@ -81,7 +81,24 @@ export default async function LoginPage({
           </Alert>
         ) : null}
 
+        {reset === "done" ? (
+          <Alert variant="success" role="status">
+            <AlertDescription>
+              Your password has been changed. Sign in with your new password.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         <LoginForm callbackUrl={safeCallbackUrl} />
+
+        <p className="-mt-2 text-center text-body-sm">
+          <Link
+            href="/auth/forgot-password"
+            className="rounded text-on-surface-variant underline underline-offset-2 hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            Forgot your password?
+          </Link>
+        </p>
 
         {!isStaffContext && (
           <p className="text-center text-body-sm text-on-surface-variant">

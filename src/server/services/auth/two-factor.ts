@@ -2,30 +2,21 @@
  * TOTP 2FA enrollment and per-session verification — docs/13-SECURITY.md
  * §2: "TOTP mandatory for OWNER and MANAGER, enforced in middleware."
  *
- * KNOWN GAP, deliberately not worked around: the ten single-use recovery
- * codes docs/13 §2 also calls for ("hashed at rest, shown once") have
- * nowhere to live. The schema (`prisma/schema/auth.prisma`) has no
- * `RecoveryCode` model, and adding one needs `prisma generate`, which
- * needs network access to Prisma's engine-binary CDN that this sandbox's
- * policy blocks (see PROGRESS.md, and `session-state.ts`'s header for the
- * same constraint hit for a different reason). Unlike the admin-session
- * timing problem, this one genuinely isn't solvable with Redis instead —
- * recovery codes are a durable secret a user might not use for months;
- * Redis is a cache, not the right place to be the *only* copy of the one
- * thing that gets someone back into their account. `lib/totp.ts`'s
- * `generateRecoveryCodes`/`matchRecoveryCode` are already written and
- * unit-tested, so wiring this up is a small, well-tested addition once
- * that migration exists — tracked as a follow-up rather than faked here.
- * Enrollment below only persists the TOTP secret; no recovery codes are
- * generated or shown yet.
+ * Recovery codes (docs/13 §2: ten single-use codes, "hashed at rest, shown
+ * once") live in the `RecoveryCode` table. `ensureRecoveryCodes` issues a
+ * fresh set whenever an account that has just passed a 2FA step has none
+ * left — that covers first enrollment, accounts that enrolled before codes
+ * existed, and someone who has just spent their last one.
  */
 import "server-only";
 import { db } from "@/server/db";
-import { totpVerifySchema } from "@/lib/validation/auth";
+import { recoveryCodeSchema, totpVerifySchema } from "@/lib/validation/auth";
 import {
   buildTotpKeyUri,
+  generateRecoveryCodes,
   generateTotpQrCodeDataUrl,
   generateTotpSecret,
+  matchRecoveryCode,
   verifyTotpToken,
 } from "@/lib/totp";
 import { AppError, NotFoundError, validationErrorFromZodIssues } from "@/lib/errors";
@@ -168,4 +159,98 @@ export async function confirmTwoFactorEnrollmentForSession(
   await confirmTwoFactorEnrollment(userId, secret, input);
   await markTwoFactorVerified(sessionToken);
   await forgetPendingTwoFactorSecret(sessionToken);
+}
+
+/**
+ * Replaces every recovery code for `userId` with a fresh set of ten and
+ * returns the plaintext — the only time it ever exists outside the user's
+ * own copy. Old codes (used or not) stop working immediately.
+ */
+export async function issueRecoveryCodes(userId: string): Promise<string[]> {
+  const { plaintextCodes, hashedCodes } = await generateRecoveryCodes();
+  await db.$transaction([
+    db.recoveryCode.deleteMany({ where: { userId } }),
+    db.recoveryCode.createMany({
+      data: hashedCodes.map((codeHash) => ({ userId, codeHash })),
+    }),
+  ]);
+  return plaintextCodes;
+}
+
+/**
+ * Called after a successful 2FA step. Returns a new set of codes to show
+ * the user when they have none left, or `null` when they still have some.
+ */
+export async function ensureRecoveryCodes(userId: string): Promise<string[] | null> {
+  const remaining = await db.recoveryCode.count({ where: { userId, usedAt: null } });
+  if (remaining > 0) return null;
+  return issueRecoveryCodes(userId);
+}
+
+/**
+ * The "lost my phone" path on `/admin/verify-2fa`: a valid unused recovery
+ * code satisfies 2FA for this session, exactly like a TOTP code, and is
+ * spent in the process.
+ *
+ * Spending is a conditional update (`usedAt: null` in the WHERE), so two
+ * simultaneous submissions of the same code cannot both succeed.
+ */
+export async function verifyRecoveryCodeForSession(
+  sessionToken: string,
+  userId: string,
+  input: unknown,
+): Promise<void> {
+  const parsed = recoveryCodeSchema.safeParse(input);
+  if (!parsed.success) {
+    throw validationErrorFromZodIssues(parsed.error.issues);
+  }
+
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user?.twoFactorSecret) {
+    throw new AppError(
+      "VALIDATION_FAILED",
+      "Two-factor authentication is not enabled for this account.",
+    );
+  }
+
+  const unused = await db.recoveryCode.findMany({
+    where: { userId, usedAt: null },
+    select: { id: true, codeHash: true },
+  });
+  const candidate = normaliseRecoveryCode(parsed.data.code);
+  const matchIndex = await matchRecoveryCode(
+    candidate,
+    unused.map((code) => code.codeHash),
+  );
+  const matched = matchIndex === null ? undefined : unused.at(matchIndex);
+  if (!matched) {
+    throw new AppError(
+      "VALIDATION_FAILED",
+      "That backup code didn't match, or it's already been used.",
+    );
+  }
+
+  const spent = await db.recoveryCode.updateMany({
+    where: { id: matched.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+  if (spent.count !== 1) {
+    throw new AppError(
+      "VALIDATION_FAILED",
+      "That backup code didn't match, or it's already been used.",
+    );
+  }
+
+  await markTwoFactorVerified(sessionToken);
+}
+
+/**
+ * Codes are issued and hashed as `XXXX-XXXX-XXXX-XXXX` (lib/totp.ts). Accept
+ * them typed in any case, with spaces, or with the dashes left out, and
+ * rebuild the exact issued form before comparing.
+ */
+export function normaliseRecoveryCode(value: string): string {
+  const compact = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (compact.length !== 16) return value.trim().toUpperCase();
+  return compact.match(/.{4}/g)!.join("-");
 }

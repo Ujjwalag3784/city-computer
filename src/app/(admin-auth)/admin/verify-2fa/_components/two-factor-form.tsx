@@ -12,7 +12,7 @@
  * every non-redirecting outcome.
  */
 import Image from "next/image";
-import { useActionState, useId } from "react";
+import { useActionState, useId, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,10 +36,15 @@ const FIELD_FOCUS_RING =
 
 export function TwoFactorForm({ callbackUrl, qrCodeDataUrl, manualEntryKey }: TwoFactorFormProps) {
   const [state, formAction, isPending] = useActionState(verifyTwoFactorAction, INITIAL_STATE);
+  const [useRecovery, setUseRecovery] = useState(false);
   const errorId = useId();
   const hintId = useId();
   const isEnrolling = Boolean(qrCodeDataUrl);
   const hasError = Boolean(state.error);
+
+  if (state.recoveryCodes) {
+    return <RecoveryCodesNotice codes={state.recoveryCodes} next={state.next ?? callbackUrl} />;
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -97,37 +102,126 @@ export function TwoFactorForm({ callbackUrl, qrCodeDataUrl, manualEntryKey }: Tw
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="two-factor-token">6-digit code</Label>
-          <Input
-            id="two-factor-token"
-            name="token"
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]{6}"
-            maxLength={6}
-            required
-            error={hasError}
-            aria-invalid={hasError}
-            aria-describedby={hasError ? `${errorId} ${hintId}` : hintId}
-            className={`text-center font-mono tracking-[0.4em] ${FIELD_FOCUS_RING}`}
-          />
-          <p id={hintId} className="text-body-sm text-on-surface-variant">
-            Six digits, no spaces. The code changes every 30 seconds.
-          </p>
-        </div>
+        {useRecovery ? (
+          <div className="flex flex-col gap-2">
+            <input type="hidden" name="mode" value="recovery" />
+            <Label htmlFor="two-factor-recovery">Backup code</Label>
+            <Input
+              id="two-factor-recovery"
+              name="code"
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              required
+              error={hasError}
+              aria-invalid={hasError}
+              aria-describedby={hasError ? `${errorId} ${hintId}` : hintId}
+              className={`text-center font-mono tracking-widest ${FIELD_FOCUS_RING}`}
+            />
+            <p id={hintId} className="text-body-sm text-on-surface-variant">
+              One of the codes you saved when you set up two-factor sign-in, like
+              ABCD-EFGH-JKLM-NPQR. Each one works once.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="two-factor-token">6-digit code</Label>
+            <Input
+              id="two-factor-token"
+              name="token"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              required
+              error={hasError}
+              aria-invalid={hasError}
+              aria-describedby={hasError ? `${errorId} ${hintId}` : hintId}
+              className={`text-center font-mono tracking-[0.4em] ${FIELD_FOCUS_RING}`}
+            />
+            <p id={hintId} className="text-body-sm text-on-surface-variant">
+              Six digits, no spaces. The code changes every 30 seconds.
+            </p>
+          </div>
+        )}
 
         <Button type="submit" size="lg" className="w-full" disabled={isPending}>
           {isPending ? "Checking…" : isEnrolling ? "Finish setup and continue" : "Continue"}
         </Button>
       </form>
 
+      {!isEnrolling ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="-mt-2 self-center"
+          onClick={() => setUseRecovery((value) => !value)}
+        >
+          {useRecovery
+            ? "Use the code from my phone instead"
+            : "Lost your phone? Use a backup code"}
+        </Button>
+      ) : null}
+
       <form action={signOutAction} className="border-t border-glass-stroke pt-4">
         <Button type="submit" variant="ghost" size="sm" className="w-full">
           Sign out instead
         </Button>
       </form>
+    </div>
+  );
+}
+
+/**
+ * Shown exactly once, right after a 2FA step that issued a fresh set of
+ * codes. Nothing can show them again: only their hashes are stored.
+ */
+function RecoveryCodesNotice({ codes, next }: { codes: string[]; next: string }) {
+  const [copied, setCopied] = useState(false);
+  const text = codes.join("\n");
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Alert variant="warning" role="status">
+        <AlertDescription className="text-warning">
+          Save these backup codes somewhere safe, like a password manager or printed and kept with
+          your shop papers. If you lose your phone, each code lets you sign in once. You won&rsquo;t
+          see them again.
+        </AlertDescription>
+      </Alert>
+
+      <ul className="grid grid-cols-2 gap-2 rounded-lg border border-glass-stroke bg-surface-container p-4 font-mono text-body-sm text-on-surface">
+        {codes.map((code) => (
+          <li key={code} className="text-center tracking-wider">
+            {code}
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button type="button" variant="outline" className="flex-1" onClick={() => void copy()}>
+          {copied ? "Copied" : "Copy codes"}
+        </Button>
+        <Button type="button" variant="outline" className="flex-1" onClick={() => window.print()}>
+          Print
+        </Button>
+      </div>
+
+      <Button asChild size="lg" className="w-full">
+        <a href={next}>I&rsquo;ve saved them — continue</a>
+      </Button>
     </div>
   );
 }

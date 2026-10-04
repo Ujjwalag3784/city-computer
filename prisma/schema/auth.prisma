@@ -32,6 +32,7 @@ model User {
   // sides down in commerce.prisma.
   accounts            Account[]
   sessions            Session[]
+  recoveryCodes       RecoveryCode[]
   userRoles           UserRole[]
   customer            Customer?
   uploadedMedia       Media[]
@@ -85,6 +86,23 @@ model Session {
 
   @@index([userId])
   @@map("sessions")
+}
+
+/// docs/13 §2: ten single-use 2FA recovery codes, "hashed at rest, shown
+/// once". Argon2id hashes (lib/totp.ts generateRecoveryCodes); a used code
+/// keeps its row with `usedAt` set so a replay is rejected and the count of
+/// remaining codes is honest.
+model RecoveryCode {
+  id        String    @id @default(cuid(2))
+  userId    String    @map("user_id")
+  codeHash  String    @map("code_hash")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+  @@map("recovery_codes")
 }
 
 model VerificationToken {

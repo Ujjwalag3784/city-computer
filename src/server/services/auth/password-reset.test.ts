@@ -46,6 +46,7 @@ describe("requestPasswordReset — enumeration resistance (docs/13 §2)", () => 
 
     expect(db.verificationToken.create).toHaveBeenCalled();
     expect(result.resetToken).toBeTypeOf("string");
+    expect(result.email).toBeTypeOf("string");
   });
 
   it("silently no-ops for an account with no email at all", async () => {
