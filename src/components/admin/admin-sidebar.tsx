@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/layout/brand-mark";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -149,9 +150,11 @@ export function AdminSidebarContent({
     <nav aria-label="Admin" className={cn("flex h-full flex-col gap-4", className)}>
       <Link
         href="/admin"
-        className="rounded px-3 text-body-lg font-medium text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-surface-container"
+        aria-label="City Computer admin — Today"
+        className="flex flex-col gap-1 rounded px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-container"
       >
-        City Computer Admin
+        <BrandMark compact />
+        <span className="pl-12 font-mono text-label-mono-xs text-primary">Admin console</span>
       </Link>
 
       <ul className="flex flex-1 flex-col gap-1 overflow-y-auto">

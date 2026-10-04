@@ -293,25 +293,29 @@ export function BuilderEditView({ build, initialReport, initialPartRows }: Build
   const steps = buildSteps(partRows);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-headline-md text-on-surface">{build.name ?? "Your PC build"}</h1>
-          <p className="text-body-sm text-on-surface-variant">
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-3">
+          <p className="eyebrow">PC builder // Compatibility checked</p>
+          <h1 className="text-display-sm text-on-surface">{build.name ?? "Your PC build"}</h1>
+          <p className="font-mono text-label-mono-xs text-on-surface-variant">
             {humanize(build.useCase)} · {build.targetResolution} target
           </p>
         </div>
         <ModeSelect
+          compact
           value={mode}
           onChange={(next) => void handleModeChange(next)}
-          className="lg:w-[360px]"
+          className="self-start lg:self-end"
         />
       </div>
 
       <div
         className={cn(
           "grid gap-6",
-          mode === "standard" ? "lg:grid-cols-[200px_1fr_320px]" : "lg:grid-cols-[1fr_320px]",
+          mode === "standard"
+            ? "lg:grid-cols-[200px_minmax(0,1fr)_360px]"
+            : "lg:grid-cols-[minmax(0,1fr)_360px]",
         )}
       >
         {mode === "standard" && (
@@ -344,10 +348,35 @@ export function BuilderEditView({ build, initialReport, initialPartRows }: Build
               );
             })}
           </div>
+        </div>
 
-          <Card variant="glass">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-32 lg:self-start">
+          <BuildSummaryPanel
+            totalPrice={report.totalPaisa}
+            isComplete={isComplete}
+            incompleteReason={incompleteReason}
+            onShare={() => setShareOpen(true)}
+            onPrintPdf={() => window.print()}
+            onAddToCart={() => void handleAddToCart()}
+          />
+          {cartStatus !== "idle" && cartMessage && (
+            <p
+              role="status"
+              className={
+                cartStatus === "error"
+                  ? "text-body-sm text-danger"
+                  : "text-body-sm text-on-surface-variant"
+              }
+            >
+              {cartMessage}
+            </p>
+          )}
+          <Card>
             <CardHeader>
-              <span className="text-title text-on-surface">Compatibility</span>
+              <span className="flex items-center gap-2 font-mono text-label-mono-xs text-on-surface">
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" />
+                Diagnostics
+              </span>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
               <CompatibilityPanel
@@ -388,29 +417,6 @@ export function BuilderEditView({ build, initialReport, initialPartRows }: Build
               )}
             </CardContent>
           </Card>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <BuildSummaryPanel
-            totalPrice={report.totalPaisa}
-            isComplete={isComplete}
-            incompleteReason={incompleteReason}
-            onShare={() => setShareOpen(true)}
-            onPrintPdf={() => window.print()}
-            onAddToCart={() => void handleAddToCart()}
-          />
-          {cartStatus !== "idle" && cartMessage && (
-            <p
-              role="status"
-              className={
-                cartStatus === "error"
-                  ? "text-body-sm text-danger"
-                  : "text-body-sm text-on-surface-variant"
-              }
-            >
-              {cartMessage}
-            </p>
-          )}
         </div>
       </div>
 

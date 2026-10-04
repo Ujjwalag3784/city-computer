@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { LISTING_PAGE_CLASS, ListingHeader } from "@/components/commerce/listing-header";
 import { CatalogListing } from "@/components/commerce/catalog-listing";
 import { JsonLd } from "@/components/seo/json-ld";
 import { buildBreadcrumbListJsonLd } from "@/lib/seo/jsonld/breadcrumb";
@@ -190,16 +191,20 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const startPosition = (result.pagination.page - 1) * perPage + 1;
 
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-4 sm:p-8">
-      <Breadcrumbs items={breadcrumbItems} />
-      <div className="flex flex-col gap-2">
-        <h1 className="text-headline-md text-on-surface">{category.name}</h1>
-        {category.description && (
-          <p className="max-w-[65ch] text-body-md text-on-surface-variant">
-            {category.description}
-          </p>
-        )}
-      </div>
+    <div className={LISTING_PAGE_CLASS}>
+      <ListingHeader
+        breadcrumbs={<Breadcrumbs items={breadcrumbItems} />}
+        eyebrow={trail.length > 1 ? `Category // ${trail[0]?.name ?? ""}` : "Category"}
+        title={category.name}
+        description={category.description}
+        stats={[
+          {
+            label: "Products",
+            value: result.pagination.total.toLocaleString("en-US"),
+          },
+          { label: "Delivery", value: "Kathmandu Valley" },
+        ]}
+      />
       <CatalogListing
         products={result.items.map(toProductCardData)}
         facets={toCatalogListingFacets(result.facets)}

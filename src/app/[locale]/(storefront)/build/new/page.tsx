@@ -39,10 +39,11 @@ export async function generateMetadata({
 export default async function NewBuildPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   return (
-    <div className="mx-auto max-w-[640px] px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-6 flex flex-col gap-1">
-        <h1 className="text-headline-md text-on-surface">Start a PC build</h1>
-        <p className="text-body-sm text-on-surface-variant">
+    <div className="mx-auto w-full max-w-[720px] px-4 py-10 sm:px-6 lg:py-14">
+      <div className="mb-8 flex flex-col gap-3">
+        <p className="eyebrow">PC builder // Step 00</p>
+        <h1 className="text-display-sm text-on-surface">Start a PC build</h1>
+        <p className="text-body-lg text-on-surface-variant">
           Pick a mode and tell us roughly what this build is for — you can change any of this later
           without losing your progress.
         </p>

@@ -264,7 +264,7 @@ export function CatalogListing({
         {filterGroups.length > 0 && <FilterRail groups={filterGroups} onClearAll={clearAll} />}
 
         <div className="min-w-0 flex-1">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outline-variant bg-surface py-2 pl-4 pr-2">
             <div className="flex items-center gap-3">
               <ResultCount count={pagination.total} />
               {filterGroups.length > 0 && (
@@ -301,7 +301,7 @@ export function CatalogListing({
           />
 
           {pagination.totalPages > 1 && (
-            <Pagination className="mt-8">
+            <Pagination className="mt-10">
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious

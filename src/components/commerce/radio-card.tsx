@@ -51,20 +51,20 @@ export const RadioCard = React.forwardRef<
     value={value}
     disabled={disabled}
     className={cn(
-      "group flex min-h-11 w-full items-center gap-3 rounded border border-glass-stroke bg-surface-container px-4 py-3 text-left transition-colors",
-      "hover:border-primary-container",
+      "group flex min-h-11 w-full items-center gap-3 rounded-xl border border-outline-variant bg-surface-container-high px-4 py-3.5 text-left transition-colors",
+      "hover:border-outline",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       "disabled:cursor-not-allowed disabled:opacity-50",
-      "data-[state=checked]:border-primary-container data-[state=checked]:bg-primary-container/5",
+      "data-[state=checked]:border-primary data-[state=checked]:bg-primary/8",
       className,
     )}
   >
     <span
       aria-hidden="true"
-      className="flex size-5 shrink-0 items-center justify-center rounded-full border border-glass-stroke transition-colors group-data-[state=checked]:border-primary-container"
+      className="flex size-5 shrink-0 items-center justify-center rounded-full border border-glass-stroke transition-colors group-data-[state=checked]:border-primary"
     >
       <RadioGroupPrimitive.Indicator className="flex items-center justify-center">
-        <span className="size-2.5 rounded-full bg-primary-container" />
+        <span className="size-2.5 rounded-full bg-primary" />
       </RadioGroupPrimitive.Indicator>
     </span>
     <span className="flex flex-1 flex-col gap-0.5 text-left">

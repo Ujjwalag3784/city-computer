@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LISTING_PAGE_CLASS, ListingHeader } from "@/components/commerce/listing-header";
 import { CatalogListing } from "@/components/commerce/catalog-listing";
 import { JsonLd } from "@/components/seo/json-ld";
 import { buildCollectionPageJsonLd, buildItemListJsonLd } from "@/lib/seo/jsonld/item-list";
@@ -108,11 +109,13 @@ export default async function ShopPage({ params, searchParams }: ShopPageProps) 
   const startPosition = (result.pagination.page - 1) * perPage + 1;
 
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-4 sm:p-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-headline-md text-on-surface">{title}</h1>
-        <p className="max-w-[65ch] text-body-md text-on-surface-variant">{description}</p>
-      </div>
+    <div className={LISTING_PAGE_CLASS}>
+      <ListingHeader
+        eyebrow="Catalogue"
+        title={title}
+        description={description}
+        stats={[{ label: "Products", value: result.pagination.total.toLocaleString("en-US") }]}
+      />
       <CatalogListing
         products={result.items.map(toProductCardData)}
         facets={toCatalogListingFacets(result.facets)}

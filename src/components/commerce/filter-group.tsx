@@ -72,22 +72,26 @@ function toggleValue(current: string[], value: string): string[] {
   return current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value];
 }
 
-const groupHeadingClass = "text-body-md text-on-surface";
+const groupHeadingClass = "font-mono text-label-mono-xs text-on-surface-variant";
 
-export function FilterGroup(props: FilterGroupProps) {
-  const { title } = props;
+/**
+ * `showTitle={false}` when a parent already labels the group (the desktop
+ * `FilterRail`'s accordion trigger), so the name isn't printed twice.
+ */
+export function FilterGroup(props: FilterGroupProps & { showTitle?: boolean }) {
+  const { title, showTitle = true } = props;
 
   if (props.type === "checkbox") {
     const { options, selected, onChange } = props;
     return (
       <div className="flex flex-col gap-3">
-        <p className={groupHeadingClass}>{title}</p>
-        <ul className="flex flex-col gap-3">
+        {showTitle && <p className={groupHeadingClass}>{title}</p>}
+        <ul className="flex flex-col gap-1">
           {options.map((option) => {
             const id = `filter-checkbox-${title}-${option.value}`;
             const checked = selected.includes(option.value);
             return (
-              <li key={option.value} className="flex min-h-11 items-center gap-2.5">
+              <li key={option.value} className="flex min-h-9 items-center gap-2.5">
                 <Checkbox
                   id={id}
                   checked={checked}
@@ -99,10 +103,15 @@ export function FilterGroup(props: FilterGroupProps) {
                     )
                   }
                 />
-                <label htmlFor={id} className="flex-1 text-body-sm text-on-surface">
-                  {option.label}
+                <label
+                  htmlFor={id}
+                  className="flex flex-1 cursor-pointer items-center justify-between gap-2 text-body-md text-on-surface"
+                >
+                  <span>{option.label}</span>
                   {typeof option.count === "number" && (
-                    <span className="ml-1 text-on-surface-variant">({option.count})</span>
+                    <span className="font-mono text-label-mono-xs text-on-surface-variant">
+                      ({String(option.count).padStart(2, "0")})
+                    </span>
                   )}
                 </label>
               </li>
@@ -117,7 +126,7 @@ export function FilterGroup(props: FilterGroupProps) {
     const { options, selected, onChange } = props;
     return (
       <div className="flex flex-col gap-3">
-        <p className={groupHeadingClass}>{title}</p>
+        {showTitle && <p className={groupHeadingClass}>{title}</p>}
         <RadioGroup value={selected ?? undefined} onValueChange={onChange}>
           {options.map((option) => {
             const id = `filter-radio-${title}-${option.value}`;
@@ -142,8 +151,8 @@ export function FilterGroup(props: FilterGroupProps) {
     const { min, max, value, onChange, formatValue } = props;
     const format = formatValue ?? ((n: number) => String(n));
     return (
-      <div className="flex flex-col gap-4">
-        <p className={groupHeadingClass}>{title}</p>
+      <div className="flex flex-col gap-4 px-1 pt-2">
+        {showTitle && <p className={groupHeadingClass}>{title}</p>}
         <Slider
           min={min}
           max={max}
@@ -151,9 +160,15 @@ export function FilterGroup(props: FilterGroupProps) {
           onValueChange={(next) => onChange([next[0] ?? value[0], next[1] ?? value[1]])}
           aria-label={title}
         />
-        <div className="flex items-center justify-between text-body-sm text-on-surface-variant">
-          <span>{format(value[0])}</span>
-          <span>{format(value[1])}</span>
+        <div className="grid grid-cols-2 gap-2">
+          <span className="tile px-2.5 py-1.5 font-mono text-[0.75rem] text-on-surface">
+            <span className="block text-label-mono-xs text-on-surface-variant">Min</span>
+            {format(value[0])}
+          </span>
+          <span className="tile px-2.5 py-1.5 text-right font-mono text-[0.75rem] text-on-surface">
+            <span className="block text-label-mono-xs text-on-surface-variant">Max</span>
+            {format(value[1])}
+          </span>
         </div>
       </div>
     );
@@ -163,7 +178,7 @@ export function FilterGroup(props: FilterGroupProps) {
   const { options, selected, onChange, type } = props;
   return (
     <div className="flex flex-col gap-3">
-      <p className={groupHeadingClass}>{title}</p>
+      {showTitle && <p className={groupHeadingClass}>{title}</p>}
       <div className="flex flex-wrap gap-2" role="group" aria-label={title}>
         {options.map((option) => {
           const isSelected = selected.includes(option.value);
@@ -174,12 +189,12 @@ export function FilterGroup(props: FilterGroupProps) {
               aria-pressed={isSelected}
               onClick={() => onChange(toggleValue(selected, option.value))}
               className={cn(
-                "inline-flex h-11 min-h-11 items-center gap-1.5 border px-4 text-body-sm font-medium transition-colors",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                "inline-flex h-9 items-center gap-1.5 border px-3 font-mono text-[0.75rem] transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 type === "pill" ? "rounded-full" : "rounded",
                 isSelected
-                  ? "border-primary-container bg-primary-container text-on-primary-container"
-                  : "border-glass-stroke bg-transparent text-on-surface hover:bg-surface-container-high",
+                  ? "border-primary/40 bg-primary/12 text-primary"
+                  : "border-outline-variant bg-surface-container-high text-on-surface-variant hover:border-outline hover:text-on-surface",
               )}
             >
               {isSelected && <Check className="size-3.5" aria-hidden="true" />}

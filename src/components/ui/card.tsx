@@ -34,7 +34,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
     <div
       ref={ref}
       className={cn(
-        "rounded-xl text-on-surface transition-colors",
+        "rounded-2xl text-on-surface transition-colors",
         variant === "glass" ? "glass-panel" : "bg-surface-container",
         borderTone === "default" && "border border-glass-stroke",
         borderTone === "primary" && "border border-primary-container shadow-glow",

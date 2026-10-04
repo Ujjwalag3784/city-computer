@@ -18,15 +18,20 @@ import { cn } from "@/lib/utils";
  * This component does not force an icon — it just makes adding one natural.
  */
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-label-mono-xs transition-colors",
+  "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-label-mono-xs transition-colors",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-on-primary",
-        success: "bg-success text-on-success",
-        warning: "bg-warning text-on-warning",
-        danger: "bg-danger text-on-danger",
-        glass: "glass-panel text-on-surface",
+        // DESIGN.md "Pricing Cluster" / status pills: tinted, not solid —
+        // coloured text on the same colour at low opacity, so a grid of
+        // cards never turns into a wall of saturated blocks.
+        primary: "border-primary/30 bg-primary/12 text-primary",
+        success: "border-success/30 bg-success/10 text-success",
+        warning: "border-warning/30 bg-warning/10 text-warning",
+        danger: "border-danger/30 bg-danger/10 text-danger",
+        glass: "border-outline-variant bg-surface-container-high text-on-surface-variant",
+        // Solid orange — counters (cart badge) that must read at a glance.
+        solid: "border-transparent bg-primary text-on-primary",
       },
     },
     defaultVariants: {

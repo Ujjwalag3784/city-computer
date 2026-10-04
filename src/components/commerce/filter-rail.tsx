@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { SlidersHorizontal } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -46,34 +46,38 @@ export function FilterRail({ groups, onClearAll, className }: FilterRailProps) {
 
   return (
     <aside
+      aria-label="Filters"
       className={cn(
-        "hidden lg:block lg:w-72 lg:shrink-0 lg:self-start lg:sticky lg:top-[calc(var(--nav-h)+1rem)]",
+        "hidden lg:sticky lg:top-32 lg:block lg:w-72 lg:shrink-0 lg:self-start",
         className,
       )}
     >
-      <div className="glass-panel p-6 rounded-xl border border-glass-stroke flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-4 pb-2 border-b border-glass-stroke">
-          <p className="font-mono text-label-mono-xs uppercase text-primary font-semibold tracking-wider">
-            Technical Filters
+      <div className="panel flex max-h-[calc(100svh-9rem)] flex-col overflow-hidden">
+        <div className="flex items-center justify-between gap-4 border-b border-outline-variant px-5 py-4">
+          <p className="flex items-center gap-2 font-display text-[0.9375rem] font-bold text-on-surface">
+            <SlidersHorizontal className="size-4 text-primary" aria-hidden="true" />
+            Filters
           </p>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={onClearAll}
-            className="h-7 text-label-mono-xs text-on-surface-variant hover:text-primary"
+            className="rounded font-mono text-label-mono-xs text-on-surface-variant transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            Reset
-          </Button>
+            Reset all
+          </button>
         </div>
-
-        <Accordion type="multiple" defaultValue={openValues}>
+        <Accordion type="multiple" defaultValue={openValues} className="overflow-y-auto px-5">
           {groups.map((group) => (
-            <AccordionItem key={group.title} value={group.title}>
-              <AccordionTrigger className="text-body-sm font-mono uppercase tracking-wide text-on-surface">
+            <AccordionItem
+              key={group.title}
+              value={group.title}
+              className="border-outline-variant last:border-b-0"
+            >
+              <AccordionTrigger className="font-mono text-label-mono-xs uppercase text-on-surface-variant hover:text-on-surface hover:no-underline">
                 {group.title}
               </AccordionTrigger>
               <AccordionContent>
-                <FilterGroup {...group} />
+                <FilterGroup {...group} showTitle={false} />
               </AccordionContent>
             </AccordionItem>
           ))}

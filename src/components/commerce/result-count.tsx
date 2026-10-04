@@ -22,8 +22,9 @@ export interface ResultCountProps {
 
 export function ResultCount({ count, className }: ResultCountProps) {
   return (
-    <p className={cn("text-body-sm text-on-surface-variant", className)}>
-      {count.toLocaleString("en-US")} result{count === 1 ? "" : "s"}
+    <p className={cn("font-mono text-label-mono-xs text-on-surface-variant", className)}>
+      <span className="text-on-surface">{count.toLocaleString("en-US")}</span> product
+      {count === 1 ? "" : "s"}
     </p>
   );
 }

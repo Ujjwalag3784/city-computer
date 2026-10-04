@@ -2,12 +2,21 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Mail } from "lucide-react";
+import { ArrowRight, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 import { formatNepalPhoneForDisplay } from "@/lib/nepal";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/layout/brand-mark";
+import {
+  STORE_ADDRESS_LABEL,
+  STORE_EMAIL,
+  STORE_MAPS_EMBED_SRC,
+  STORE_MAPS_SHARE_URL,
+  STORE_WHATSAPP_E164,
+  STORE_WHATSAPP_URL,
+} from "@/config/store";
 
 /**
  * SiteFooter — docs/05-DESIGN-SYSTEM.md §6 component inventory: "`SiteFooter`
@@ -21,21 +30,15 @@ import { cn } from "@/lib/utils";
  * no hype" voice, and the copyright year is derived from `new Date()` rather
  * than hardcoded.
  *
- * Self-contained and presentational, per the current phase of this
- * codebase:
- *  - WhatsApp number, contact email and store location (`SHOP_WHATSAPP_E164`
- *    / `SHOP_EMAIL` / `SHOP_MAPS_SHARE_URL` below) are the owner's real
- *    details, supplied directly — not seed/demo data. The map is a
- *    no-API-key `output=embed` iframe built from the resolved business name
- *    on the owner's Google Maps share link (see that constant's own
- *    comment); only a `Branch.phone`-style landline is still unwired,
- *    since none was supplied.
- *  - Facebook/Instagram/YouTube (`href="#"`) remain placeholders — real
- *    URLs land later; WhatsApp and email are real and live.
- *  - The newsletter form has no backend yet: submitting just flips a local
- *    `submitted` flag and swaps the form for a thank-you message. Wiring a
- *    real API route is a later phase (see the `handleNewsletterSubmit`
- *    comment below).
+ * 2026-10-04 Obsidian Kinetic redesign (Stitch export): newsletter + map
+ * band, brand block, four numbered link columns ("[01] Shop" …), and a
+ * thin legal bar.
+ *  - WhatsApp, email and store location come from `config/store.ts` — the
+ *    owner's real details, shared with the header strip.
+ *  - Facebook/Instagram/YouTube icons were removed: they linked to "#".
+ *  - The payment chips list only what checkout really offers.
+ *  - The newsletter form submits through `onSubscribe` (the real Server
+ *    Action wired in `(storefront)/layout.tsx`).
  *
  * Client Component: the newsletter form needs local state and the "Cookie
  * settings" control needs an `onClick` — both require a client boundary, so
@@ -69,75 +72,18 @@ export interface SiteFooterProps {
 }
 
 /** Real shop contact details, supplied directly by the owner (2026-08-07). */
-const SHOP_WHATSAPP_E164 = "+9779741661095";
-const SHOP_EMAIL = "agrawalujjwal244@gmail.com";
-const SHOP_ADDRESS_LABEL = "New Road, Kathmandu";
-/**
- * The owner's own Google Maps share link — used both as the "Get
- * directions" href (a share link opens correctly for a person, unlike an
- * embed URL) and, via its resolved business name, as the `q=` query for
- * the `output=embed` iframe below. Google's Maps embed accepts a place-name
- * text query with no API key required (the long-standing `output=embed`
- * form), which is what's used here rather than raw coordinates, since only
- * the share link — not a lat/long pair — was available.
- */
-const SHOP_MAPS_SHARE_URL = "https://share.google/QWyBLoc2x6WksRaAN";
-const SHOP_MAPS_EMBED_SRC =
-  "https://www.google.com/maps?q=City+Computer+Systems,+New+Road,+Kathmandu,+Nepal&output=embed";
-
 /** Must match the listener in `src/components/layout/cookie-consent.tsx` exactly. */
 const OPEN_COOKIE_SETTINGS_EVENT = "citycomputer:open-cookie-settings";
 
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
 const footerLinkClass = cn(
-  "rounded text-body-sm text-on-surface-variant transition-colors hover:text-on-surface",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+  "rounded text-body-md text-on-surface-variant transition-colors hover:text-on-surface",
+  focusRing,
 );
 
-const columnHeadingClass = "text-label-mono-xs text-on-surface-variant";
-
-/**
- * Minimal inline brand marks for the social row below. `lucide-react` 1.x
- * dropped all trademarked brand icons (Facebook/Instagram/YouTube no longer
- * exist as exports — see the 30-primitive typecheck pass that caught this),
- * so these are small hand-drawn `currentColor` glyphs instead of a new icon
- * dependency. Sized by the same `[&_svg]:size-4` rule the `Button` primitive
- * already applies to any child `<svg>`, so no explicit size prop is needed
- * where they're used.
- */
-function FacebookGlyph(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M13.5 21v-7.5h2.5l.5-3h-3V8.25c0-.87.24-1.46 1.5-1.46h1.6V4.14C15.77 4.06 14.73 4 13.5 4 11.02 4 9.5 5.48 9.5 8v2.5H7v3h2.5V21h4Z" />
-    </svg>
-  );
-}
-
-function InstagramGlyph(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      aria-hidden="true"
-      {...props}
-    >
-      <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="16.7" cy="7.3" r="0.9" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function YoutubeGlyph(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M21.6 8.2c-.2-1.2-.9-2-2-2.2C17.9 5.6 12 5.6 12 5.6s-5.9 0-7.6.4c-1.1.2-1.8 1-2 2.2C2 9.9 2 12 2 12s0 2.1.4 3.8c.2 1.2.9 2 2 2.2 1.7.4 7.6.4 7.6.4s5.9 0 7.6-.4c1.1-.2 1.8-1 2-2.2.4-1.7.4-3.8.4-3.8s0-2.1-.4-3.8ZM10 15V9l5.2 3-5.2 3Z" />
-    </svg>
-  );
-}
-
-/** Same hand-drawn-glyph approach as the three above, for the same reason: `lucide-react` 1.x carries no WhatsApp mark. */
+/** Hand-drawn `currentColor` glyph: `lucide-react` 1.x carries no WhatsApp mark. */
 function WhatsappGlyph(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
@@ -152,14 +98,18 @@ interface FooterLink {
 }
 
 interface FooterColumnProps {
+  index: string;
   heading: string;
   links: FooterLink[];
+  children?: React.ReactNode;
 }
 
-function FooterColumn({ heading, links }: FooterColumnProps) {
+function FooterColumn({ index, heading, links, children }: FooterColumnProps) {
   return (
-    <div className="flex flex-col gap-4">
-      <p className={columnHeadingClass}>{heading}</p>
+    <div className="flex flex-col gap-5">
+      <p className="font-mono text-label-mono-xs text-on-surface-variant">
+        <span className="text-primary">[{index}]</span> {heading}
+      </p>
       <ul className="flex flex-col gap-3">
         {links.map((link) => (
           <li key={link.href}>
@@ -168,45 +118,50 @@ function FooterColumn({ heading, links }: FooterColumnProps) {
             </Link>
           </li>
         ))}
+        {children}
       </ul>
     </div>
   );
 }
 
+// Every href below is a real route (checked against the running app and
+// the seeded `Page` slugs in `prisma/seed/content.ts`). The old footer's
+// Facebook/Instagram/YouTube icons pointed at "#" — no real profile URLs
+// exist yet, so they are gone rather than left as dead links.
 const SHOP_LINKS: FooterLink[] = [
   { label: "Laptops", href: "/c/laptops" },
-  { label: "Desktops", href: "/c/desktops" },
+  { label: "Desktops & prebuilts", href: "/c/desktops-prebuilts" },
   { label: "Components", href: "/c/components" },
-  { label: "PC builder", href: "/build" },
+  { label: "Monitors", href: "/c/monitors" },
+  { label: "Apple & Mac", href: "/c/apple-mac" },
   { label: "Deals", href: "/shop?sort=-discount&onSale=true" },
 ];
 
-const SUPPORT_LINKS: FooterLink[] = [
-  { label: "Book a repair", href: "/service" },
-  { label: "Track an order", href: "/track" },
+const BUILD_SERVICE_LINKS: FooterLink[] = [
+  { label: "PC builder", href: "/build/new" },
+  { label: "Book a repair", href: "/service/book" },
+  { label: "Check repair status", href: "/service/status" },
   { label: "EMI calculator", href: "/emi-calculator" },
-  { label: "Contact us", href: "/contact" },
+  { label: "Blog", href: "/blog" },
 ];
 
-const COMPANY_LINKS: FooterLink[] = [
+const HELP_LINKS: FooterLink[] = [
+  { label: "Track an order", href: "/track" },
   { label: "Our stores", href: "/stores" },
   { label: "Warranty", href: "/pages/warranty" },
+  { label: "Shipping", href: "/pages/shipping-policy" },
+  { label: "FAQ", href: "/faq" },
   { label: "Contact us", href: "/contact" },
 ];
 
-// Slugs match the real seeded `Page` rows (`prisma/seed/content.ts`) exactly
-// — these three previously pointed at slugs ("privacy"/"terms"/"returns")
-// that don't exist, a leftover from when this footer was presentational-only
-// (Phase 2). Fixed here now that `/pages/[slug]` (Phase 10) is a real route,
-// since it's exactly the kind of dead link the new menu broken-link checker
-// (`admin/menus.ts`) is meant to catch — this static footer isn't wired to
-// that checker, but there's no reason to leave a known-broken link sitting
-// next to it.
 const LEGAL_LINKS: FooterLink[] = [
   { label: "Privacy policy", href: "/pages/privacy-policy" },
   { label: "Terms of service", href: "/pages/terms-conditions" },
   { label: "Returns policy", href: "/pages/refund-returns" },
 ];
+
+/** Only the payment methods checkout actually offers (Phase 7: COD + bank transfer). */
+const PAYMENT_METHODS = ["Cash on delivery", "Bank transfer"];
 
 export function SiteFooter({ className, onSubscribe }: SiteFooterProps) {
   const [submitted, setSubmitted] = React.useState(false);
@@ -243,176 +198,155 @@ export function SiteFooter({ className, onSubscribe }: SiteFooterProps) {
   }
 
   return (
-    <footer className={cn("border-t border-glass-stroke bg-surface-container", className)}>
-      <div className="mx-auto max-w-[1280px] px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="flex flex-col gap-4 sm:col-span-2 lg:col-span-1">
-            <Link href="/" className="rounded text-title text-on-surface w-fit">
-              City Computer
-            </Link>
-            <p className="text-body-sm text-on-surface-variant">
-              Genuine products, best prices — New Road, Kathmandu.
-            </p>
-            <Link
-              href={`https://wa.me/${SHOP_WHATSAPP_E164.replace("+", "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(footerLinkClass, "text-on-surface-variant")}
-            >
-              {formatNepalPhoneForDisplay(SHOP_WHATSAPP_E164)} (WhatsApp)
-            </Link>
-            <Link
-              href={`mailto:${SHOP_EMAIL}`}
-              className={cn(footerLinkClass, "text-on-surface-variant")}
-            >
-              {SHOP_EMAIL}
-            </Link>
-            <Link
-              href={SHOP_MAPS_SHARE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(footerLinkClass, "text-on-surface-variant")}
-            >
-              {SHOP_ADDRESS_LABEL}
-            </Link>
-
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" iconOnly asChild>
-                <Link
-                  href={`https://wa.me/${SHOP_WHATSAPP_E164.replace("+", "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Message City Computer on WhatsApp"
-                >
-                  <WhatsappGlyph />
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" iconOnly asChild>
-                <Link href={`mailto:${SHOP_EMAIL}`} aria-label="Email City Computer">
-                  <Mail />
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" iconOnly asChild>
-                <Link href="#" aria-label="City Computer on Facebook">
-                  <FacebookGlyph />
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" iconOnly asChild>
-                <Link href="#" aria-label="City Computer on Instagram">
-                  <InstagramGlyph />
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" iconOnly asChild>
-                <Link href="#" aria-label="City Computer on YouTube">
-                  <YoutubeGlyph />
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          <FooterColumn heading="Shop" links={SHOP_LINKS} />
-          <FooterColumn heading="Support" links={SUPPORT_LINKS} />
-          <FooterColumn heading="Company" links={COMPANY_LINKS} />
-
+    <footer className={cn("mt-16 border-t border-outline-variant bg-background", className)}>
+      {/* Newsletter + map band */}
+      <div className="border-b border-outline-variant">
+        <div className="mx-auto grid max-w-[1440px] gap-8 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-12">
           <div className="flex flex-col gap-4">
-            <p className={columnHeadingClass}>Legal</p>
-            <ul className="flex flex-col gap-3">
-              {LEGAL_LINKS.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className={footerLinkClass}>
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-              <li>
-                <button type="button" onClick={openCookieSettings} className={footerLinkClass}>
-                  Cookie settings
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="mt-10 grid gap-6 border-t border-glass-stroke pt-8 sm:grid-cols-2 sm:items-center">
-          <div className="flex flex-col gap-2">
-            <p className={columnHeadingClass}>Visit our store</p>
-            <p className="text-body-md text-on-surface">City Computer, {SHOP_ADDRESS_LABEL}</p>
-            <p className="text-body-sm text-on-surface-variant">
-              Message us on{" "}
-              <Link
-                href={`https://wa.me/${SHOP_WHATSAPP_E164.replace("+", "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-on-surface underline underline-offset-2"
-              >
-                WhatsApp
-              </Link>{" "}
-              or email{" "}
-              <Link
-                href={`mailto:${SHOP_EMAIL}`}
-                className="text-on-surface underline underline-offset-2"
-              >
-                {SHOP_EMAIL}
-              </Link>
-              .
-            </p>
-            <Link
-              href={SHOP_MAPS_SHARE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-body-sm text-primary underline underline-offset-2 w-fit"
-            >
-              Get directions →
-            </Link>
-          </div>
-
-          <div className="h-48 w-full overflow-hidden rounded border border-glass-stroke sm:h-56">
-            <iframe
-              title="City Computer store location"
-              src={SHOP_MAPS_EMBED_SRC}
-              className="h-full w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-        </div>
-
-        <div className="mt-10 flex flex-col gap-3 border-t border-glass-stroke pt-8 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-body-md text-on-surface">Get restock alerts and deals</p>
-            <p className="text-body-sm text-on-surface-variant">
+            <p className="eyebrow">Restock alerts &amp; deals</p>
+            <h2 className="text-headline-md text-on-surface">
+              Hear about new stock before it sells out.
+            </h2>
+            <p className="text-body-md text-on-surface-variant">
               One email a week, no spam. Unsubscribe anytime.
             </p>
+            {submitted ? (
+              <p role="status" className="text-body-md text-success">
+                Thanks — check your email to confirm your subscription.
+              </p>
+            ) : (
+              <div className="flex max-w-md flex-col gap-1">
+                <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
+                  <Input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    aria-label="Email address"
+                    autoComplete="email"
+                    className="flex-1"
+                  />
+                  <Button type="submit" variant="primary" disabled={submitting}>
+                    {submitting ? "Subscribing…" : "Subscribe"}
+                  </Button>
+                </form>
+                {error && <p className="text-body-sm text-danger">{error}</p>}
+              </div>
+            )}
           </div>
 
-          {submitted ? (
-            <p className="text-body-sm text-on-surface">
-              Thanks — check your email to confirm your subscription.
-            </p>
-          ) : (
-            <div className="flex w-full max-w-md flex-col gap-1 sm:w-auto">
-              <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
-                <Input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  aria-label="Email address"
-                  className="flex-1"
-                />
-                <Button type="submit" variant="primary" disabled={submitting}>
-                  {submitting ? "Subscribing…" : "Subscribe"}
-                </Button>
-              </form>
-              {error && <p className="text-body-sm text-danger">{error}</p>}
+          <div className="panel overflow-hidden">
+            <div className="flex items-center justify-between gap-4 border-b border-outline-variant px-5 py-3">
+              <p className="font-mono text-label-mono-xs text-on-surface-variant">
+                <span className="text-primary">●</span> Showroom · {STORE_ADDRESS_LABEL}
+              </p>
+              <Link
+                href={STORE_MAPS_SHARE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "inline-flex items-center gap-1 rounded font-mono text-label-mono-xs text-primary hover:underline",
+                  focusRing,
+                )}
+              >
+                Directions <ArrowRight className="size-3" aria-hidden="true" />
+              </Link>
             </div>
-          )}
+            <div className="h-48 w-full sm:h-56">
+              <iframe
+                title="City Computer store location"
+                src={STORE_MAPS_EMBED_SRC}
+                className="h-full w-full border-0 opacity-80 grayscale invert-[0.92] hue-rotate-180"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div className="mt-10 flex flex-col gap-4 border-t border-glass-stroke pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-body-sm text-on-surface-variant">
-            © {new Date().getFullYear()} City Computer. All rights reserved.
+      {/* Link columns */}
+      <div className="mx-auto max-w-[1440px] px-4 py-14 sm:px-6 lg:px-12">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
+          <div className="flex flex-col gap-5 sm:col-span-2 lg:col-span-1">
+            <Link
+              href="/"
+              aria-label="City Computer Systems — home"
+              className={cn("w-fit rounded", focusRing)}
+            >
+              <BrandMark />
+            </Link>
+            <p className="max-w-xs text-body-md text-on-surface-variant">
+              Genuine laptops, PCs, components and repairs from our showroom in New Road, Kathmandu.
+            </p>
+            <ul className="flex flex-col gap-2 font-mono text-[0.75rem] text-on-surface-variant">
+              <li>
+                <Link
+                  href={STORE_MAPS_SHARE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn("rounded hover:text-on-surface", focusRing)}
+                >
+                  {STORE_ADDRESS_LABEL}, Nepal
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={STORE_WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded hover:text-on-surface",
+                    focusRing,
+                  )}
+                >
+                  <WhatsappGlyph className="size-3.5" />
+                  {formatNepalPhoneForDisplay(STORE_WHATSAPP_E164)}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={`mailto:${STORE_EMAIL}`}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded break-all hover:text-on-surface",
+                    focusRing,
+                  )}
+                >
+                  <Mail className="size-3.5 shrink-0" aria-hidden="true" />
+                  {STORE_EMAIL}
+                </Link>
+              </li>
+            </ul>
+            <ul className="flex flex-wrap gap-2" aria-label="Payment methods we accept">
+              {PAYMENT_METHODS.map((method) => (
+                <li
+                  key={method}
+                  className="rounded border border-outline-variant bg-surface px-2 py-1 font-mono text-[0.625rem] uppercase tracking-[0.06em] text-on-surface-variant"
+                >
+                  {method}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <FooterColumn index="01" heading="Shop" links={SHOP_LINKS} />
+          <FooterColumn index="02" heading="Build & service" links={BUILD_SERVICE_LINKS} />
+          <FooterColumn index="03" heading="Help" links={HELP_LINKS} />
+          <FooterColumn index="04" heading="Legal" links={LEGAL_LINKS}>
+            <li>
+              <button type="button" onClick={openCookieSettings} className={footerLinkClass}>
+                Cookie settings
+              </button>
+            </li>
+          </FooterColumn>
+        </div>
+      </div>
+
+      <div className="border-t border-outline-variant">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-12">
+          <p className="font-mono text-label-mono-xs text-on-surface-variant">
+            © {new Date().getFullYear()} City Computer Systems. All rights reserved.
           </p>
           <LocaleSwitcher />
         </div>

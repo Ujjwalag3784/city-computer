@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
 import { getViewerCart, getCartView } from "@/server/services/commerce/cart";
+import { LISTING_PAGE_CLASS, ListingHeader } from "@/components/commerce/listing-header";
 import { CheckoutPageClient } from "./_components/checkout-page-client";
 
 export const metadata: Metadata = {
@@ -40,8 +41,12 @@ export default async function CheckoutPage() {
   });
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="mb-6 text-headline-md text-on-surface">Checkout</h1>
+    <div className={LISTING_PAGE_CLASS}>
+      <ListingHeader
+        eyebrow="Secure checkout"
+        title="Checkout"
+        description="Three quick steps: where it's going, how you'll pay, and a final review."
+      />
       <CheckoutPageClient cartView={cartView} branches={branches} />
     </div>
   );

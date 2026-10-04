@@ -59,8 +59,13 @@ export function toProductCardData(summary: ProductSummary): ProductCardData {
     rating: summary.rating.average ?? undefined,
     reviewCount: summary.rating.count,
     stockStatus: summary.availability === "IN_STOCK" ? "in-stock" : "out-of-stock",
+    category: summary.primaryCategory.name,
+    specs: summary.specHighlights.slice(0, CARD_SPEC_CHIP_COUNT).map((spec) => spec.value),
   };
 }
+
+/** How many spec chips a product card shows (Stitch's "RTX 4060 · 16GB · 512GB SSD" row). */
+const CARD_SPEC_CHIP_COUNT = 3;
 
 export function toCatalogListingFacets(facets: CatalogFacets): CatalogListingFacets {
   return {

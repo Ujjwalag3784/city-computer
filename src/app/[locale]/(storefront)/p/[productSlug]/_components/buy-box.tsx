@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Truck } from "lucide-react";
 import { PriceBlock } from "@/components/commerce/price-block";
 import { StockBadge } from "@/components/commerce/stock-badge";
 import { AddToCartButton } from "@/components/commerce/add-to-cart-button";
+import { QuantityStepper } from "@/components/commerce/quantity-stepper";
 import { VariantSelector, type VariantAttribute } from "@/components/commerce/variant-selector";
 import type { ProductVariantDetail } from "@/server/services/catalog/product";
 import { addToCartAction } from "@/app/[locale]/(storefront)/_actions";
@@ -22,7 +24,12 @@ import { useCartStore } from "@/stores/cart-store";
  */
 export interface BuyBoxProps {
   variants: ProductVariantDetail[];
+  /** Real delivery line from `delivery-promise.ts`, e.g. "Delivery in 1–2 days (Inside Kathmandu Valley) · रु 150". */
+  deliveryPromise?: string;
 }
+
+/** Most a shopper can add in one go from the product page. */
+const MAX_QUANTITY_PER_ADD = 10;
 
 /** Every distinct (attributeName → [values]) pairing across every variant, in first-seen order — what `VariantSelector` needs to render its option groups ("Memory: 16GB / 32GB", "Storage: 512GB / 1TB"). */
 function deriveAttributes(variants: ProductVariantDetail[]): VariantAttribute[] {
@@ -72,7 +79,7 @@ function findMatchingVariant(
   );
 }
 
-export function BuyBox({ variants }: BuyBoxProps) {
+export function BuyBox({ variants, deliveryPromise }: BuyBoxProps) {
   const setCartView = useCartStore((state) => state.setView);
   const openCartDrawer = useCartStore((state) => state.openDrawer);
   const attributes = useMemo(() => deriveAttributes(variants), [variants]);
@@ -86,6 +93,7 @@ export function BuyBox({ variants }: BuyBoxProps) {
     return initial;
   });
 
+  const [quantity, setQuantity] = useState(1);
   const activeVariant = findMatchingVariant(variants, selected) ?? defaultVariant;
 
   if (!activeVariant) {
@@ -105,7 +113,7 @@ export function BuyBox({ variants }: BuyBoxProps) {
   const activeVariantId = activeVariant.id;
 
   async function handleAddToCart() {
-    const result = await addToCartAction({ variantId: activeVariantId, quantity: 1 });
+    const result = await addToCartAction({ variantId: activeVariantId, quantity });
     if (!result.ok || !result.data) {
       // `AddToCartButton` catches this rejection itself and shows its own
       // "Couldn't add — try again" state (see that component's doc
@@ -117,8 +125,25 @@ export function BuyBox({ variants }: BuyBoxProps) {
     openCartDrawer();
   }
 
+  const available = activeVariant.availableQuantity;
+  const maxQuantity = Math.max(1, Math.min(MAX_QUANTITY_PER_ADD, available > 0 ? available : 1));
+  const lowStock = !outOfStock && available > 0 && available <= 3;
+
+  // Stitch PDP: price panel, configuration cards, a stock/delivery panel,
+  // then quantity + a full-width add-to-cart.
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
+      <div className="panel flex flex-col gap-3 p-5">
+        <PriceBlock
+          price={activeVariant.pricePaisa}
+          compareAtPrice={activeVariant.compareAtPricePaisa ?? undefined}
+          size="lg"
+        />
+        <p className="font-mono text-label-mono-xs text-on-surface-variant">
+          Price includes 13% VAT · SKU {activeVariant.sku}
+        </p>
+      </div>
+
       {attributes.length > 0 && (
         <VariantSelector
           attributes={attributes}
@@ -129,23 +154,42 @@ export function BuyBox({ variants }: BuyBoxProps) {
         />
       )}
 
-      <PriceBlock
-        price={activeVariant.pricePaisa}
-        compareAtPrice={activeVariant.compareAtPricePaisa ?? undefined}
-        size="lg"
-      />
+      <div className="tile flex flex-col gap-2 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <StockBadge
+            status={outOfStock ? "out-of-stock" : lowStock ? "low-stock" : "in-stock"}
+            quantity={available}
+          />
+          {!outOfStock && available > 0 && (
+            <span className="font-mono text-label-mono-xs text-on-surface-variant">
+              {available} unit{available === 1 ? "" : "s"} at New Road
+            </span>
+          )}
+        </div>
+        {deliveryPromise && (
+          <p className="flex items-center gap-2 text-body-sm text-on-surface-variant">
+            <Truck className="size-4 shrink-0 text-primary" aria-hidden="true" />
+            {deliveryPromise}
+          </p>
+        )}
+      </div>
 
-      <StockBadge
-        status={outOfStock ? "out-of-stock" : "in-stock"}
-        quantity={activeVariant.availableQuantity}
-      />
-
-      <AddToCartButton
-        onAddToCart={handleAddToCart}
-        outOfStock={outOfStock}
-        disabled={outOfStock}
-        className="mt-2 sm:w-fit"
-      />
+      <div className="flex gap-3">
+        <QuantityStepper
+          value={quantity}
+          onChange={setQuantity}
+          min={1}
+          max={maxQuantity}
+          disabled={outOfStock}
+          className="shrink-0"
+        />
+        <AddToCartButton
+          onAddToCart={handleAddToCart}
+          outOfStock={outOfStock}
+          disabled={outOfStock}
+          className="h-12 flex-1"
+        />
+      </div>
     </div>
   );
 }

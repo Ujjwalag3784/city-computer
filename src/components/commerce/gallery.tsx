@@ -50,7 +50,7 @@ export function Gallery({ images, className }: GalleryProps) {
     return (
       <div
         className={cn(
-          "flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-xl border border-glass-stroke bg-surface-container",
+          "flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-outline-variant bg-surface-container-high",
           className,
         )}
       >
@@ -65,13 +65,13 @@ export function Gallery({ images, className }: GalleryProps) {
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-glass-stroke bg-surface-container">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-high">
         <ProductImage
           src={active.src}
           alt={active.alt}
           sizes="(min-width: 1024px) 58vw, 100vw"
           priority={activeIndex === 0}
-          className="object-contain transition-transform duration-700 hover:scale-105"
+          className="object-contain p-6 transition-transform duration-700 hover:scale-[1.03] sm:p-10"
         />
         {hasMultiple && (
           <>

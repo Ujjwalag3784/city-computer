@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { IBM_Plex_Sans, IBM_Plex_Sans_Condensed, IBM_Plex_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Manrope } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import { JsonLd } from "@/components/seo/json-ld";
 import { buildOrganizationJsonLd } from "@/lib/seo/jsonld/organization";
@@ -8,39 +8,31 @@ import { buildWebsiteJsonLd } from "@/lib/seo/jsonld/website";
 import { SITE_URL } from "@/lib/seo/site";
 import "./globals.css";
 
-// 2026-08-09 design direction change: swapped Geist/Inter/JetBrains Mono
-// for the IBM Plex family (Condensed for display, Sans for body, Mono for
-// prices/specs/labels) — approved from a self-contained preview built and
-// shown to the owner first (see globals.css's header comment for the full
-// palette/type rationale). IBM Plex has real technical-product heritage
-// (designed by IBM for their own hardware documentation), which is why it
-// reads as "datasheet," not decorative, on product specs and prices.
+// 2026-10-04 "Obsidian Kinetic" redesign (owner's Google Stitch export):
+// Manrope for display/headlines, Inter for body, JetBrains Mono for specs,
+// SKUs and labels — see globals.css's header.
 //
-// JUDGMENT CALL, same one the previous Inter setup made: IBM Plex Sans has
-// no Devanagari glyphs (that's a separate family, "IBM Plex Sans
-// Devanagari," not a subset of this one). Nepali (`ne` locale) body text
-// falls back to the next font in the stack (`--font-sans` in globals.css),
-// same acceptable pattern as before, not a regression this change
-// introduces.
-const plexCondensed = IBM_Plex_Sans_Condensed({
+// None of the three ships Devanagari glyphs; Nepali (`ne`) text falls back
+// to the next font in each stack, the same accepted pattern as before.
+const manrope = Manrope({
   subsets: ["latin"],
-  weight: ["600", "700"],
+  weight: ["500", "600", "700", "800"],
   display: "swap",
-  variable: "--font-plex-condensed",
+  variable: "--font-manrope",
 });
 
-const plexSans = IBM_Plex_Sans({
+const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   display: "swap",
-  variable: "--font-plex-sans",
+  variable: "--font-inter",
 });
 
-const plexMono = IBM_Plex_Mono({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
   display: "swap",
-  variable: "--font-plex-mono",
+  variable: "--font-jetbrains-mono",
 });
 
 /**
@@ -84,7 +76,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html
       lang={locale}
-      className={`${plexCondensed.variable} ${plexSans.variable} ${plexMono.variable}`}
+      className={`${manrope.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body>
         {children}

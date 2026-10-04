@@ -61,7 +61,7 @@ export default async function BuildEditPage({ params }: BuildEditPageProps) {
   ]);
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-12 lg:py-10">
       <BuilderEditView build={build} initialReport={report} initialPartRows={partRows} />
     </div>
   );

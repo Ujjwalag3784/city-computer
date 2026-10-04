@@ -6,6 +6,7 @@ import { isAdminRoleKey, requiresTwoFactor } from "@/server/auth/permissions";
 import { beginTwoFactorEnrollmentForSession } from "@/server/services/auth/two-factor";
 import { safeInternalPath } from "@/lib/safe-redirect";
 import { TwoFactorForm } from "./_components/two-factor-form";
+import { BrandMark } from "@/components/layout/brand-mark";
 
 /**
  * `/admin/verify-2fa` — the page `middleware.ts` has redirected
@@ -74,7 +75,7 @@ export default async function VerifyTwoFactorPage({
       id="main-content"
       className="flex min-h-svh flex-col items-center justify-center gap-8 bg-background px-4 py-10 sm:px-6 sm:py-16"
     >
-      <p className="text-title text-on-surface">City Computer Systems</p>
+      <BrandMark />
 
       <Card className="w-full max-w-md">
         <CardHeader className="gap-2">

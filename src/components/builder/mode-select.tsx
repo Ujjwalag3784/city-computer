@@ -3,6 +3,7 @@
 import type { ComponentType } from "react";
 import { ListOrdered, Sparkles, SlidersHorizontal } from "lucide-react";
 import { RadioGroup } from "@/components/ui/radio-group";
+import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import { RadioCard } from "@/components/commerce/radio-card";
 import { cn } from "@/lib/utils";
 
@@ -73,9 +74,44 @@ export interface ModeSelectProps {
   value: BuilderMode;
   onChange: (mode: BuilderMode) => void;
   className?: string;
+  /** A one-row segmented control (the builder screen) instead of descriptive cards (the start page). */
+  compact?: boolean;
 }
 
-export function ModeSelect({ value, onChange, className }: ModeSelectProps) {
+export function ModeSelect({ value, onChange, className, compact = false }: ModeSelectProps) {
+  if (compact) {
+    return (
+      <RadioGroupPrimitive.Root
+        value={value}
+        onValueChange={(next) => onChange(next as BuilderMode)}
+        aria-label="Builder mode"
+        className={cn(
+          "inline-flex rounded-xl border border-outline-variant bg-surface p-1",
+          className,
+        )}
+      >
+        {MODE_OPTIONS.map((option) => {
+          const Icon = option.icon;
+          return (
+            <RadioGroupPrimitive.Item
+              key={option.value}
+              value={option.value}
+              title={option.description}
+              className={cn(
+                "inline-flex h-9 items-center gap-2 rounded-lg px-3 font-mono text-label-mono-xs text-on-surface-variant transition-colors",
+                "hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                "data-[state=checked]:bg-primary data-[state=checked]:text-on-primary",
+              )}
+            >
+              <Icon className="size-3.5" aria-hidden="true" />
+              {option.title}
+            </RadioGroupPrimitive.Item>
+          );
+        })}
+      </RadioGroupPrimitive.Root>
+    );
+  }
+
   return (
     <RadioGroup
       value={value}

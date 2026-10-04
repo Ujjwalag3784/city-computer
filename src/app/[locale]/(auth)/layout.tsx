@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { BrandMark } from "@/components/layout/brand-mark";
 
 /**
  * `[locale]/(auth)/layout.tsx` — the route group `[locale]/layout.tsx`'s own
@@ -31,9 +32,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       */}
       <Link
         href="/"
-        className="text-title rounded text-on-surface transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        aria-label="City Computer Systems — home"
+        className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        City Computer Systems
+        <BrandMark />
       </Link>
       <div className="w-full max-w-md">{children}</div>
     </main>

@@ -43,7 +43,7 @@ function labelClasses(status: StepperStep["status"]): string {
 function StepNode({ status, ordinal }: { status: StepperStep["status"]; ordinal: number }) {
   if (status === "complete") {
     return (
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary">
         <Check className="size-4" aria-hidden="true" />
       </span>
     );
@@ -51,7 +51,7 @@ function StepNode({ status, ordinal }: { status: StepperStep["status"]; ordinal:
 
   if (status === "current") {
     return (
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-primary-container text-on-surface text-label-mono-xs">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-primary bg-primary/12 text-primary text-label-mono-xs">
         {ordinal}
       </span>
     );

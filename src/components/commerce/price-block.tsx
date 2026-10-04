@@ -26,34 +26,33 @@ export interface PriceBlockProps {
 }
 
 const priceSizeClass: Record<NonNullable<PriceBlockProps["size"]>, string> = {
-  sm: "text-body-md font-semibold",
+  sm: "font-display text-[0.9375rem] font-bold tabular-nums",
   md: "text-price",
   lg: "text-price-lg",
 };
 
 export function PriceBlock({ price, compareAtPrice, size = "md", className }: PriceBlockProps) {
-  // Narrow through a single `number | null` local instead of a separate
-  // boolean flag, so every downstream use of the compare-at price stays
-  // type-safe without relying on TS aliasing a boolean back to a guard.
   const compareAt =
     typeof compareAtPrice === "number" && compareAtPrice > price ? compareAtPrice : null;
   const discountPercent = compareAt !== null ? Math.round((1 - price / compareAt) * 100) : null;
+  const onSale = discountPercent !== null && discountPercent > 0;
 
+  // DESIGN.md "Pricing Cluster": Manrope price (orange on a deal), the
+  // original price struck through in mono, and a tinted "-7%" pill.
   return (
-    <div className={cn("flex flex-col gap-0.5", className)}>
-      <div className="flex items-baseline gap-2">
-        {/* `size` is the closed `PriceBlockProps["size"]` union — safe to index. */}
-        {/* eslint-disable-next-line security/detect-object-injection */}
-        <span className={cn(priceSizeClass[size], "text-on-surface")}>{formatNPR(price)}</span>
-        {discountPercent !== null && discountPercent > 0 && (
-          <Badge variant="danger">-{discountPercent}%</Badge>
-        )}
-      </div>
+    <div className={cn("flex flex-wrap items-baseline gap-x-2 gap-y-0.5", className)}>
+      {/* `size` is the closed `PriceBlockProps["size"]` union — safe to index. */}
+      {/* eslint-disable-next-line security/detect-object-injection */}
+      <span className={cn(priceSizeClass[size], onSale ? "text-primary" : "text-on-surface")}>
+        {formatNPR(price)}
+      </span>
       {compareAt !== null && (
-        <span className="text-body-sm text-on-surface-variant line-through">
+        <span className="font-mono text-[0.75rem] text-on-surface-variant line-through">
+          <span className="sr-only">Was </span>
           {formatNPR(compareAt)}
         </span>
       )}
+      {onSale && <Badge variant="primary">-{discountPercent}%</Badge>}
     </div>
   );
 }

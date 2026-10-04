@@ -1,43 +1,49 @@
+import { ArrowUpRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { Card } from "@/components/ui/card";
 import type { CategoryTreeNode } from "@/server/services/catalog/category";
 
+const SUBCATEGORY_PREVIEW_COUNT = 4;
+
 /**
- * Home-page-only category tile grid. Route-private (`_components/`, docs/04
- * §7's colocation policy) — nothing else in the storefront route tree needs
- * a grid of top-level categories, only the homepage's "Shop by category"
- * section. `/c/[...categorySlug]` itself renders a product listing, not
- * another tile grid.
- *
- * No dedicated `CategoryCard` component existed in the Phase 2 design
- * system to reuse here (checked: docs/05 §6's component inventory doesn't
- * list one either) — this is a small, self-contained tile built directly
- * on the `Card` primitive rather than inventing a new shared component for
- * a single consumer.
+ * Home-page-only department tiles — Stitch's "DEPOT 01 / Laptops &
+ * Ultrabooks" modules. Each tile shows a numbered kicker, the category name,
+ * and its real sub-categories as the description (so it never needs
+ * hand-written marketing copy per category).
  */
 export function CategoryGrid({ categories }: { categories: CategoryTreeNode[] }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {categories.map((category, index) => (
-        <Link key={category.id} href={`/c/${category.path}`} className="group">
-          <Card className="relative flex h-36 flex-col justify-between overflow-hidden border border-glass-stroke bg-obsidian-surface p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary-container/60 hover:shadow-glow">
-            {/* "Department" index — a small, on-subject structural device
-                (a real numbered list of departments, not decoration) from
-                the approved design preview's category modules. */}
-            <span className="text-label-mono-xs text-on-surface-variant/70">
-              {String(index + 1).padStart(2, "0")} / DEPT
-            </span>
-            <div className="flex flex-col gap-1">
-              <span className="text-body-lg font-display font-semibold text-on-surface transition-colors group-hover:text-primary">
-                {category.name}
-              </span>
-              <span className="text-label-mono-xs text-on-surface-variant group-hover:text-silver-text transition-colors">
-                Explore Category &rarr;
-              </span>
-            </div>
-          </Card>
-        </Link>
-      ))}
-    </div>
+    <ul className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
+      {categories.map((category, index) => {
+        const children = category.children.slice(0, SUBCATEGORY_PREVIEW_COUNT).map((c) => c.name);
+        return (
+          <li key={category.id}>
+            <Link
+              href={`/c/${category.path}`}
+              className="group panel flex h-full min-h-32 flex-col justify-between gap-4 p-4 sm:min-h-40 sm:gap-6 sm:p-5 transition-colors duration-150 hover:border-outline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className="font-mono text-label-mono-xs text-primary">
+                  Dept {String(index + 1).padStart(2, "0")}
+                </span>
+                <ArrowUpRight
+                  className="size-4 text-on-surface-variant transition-colors group-hover:text-primary"
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="font-display text-[0.9375rem] font-bold leading-snug text-on-surface transition-colors group-hover:text-primary sm:text-headline-sm">
+                  {category.name}
+                </span>
+                <span className="hidden sm:block">
+                  <span className="line-clamp-2 text-body-sm text-on-surface-variant">
+                    {children.length > 0 ? children.join(" · ") : "Browse the range"}
+                  </span>
+                </span>
+              </div>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

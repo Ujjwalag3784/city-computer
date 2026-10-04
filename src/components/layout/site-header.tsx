@@ -1,15 +1,20 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { MobileNav, DEFAULT_NAV_ITEMS, type NavItem } from "@/components/layout/mobile-nav";
 import { CartHeaderButton } from "@/components/commerce/cart-header-button";
 import { AccountMenu, type AccountMenuUser } from "@/components/layout/account-menu";
+import { BrandMark } from "@/components/layout/brand-mark";
+import { PrimaryNav } from "@/components/layout/primary-nav";
+import { SearchForm } from "@/components/layout/search-form";
 
 /**
- * SiteHeader — docs/05-DESIGN-SYSTEM.md §6 component inventory:
+ * SiteHeader — 2026-10-04 Obsidian Kinetic redesign (Stitch export): a
+ * sticky two-row header — brand / search / account + cart on top, and the
+ * category row with the "Build a PC" call-to-action underneath (see
+ * `PrimaryNav`). On phones the search drops to its own full-width row.
+ *
+ * docs/05-DESIGN-SYSTEM.md §6 component inventory:
  * "`SiteHeader` (full / with-search / minimal)". One component, three
  * variants, so the header can never drift per screen the way the Stitch
  * exports did — docs/05 §1 CORRECTED #5: three different nav heights
@@ -55,10 +60,12 @@ import { AccountMenu, type AccountMenuUser } from "@/components/layout/account-m
  * treats a missing `user` exactly like a signed-out one.
  */
 export interface SiteHeaderProps {
-  /** Which chrome to render. Defaults to `"full"`. */
+  /** `"full"` and `"with-search"` render the same chrome now (search is always present); `"minimal"` is brand + `minimalActions` only. */
   variant?: "full" | "with-search" | "minimal";
   /** Primary nav taxonomy, shared with `MobileNav`. Defaults to `DEFAULT_NAV_ITEMS`. */
   navItems?: NavItem[];
+  /** The orange call-to-action at the end of the category row. */
+  ctaItem?: NavItem;
   /** Fallback shown on the cart badge only before `stores/cart-store.ts` has hydrated a real count (see `CartHeaderButton`). Defaults to 0 (badge hidden). */
   cartCount?: number;
   /** Right-aligned slot rendered only in `variant="minimal"` (e.g. a "Secure checkout" label). */
@@ -67,88 +74,70 @@ export interface SiteHeaderProps {
   user?: AccountMenuUser | null;
 }
 
-const iconButtonFocusRing =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 export function SiteHeader({
   variant = "full",
   navItems = DEFAULT_NAV_ITEMS,
+  ctaItem,
   cartCount = 0,
   minimalActions,
   user = null,
 }: SiteHeaderProps) {
+  const minimal = variant === "minimal";
+
   return (
-    <header>
+    <header className="sticky top-0 z-40 border-b border-outline-variant bg-glass-bg backdrop-blur-[var(--glass-blur)]">
       <a
         href="#main-content"
         className={cn(
           "sr-only focus:not-sr-only",
           "focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-primary focus:px-4 focus:py-2 focus:text-body-sm focus:font-medium focus:text-on-primary",
-          iconButtonFocusRing,
+          focusRing,
         )}
       >
         Skip to content
       </a>
 
-      <div className="sticky top-0 z-40 nav-height glass-panel">
-        <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className={cn("rounded text-title font-display text-on-surface", iconButtonFocusRing)}
-          >
-            City Computer
-          </Link>
+      <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:gap-8 lg:px-12">
+        {!minimal && (
+          <div className="-ml-2 lg:hidden">
+            <MobileNav navItems={ctaItem ? [...navItems, ctaItem] : navItems} />
+          </div>
+        )}
 
-          {variant === "minimal" ? (
-            (minimalActions ?? null)
-          ) : (
-            <>
-              {variant === "full" && (
-                <nav aria-label="Primary" className="hidden items-center gap-6 lg:flex">
-                  {navItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        "rounded text-body-sm text-on-surface-variant transition-colors hover:text-on-surface",
-                        iconButtonFocusRing,
-                      )}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </nav>
-              )}
+        <Link
+          href="/"
+          aria-label="City Computer Systems — home"
+          className={cn("rounded", focusRing)}
+        >
+          <BrandMark className="hidden sm:inline-flex" />
+          <BrandMark compact className="sm:hidden" />
+        </Link>
 
-              <div className="flex items-center gap-1">
-                {variant === "with-search" ? (
-                  <div className="relative hidden md:flex">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-on-surface-variant" />
-                    <Input
-                      type="search"
-                      placeholder="Search products..."
-                      aria-label="Search products"
-                      className="w-64 pl-9"
-                    />
-                  </div>
-                ) : (
-                  <Button variant="ghost" size="md" iconOnly aria-label="Search">
-                    <Search />
-                  </Button>
-                )}
+        {minimal ? (
+          <div className="ml-auto">{minimalActions ?? null}</div>
+        ) : (
+          <>
+            <SearchForm id="header-search" className="mx-auto hidden w-full max-w-xl md:block" />
 
-                <AccountMenu user={user} />
-
-                <CartHeaderButton fallbackCount={cartCount} />
-
-                <div className="lg:hidden">
-                  <MobileNav navItems={navItems} />
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+            <div className="ml-auto flex items-center gap-1 md:ml-0">
+              <AccountMenu user={user} />
+              <CartHeaderButton fallbackCount={cartCount} />
+            </div>
+          </>
+        )}
       </div>
+
+      {!minimal && (
+        <>
+          <div className="px-4 pb-3 sm:px-6 md:hidden">
+            <SearchForm id="header-search-mobile" />
+          </div>
+          <PrimaryNav items={navItems} cta={ctaItem} />
+        </>
+      )}
     </header>
   );
 }

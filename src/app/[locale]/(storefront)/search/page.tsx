@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { LISTING_PAGE_CLASS, ListingHeader } from "@/components/commerce/listing-header";
+import { SearchForm } from "@/components/layout/search-form";
 import { CatalogListing } from "@/components/commerce/catalog-listing";
 import { ROBOTS_NOINDEX_FOLLOW } from "@/lib/seo/metadata";
 import { absoluteUrl } from "@/lib/seo/site";
@@ -58,8 +60,9 @@ export default async function SearchPage({ params, searchParams }: SearchPagePro
 
   if (!query) {
     return (
-      <div className="mx-auto flex max-w-[1280px] flex-col items-center gap-3 p-8 py-24 text-center">
-        <p className="text-headline-sm text-on-surface">{tc("searchPlaceholder")}</p>
+      <div className={LISTING_PAGE_CLASS}>
+        <ListingHeader eyebrow="Search" title={tc("searchPlaceholder")} />
+        <SearchForm id="search-page" className="max-w-xl" />
       </div>
     );
   }
@@ -71,15 +74,13 @@ export default async function SearchPage({ params, searchParams }: SearchPagePro
   );
 
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-4 sm:p-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-headline-md text-on-surface">
-          {t("resultsFor", { query: result.query })}
-        </h1>
-        {result.items.length === 0 && (
-          <p className="text-body-md text-on-surface-variant">{t("zeroResultsHint")}</p>
-        )}
-      </div>
+    <div className={LISTING_PAGE_CLASS}>
+      <ListingHeader
+        eyebrow="Search"
+        title={t("resultsFor", { query: result.query })}
+        description={result.items.length === 0 ? t("zeroResultsHint") : undefined}
+        stats={[{ label: "Matches", value: result.pagination.total.toLocaleString("en-US") }]}
+      />
       <CatalogListing
         products={result.items.map(toProductCardData)}
         facets={{ brands: [], specs: [], priceRangePaisa: null }}

@@ -113,47 +113,55 @@ export function OrderSummaryPanel({
   return (
     <Card
       variant="surface"
-      className={cn(
-        "transition-all duration-300 hover:border-primary-container/40 hover:shadow-glow/30",
-        className,
-      )}
+      className={cn("rounded-2xl border-outline-variant bg-surface", className)}
     >
       {/* `CardContent` defaults to `pt-0` (it expects a `CardHeader` above it
           for the top gap) — there is no header here, so `pt-[--space-card-
           padding]` is restored via `className`, which `cn`'s `twMerge` lets
           win over the base `pt-0`. */}
       <CardContent className="flex flex-col gap-4 pt-(--space-card-padding)">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-baseline justify-between text-body-md text-on-surface">
+        <h2 className="text-headline-md text-on-surface">Order summary</h2>
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-baseline justify-between text-body-md text-on-surface-variant">
             <span>Subtotal</span>
-            <span>{formatNPR(subtotal)}</span>
+            <span className="font-mono text-[0.8125rem] text-on-surface">
+              {formatNPR(subtotal)}
+            </span>
           </div>
 
           {discountPaisa !== null && (
-            <div className="flex items-baseline justify-between text-body-md text-success">
+            <div className="flex items-baseline justify-between text-body-md text-primary">
               <span>Discount</span>
-              <span>-{formatNPR(discountPaisa)}</span>
+              <span className="font-mono text-[0.8125rem]">-{formatNPR(discountPaisa)}</span>
             </div>
           )}
 
           <div className="flex items-baseline justify-between text-body-md">
-            <span className="text-on-surface">Shipping</span>
+            <span className="text-on-surface-variant">Shipping</span>
             {shippingPaisa !== null ? (
-              <span className="text-on-surface">{formatNPR(shippingPaisa)}</span>
+              <span className="font-mono text-[0.8125rem] text-on-surface">
+                {shippingPaisa === 0 ? "Free" : formatNPR(shippingPaisa)}
+              </span>
             ) : (
-              <span className="text-on-surface-variant">Calculated at checkout</span>
+              <span className="font-mono text-label-mono-xs text-on-surface-variant">
+                At checkout
+              </span>
             )}
           </div>
         </div>
 
         <Separator />
 
-        <div className="flex flex-col gap-1">
-          <div className="flex items-baseline justify-between">
-            <span className="text-body-md font-medium text-on-surface">Total</span>
-            <span className="text-price-lg text-on-surface">{formatNPR(total)}</span>
+        <div className="tile flex flex-col gap-1 px-4 py-3.5">
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="font-display text-[0.9375rem] font-bold text-on-surface">Total</span>
+            <span className="text-price-lg text-primary">{formatNPR(total)}</span>
           </div>
-          {taxInclusiveNote && <p className="text-body-sm text-on-surface-variant">VAT included</p>}
+          {taxInclusiveNote && (
+            <p className="text-right font-mono text-label-mono-xs text-on-surface-variant">
+              NPR · 13% VAT included
+            </p>
+          )}
         </div>
 
         {onApplyCoupon && (

@@ -35,25 +35,27 @@ export interface SpecTableProps {
  * (`grid-cols-1`) and moves to a two-column layout at `sm:` — long spec
  * labels never truncate or force horizontal scroll.
  */
+/**
+ * 2026-10-04 redesign (Stitch PDP "Full specifications"): one hairline card
+ * per spec group, laid out in up to three columns, each row a mono label on
+ * the left and the value on the right.
+ */
 export function SpecTable({ groups, className }: SpecTableProps) {
   return (
-    <div className={cn("flex flex-col gap-6", className)}>
+    <div className={cn("grid gap-4 md:grid-cols-2 xl:grid-cols-3", className)}>
       {groups.map((group) => (
-        <section key={group.title} className="flex flex-col gap-3">
-          <h3 className="font-display text-title text-on-surface">{group.title}</h3>
-          <dl className="overflow-hidden rounded-xl border border-glass-stroke">
+        <section key={group.title} className="panel flex flex-col overflow-hidden">
+          <h3 className="flex items-center gap-2 border-b border-outline-variant px-5 py-3.5 font-mono text-label-mono-xs text-on-surface">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" />
+            {group.title}
+          </h3>
+          <dl className="flex flex-col divide-y divide-outline-variant px-5">
             {group.rows.map((row) => (
-              <div
-                key={row.label}
-                className={cn(
-                  "grid grid-cols-1 gap-1 px-4 py-3 odd:bg-[#09090b] even:bg-obsidian-surface",
-                  "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:gap-4",
-                )}
-              >
-                <dt className="font-mono text-label-mono-xs text-on-surface-variant">
+              <div key={row.label} className="flex items-baseline justify-between gap-6 py-3">
+                <dt className="shrink-0 font-mono text-label-mono-xs text-on-surface-variant">
                   {row.label}
                 </dt>
-                <dd className="text-body-md text-on-surface">{row.value}</dd>
+                <dd className="text-right text-body-md text-on-surface">{row.value}</dd>
               </div>
             ))}
           </dl>

@@ -45,7 +45,11 @@ export const PaginationLink = ({ className, isActive, ...props }: PaginationLink
     variant={isActive ? "outline" : "ghost"}
     size="md"
     iconOnly
-    className={cn(isActive && "border-primary-container bg-primary-container/20", className)}
+    className={cn(
+      isActive &&
+        "border-primary bg-primary text-on-primary hover:bg-primary-container hover:border-primary-container",
+      className,
+    )}
     {...props}
   />
 );

@@ -1,29 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="No product photo yet">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300" role="img" aria-label="No product photo yet">
   <!--
     The one committed stand-in for a missing product photo. Referenced by
-    `src/components/commerce/product-image.tsx` (its fallback) and by
-    `prisma/seed/catalog.ts` (demo catalogue Media rows, which used to point
-    at per-product .avif filenames that were never generated and 404'd).
+    src/components/commerce/product-image.tsx (its fallback) and by
+    prisma/seed/catalog.ts (demo catalogue Media rows).
 
-    Colours are the literal Obsidian Peak token values from
-    `src/app/globals.css`: surface-container-high (#2a2a2c),
-    surface-container-highest (#353437) and outline (#948f99), rather
-    than CSS variables, because an <img>-loaded SVG cannot see the page's
-    custom properties. If those tokens change, this file has to change with
-    them; it is the only place in the repo that hard-codes them.
+    Obsidian Kinetic redesign: transparent background, so it sits on the
+    product tile's own surface; a faint hairline device outline and the
+    brand emblem at low contrast. Colours are literal token values from
+    src/app/globals.css (an img-loaded SVG cannot read CSS variables):
+    outline-variant #26262B, outline #3A3A42, on-surface-variant #9A9AA3.
 
-    Deliberately drawn flat and low-detail: it renders through
-    `object-contain` at anything from a 48px cart thumbnail to a full-width
-    PDP frame, and it is rendered `unoptimized` (next/image will not put an
-    SVG through its optimiser without `dangerouslyAllowSVG`, which this
-    project does not enable).
+    No double hyphen anywhere in this comment: it is illegal inside an XML
+    comment and makes browsers reject the whole file.
   -->
-  <rect width="400" height="400" fill="#2a2a2c"/>
-  <rect x="0.5" y="0.5" width="399" height="399" fill="none" stroke="#353437" stroke-width="1"/>
-  <g stroke="#948f99" stroke-width="8" stroke-linejoin="round" stroke-linecap="round" fill="none" opacity="0.55">
-    <rect x="112" y="128" width="176" height="144" rx="16"/>
-    <circle cx="158" cy="174" r="14"/>
-    <path d="M120 256l52-52 40 40 28-28 40 40"/>
+  <g fill="none" stroke="#3A3A42" stroke-width="2" stroke-linejoin="round">
+    <rect x="120" y="92" width="160" height="104" rx="8"/>
+    <path d="M100 206h200l-10 12H110z"/>
   </g>
-  <text x="200" y="312" fill="#948f99" opacity="0.7" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="22" text-anchor="middle">No photo yet</text>
+  <g transform="translate(182 126)">
+    <rect x="0.75" y="0.75" width="34.5" height="34.5" rx="8" fill="#141417" stroke="#26262B" stroke-width="1.5"/>
+    <rect x="13" y="13" width="10" height="10" rx="3" fill="#FF5A1F" opacity="0.55"/>
+    <circle cx="9" cy="9" r="2.5" fill="#9A9AA3" opacity="0.5"/>
+    <circle cx="27" cy="27" r="2.5" fill="#9A9AA3" opacity="0.5"/>
+  </g>
+  <text x="200" y="250" fill="#9A9AA3" opacity="0.7" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="1.5" text-anchor="middle">PHOTO COMING SOON</text>
 </svg>

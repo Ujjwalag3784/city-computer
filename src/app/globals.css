@@ -1,33 +1,22 @@
 /*
- * "Machined White" — Tailwind v4 token map, replacing the flat Alpine Tech
- * palette below (2026-08-09). Alpine Tech was a straight colour-value swap
- * from the original dark Obsidian Peak theme onto the same layout/type —
- * correct, but the owner's own read was "very basic." This pass changes
- * more than colour: real typography (IBM Plex — a family with actual
- * technical-hardware heritage, not a generic UI grotesk) and a second,
- * sparing accent (copper) alongside the existing teal, both grounded in
- * the subject (a computer-hardware retailer) rather than decoration.
+ * "Obsidian Kinetic" — Tailwind v4 token map (2026-10-04).
  *
- * Process, so the next person doesn't wonder why this wasn't guessed at
- * directly: built as a small, self-contained HTML preview first (embedded
- * fonts, both light/dark themes, real product content) and shown to the
- * product owner for a reaction *before* touching this file — avoiding a
- * second blind redesign after Alpine Tech's own "basic" verdict. Approved
- * direction, then ported here. The owner also asked for off-white as the
- * committed default rather than following OS dark-mode preference, unlike
- * every previous palette in this file — see `:root`'s own note below.
+ * Source: the owner's Google Stitch export
+ * (stitch_city_computer_flagship_store/obsidian_kinetic/DESIGN.md plus ten
+ * screen mock-ups), replacing the off-white "Machined White" palette, which
+ * the owner judged "really basic". A dark, matte, flagship-store look:
+ * near-black graphite canvas, two surface elevations, 1px hairline borders,
+ * off-white type, and a single electric-orange accent reserved for primary
+ * actions, prices on deal and live states. Manrope (display), Inter (body),
+ * JetBrains Mono (specs, SKUs, labels).
  *
  * Same architecture as every previous palette here: one token, every
- * component inherits it via `@theme inline` below — no component file
- * needed editing for this change. Radius and spacing scales are
- * deliberately untouched (this is a colour/type pass, not a layout
- * rewrite); `--copper`/`--on-copper`/`--copper-container` are new tokens
- * with no prior-palette equivalent, added for sale badges and warm accents
- * the datasheet-styled product cards use.
+ * component inherits it via `@theme inline` below. Role names are kept
+ * (primary, surface-container-*, copper, glass-stroke …) so existing
+ * components re-skin without edits; only their values change.
  *
  * Rule unchanged: no component may use a literal hex, an arbitrary radius,
- * or a raw font-family value. Everything goes through a token defined here
- * (docs/05 §10, gate for "Definition of done").
+ * or a raw font-family value. Everything goes through a token defined here.
  */
 
 @import "tailwindcss";
@@ -38,113 +27,90 @@
 /* ---------------------------------------------------------------------- */
 
 :root {
-  /* Surfaces and elevation — "machined aluminum" off-white, a cool,
-     faintly green-grey neutral chosen to read as precision hardware
-     rather than the warm cream/paper tone most "off-white" redesigns
-     default to. Committed unconditionally (no prefers-color-scheme
-     branch in this file, same as every palette before it) — the owner
-     asked for off-white as the fixed default, not something that flips
-     with OS dark-mode preference. */
-  --background: #f1f3f1;
-  --surface: #fbfcfb;
-  --surface-dim: #e3e8e6;
-  --surface-container-lowest: #ffffff;
-  --surface-container-low: #f6f8f7;
-  --surface-container: #eef1f0;
-  --surface-container-high: #e6eae8;
-  --surface-container-highest: #dde2e0;
-  --surface-bright: #ffffff;
-  --surface-variant: #dde2e0;
-  /* Product/category card ground — plain white, per the same "Cards ...
-     white with a Level 2 shadow" rule the previous palette already used
-     this token for. */
-  --obsidian-surface: #ffffff;
+  /* Surfaces — DESIGN.md "Elevation & Depth": depth from tonal layering and
+     hairlines, never blur shadows. Canvas #0B0B0D, Elevation 1 #141417
+     (cards, header, panels), Elevation 2 #1A1A1E (image stages, nested
+     tiles, spec tables). */
+  --background: #0b0b0d;
+  --surface: #141417;
+  --surface-dim: #0b0b0d;
+  --surface-container-lowest: #0b0b0d;
+  --surface-container-low: #111114;
+  --surface-container: #141417;
+  --surface-container-high: #1a1a1e;
+  --surface-container-highest: #222227;
+  --surface-bright: #2a2a30;
+  --surface-variant: #1a1a1e;
+  /* Product/category card ground. */
+  --obsidian-surface: #141417;
 
-  /* Primary — circuit teal, carried over from Alpine Tech for brand
-     continuity (this is not a rebrand, just a richer execution). */
-  --primary: #00677f;
-  --on-primary: #ffffff;
-  --primary-container: #00d1ff;
-  --on-primary-container: #00566a;
-  --primary-fixed: #b7eaff;
-  --primary-fixed-dim: #4cd6ff;
-  --surface-tint: #00677f;
-  --on-primary-fixed: #001f28;
-  --on-primary-fixed-variant: #004e60;
-  --inverse-primary: #4cd6ff;
+  /* Primary — electric performance orange. Primary buttons are solid
+     orange with near-black text (DESIGN.md "Buttons"); hover darkens. */
+  --primary: #ff5a1f;
+  --on-primary: #0b0b0d;
+  --primary-container: #e04b14;
+  --on-primary-container: #ffdbd0;
+  --primary-fixed: #ffdbd0;
+  --primary-fixed-dim: #ffb59e;
+  --surface-tint: #ff5a1f;
+  --on-primary-fixed: #3a0b00;
+  --on-primary-fixed-variant: #852400;
+  --inverse-primary: #ae3200;
 
-  /* Copper — new second accent, absent from every previous palette here.
-     Sale badges, "new" tags, and warm highlights on the datasheet-styled
-     product cards. Kept deliberately rare (docs/05 §1's "used sparingly"
-     discipline already established for --primary) so it reads as a
-     considered accent, not a second brand colour competing with teal. */
-  --copper: #a85a2a;
-  --on-copper: #ffffff;
-  --copper-container: #f5e9de;
-  --on-copper-container: #6b3814;
+  /* "Copper" role (sale/deal badges) now uses the same orange, per
+     DESIGN.md "Pricing Cluster": a -7% pill is orange text on orange at
+     ~10% opacity. Kept as its own role so badges can diverge later. */
+  --copper: #ff5a1f;
+  --on-copper: #0b0b0d;
+  --copper-container: rgba(255, 90, 31, 0.12);
+  --on-copper-container: #ff7a45;
 
-  /* Text and outlines */
-  --on-surface: #12181a;
-  --on-surface-variant: #4b5654;
-  --silver-text: #4b5654;
-  --outline: #7c8785;
-  --outline-variant: #d7dedb;
-  /* Card/nav hairlines — dark-on-light now, same role Alpine Tech's
-     glass-stroke played, values re-picked for the new ground rather than
-     carried over verbatim. */
-  --glass-stroke: rgba(18, 24, 26, 0.1);
-  --inverse-surface: #12181a;
-  --inverse-on-surface: #f1f3f1;
+  /* Text and hairlines */
+  --on-surface: #f5f5f7;
+  --on-surface-variant: #9a9aa3;
+  --silver-text: #9a9aa3;
+  --outline: #3a3a42;
+  --outline-variant: #26262b;
+  --glass-stroke: #26262b;
+  --inverse-surface: #f5f5f7;
+  --inverse-on-surface: #0b0b0d;
 
-  /* Secondary / tertiary — unchanged in role, re-tuned to sit on the new
-     off-white ground. */
-  --secondary: #565e74;
-  --on-secondary: #ffffff;
-  --secondary-container: #dae2fd;
-  --on-secondary-container: #5c647a;
-  --tertiary: #5a5f62;
-  --on-tertiary: #ffffff;
-  --tertiary-container: #bdc1c5;
-  --on-tertiary-container: #4a4f52;
+  --secondary: #c8c5cb;
+  --on-secondary: #1b1b1f;
+  --secondary-container: #26262b;
+  --on-secondary-container: #c8c5cb;
+  --tertiary: #c8c5cc;
+  --on-tertiary: #1b1b20;
+  --tertiary-container: #2a2a30;
+  --on-tertiary-container: #c8c5cc;
 
-  /* Error */
-  --error: #ba1a1a;
-  --on-error: #ffffff;
-  --error-container: #ffdad6;
-  --on-error-container: #93000a;
-
-  /* Semantic status colours — same values Alpine Tech picked; still
-     enough contrast against the new (slightly darker) off-white ground. */
-  --success: #1a7d43;
-  --on-success: #ffffff;
-  --warning: #8a5700;
-  --on-warning: #ffffff;
-  --info: var(--primary);
-  --on-info: var(--on-primary);
+  /* Status — tuned for a dark ground (all ≥ 4.5:1 on #141417). */
+  --error: #ff6b5e;
+  --on-error: #0b0b0d;
+  --error-container: rgba(255, 107, 94, 0.12);
+  --on-error-container: #ffb4ab;
+  --success: #3ccf8e;
+  --on-success: #0b0b0d;
+  --warning: #f5b544;
+  --on-warning: #0b0b0d;
+  --info: #7cb4ff;
+  --on-info: #0b0b0d;
   --danger: var(--error);
   --on-danger: var(--on-error);
 
-  /* Effects — `.glass-panel` (25 real call sites) keeps working as a
-     frosted panel; re-tuned to the darker off-white ground so the blur
-     reads against something, rather than nearly disappearing against
-     Alpine Tech's near-white background. */
-  --glass-bg: rgba(251, 252, 251, 0.82);
-  --glass-blur: 12px;
-  /* CORRECTED (01 §C.3 #5): three different nav heights (64/72/80px)
-     across screens. One height, referenced everywhere a nav/header/step
-     bar needs it. */
-  --nav-h: 72px;
+  /* Sticky header / sheets: a near-opaque Elevation 1 so content scrolling
+     underneath never reduces text contrast. */
+  --glass-bg: rgba(20, 20, 23, 0.92);
+  --glass-blur: 16px;
+  --nav-h: 64px;
 
-  /* Spacing rhythm (docs/05 §3) — named on top of Tailwind's own scale,
-     for the handful of places layout rhythm is called out by name rather
-     than an arbitrary Tailwind step. Use as `p-(--space-card-padding)`
-     etc., or Tailwind's numeric scale directly everywhere else. */
+  /* Spacing rhythm — DESIGN.md "Layout & Spacing" (8px base). */
   --space-unit: 4px;
   --space-gutter: 24px;
   --space-card-padding: 24px;
-  --space-margin-safe: 32px;
-  --space-section-gap: 80px;
-  --space-section-gap-mobile: 48px;
+  --space-margin-safe: 48px;
+  --space-section-gap: 96px;
+  --space-section-gap-mobile: 56px;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -234,29 +200,24 @@
   --color-destructive: var(--error);
   --color-destructive-foreground: var(--on-error);
 
-  /* Fonts (docs/05 §2) — set via next/font in src/app/layout.tsx, which
-     writes the actual --font-plex-condensed/--font-plex-sans/
-     --font-plex-mono values as CSS variables on <html>. Overriding
-     Tailwind's default font-sans / font-mono here means every unstyled
-     element (and every shadcn primitive, which uses font-sans by
-     default) already gets IBM Plex Sans / IBM Plex Mono with no
-     per-component font-family class needed.
-     IBM Plex over Geist/Inter/JetBrains Mono (2026-08-09): a family with
-     real technical/hardware documentation heritage, not a generic UI
-     grotesk — see this file's header comment for the full rationale. */
-  --font-display: var(--font-plex-condensed), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  /* Fonts — DESIGN.md "Typography": Manrope (display/headlines), Inter
+     (body), JetBrains Mono (specs, SKUs, labels). Variables are written on
+     <html> by next/font in src/app/layout.tsx. */
+  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
   /* Radius — CORRECTED (01 §C.3 #1): the exports remap rounded-full to
      12px, which silently breaks every avatar, status chip, and progress
      bar that expects a true pill. Restored scale (docs/05 §3): */
-  --radius-sm: 2px;
-  --radius: 4px;
-  --radius-md: 4px;
-  --radius-lg: 4px;
-  --radius-xl: 8px;
-  --radius-2xl: 12px;
+  /* DESIGN.md "Shapes": 16px cards/panels, 8px buttons/inputs/tiles,
+     pills for badges. */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
   --radius-full: 9999px;
 
   /* Named shadows, so `shadow-glow` / `shadow-glow-strong` are real
@@ -271,8 +232,10 @@
      shadows and tonal layering rather than heavy borders or glass
      effects." Level 2 (Interactive) and Level 3 (Modals) values used
      as-is; class names kept unchanged so no caller needed editing. */
-  --shadow-glow: 0 4px 20px rgba(15, 23, 42, 0.08);
-  --shadow-glow-strong: 0 20px 40px rgba(0, 0, 0, 0.1);
+  /* DESIGN.md: no coloured glows. Floating layers get a hard, black,
+     directional shadow; class names kept so callers need no edits. */
+  --shadow-glow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-glow-strong: 0 12px 32px rgba(0, 0, 0, 0.8);
 
   /* Animations for tw-animate-css / shadcn (accordion, etc.) */
   --animate-accordion-down: accordion-down 200ms cubic-bezier(0.2, 0, 0, 1);
@@ -308,7 +271,14 @@
   }
 
   html {
-    color-scheme: light;
+    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: rgba(255, 90, 31, 0.35);
+    color: var(--on-surface);
   }
 
   body {
@@ -351,32 +321,57 @@
 
 @utility text-display-lg {
   font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  /* 64/72 desktop, clamps to 40px on narrow viewports per docs/05 §2 */
-  font-size: clamp(2.5rem, 1.2rem + 5vw, 4rem);
-  line-height: 1.125;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  /* DESIGN.md display-hero: 56/64 desktop, 36/44 mobile. */
+  font-size: clamp(2.25rem, 1.5rem + 3.2vw, 3.5rem);
+  line-height: 1.12;
+}
+
+@utility text-display-sm {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-size: clamp(1.875rem, 1.4rem + 1.8vw, 2.5rem);
+  line-height: 1.15;
 }
 
 @utility text-headline-lg {
   font-family: var(--font-display);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  /* 32/40 mobile, 40/48 desktop per docs/05 §2 */
-  font-size: clamp(2rem, 1.4rem + 2.5vw, 2.5rem);
-  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  /* 26/34 mobile, 32/40 desktop. */
+  font-size: clamp(1.625rem, 1.35rem + 1.1vw, 2rem);
+  line-height: 1.25;
 }
 
 @utility text-headline-md {
   font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-size: 1.375rem;
+  line-height: 1.875rem;
+}
+
+@utility text-headline-sm {
+  font-family: var(--font-display);
   font-weight: 600;
-  font-size: 1.5rem;
-  line-height: 2rem;
+  font-size: 1.125rem;
+  line-height: 1.625rem;
 }
 
 @utility text-title {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-size: 1.125rem;
+  line-height: 1.625rem;
+}
+
+@utility text-title-lg {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   font-size: 1.25rem;
   line-height: 1.75rem;
 }
@@ -384,58 +379,61 @@
 @utility text-body-lg {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 1.125rem;
-  line-height: 1.75rem;
+  letter-spacing: -0.01em;
+  font-size: 1rem;
+  line-height: 1.625rem;
 }
 
 @utility text-body-md {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 1rem;
-  line-height: 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
 }
 
+/* 13px rather than DESIGN.md's 12px: body-sm carries most helper and
+   description copy across the app (500+ uses), and 12px Inter on a dark
+   ground reads as strained for long strings. */
 @utility text-body-sm {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.25rem;
 }
 
 @utility text-label-mono {
   font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.25rem;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
 }
 
+/* DESIGN.md label-mono-sm: "laser-etched chassis badge" uppercase labels. */
 @utility text-label-mono-xs {
   font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   line-height: 1rem;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-/* CORRECTED (01 §C.3 #9): the builder's price estimate is 64px in the
-   export and its rendered value overflows the panel — "145,800" clips.
-   Capped at 40px, tabular-nums, and callers must add `truncate` in
-   context (docs/05 §2). */
 @utility text-price {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1.75rem;
-  line-height: 2rem;
+  letter-spacing: -0.01em;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
   font-variant-numeric: tabular-nums;
 }
 
 @utility text-price-lg {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 2.5rem;
-  line-height: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: 2.25rem;
+  line-height: 2.5rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -466,4 +464,57 @@
   background-position: center -1px;
   mask-image: radial-gradient(ellipse 100% 90% at 50% 0%, #000 40%, transparent 92%);
   -webkit-mask-image: radial-gradient(ellipse 100% 90% at 50% 0%, #000 40%, transparent 92%);
+}
+
+/* Button labels — DESIGN.md "Buttons": Manrope 600. Separate from the
+   body utilities so a button's font never falls back to Inter. */
+@utility text-button-sm {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+@utility text-button {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+@utility text-button-lg {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+/* Section eyebrow — "[01] // CURATED HARDWARE" style mono kicker used above
+   section headings throughout the Stitch screens. */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+/* Hairline-bordered Elevation 1 panel — the default container in every
+   Stitch screen. */
+@utility panel {
+  background-color: var(--surface);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-2xl);
+}
+
+/* Elevation 2 inset tile — image stages, spec groups, nested modules. */
+@utility tile {
+  background-color: var(--surface-container-high);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-lg);
 }

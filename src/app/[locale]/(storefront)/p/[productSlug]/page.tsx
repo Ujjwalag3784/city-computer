@@ -22,6 +22,11 @@ import { getProductBySlug, type ProductDetail } from "@/server/services/catalog/
 import { NotFoundError } from "@/lib/errors";
 import { toPrismaLocale, toProductCardData } from "../../_lib/catalog-view";
 import { BuyBox } from "./_components/buy-box";
+import Link from "next/link";
+import { Banknote, Calculator, ShieldCheck, Wrench } from "lucide-react";
+import { getDefaultDeliveryPromise } from "@/server/services/commerce/delivery-promise";
+import { parseTiptapDocument } from "@/lib/tiptap/schema";
+import { TiptapContent } from "@/lib/tiptap/render";
 
 // docs/11-SEO-STRATEGY.md §9.2/§9.4: no product in this catalogue has a
 // real Nepali translation yet (PROGRESS.md Phase 4's own note — "nothing
@@ -140,6 +145,15 @@ function priceValidUntilIso(): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Concatenated text of a Tiptap JSON tree — only used to compare with the short description. */
+function plainText(node: unknown): string {
+  if (!node || typeof node !== "object") return "";
+  const { text, content } = node as { text?: unknown; content?: unknown };
+  const own = typeof text === "string" ? text : "";
+  const children = Array.isArray(content) ? content.map(plainText).join(" ") : "";
+  return `${own}${own && children ? " " : ""}${children}`.replace(/\s+/g, " ");
+}
+
 function groupSpecs(specs: ProductDetail["specs"]): SpecGroup[] {
   const groups = new Map<string, SpecRow[]>();
   for (const spec of specs) {
@@ -157,6 +171,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const t = await getTranslations("product");
 
   let product: ProductDetail;
+  const deliveryPromisePromise = getDefaultDeliveryPromise();
   try {
     product = await getProductBySlug(productSlug, prismaLocale);
   } catch (error) {
@@ -177,36 +192,111 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const pageUrl = absoluteUrl(`/p/${productSlug}`, locale);
   const primaryVariant = pickPrimaryVariant(product.variants);
 
+  const deliveryPromise = (await deliveryPromisePromise) ?? undefined;
+  const descriptionDoc = parseTiptapDocument(product.description);
+  // Hidden when the long description says nothing the short one doesn't
+  // (the seeded demo products, and any product entered with one paragraph).
+  const hasDescription =
+    Boolean(descriptionDoc?.content?.length) &&
+    plainText(product.description).trim() !== product.shortDescription.trim();
+  const warrantyLabel =
+    product.warrantyText ??
+    (product.warrantyMonths
+      ? `${product.warrantyMonths} months warranty`
+      : "Manufacturer warranty");
+  const assurances = [
+    { icon: ShieldCheck, label: warrantyLabel, href: "/pages/warranty" },
+    { icon: Banknote, label: "Cash on delivery in the valley", href: "/pages/shipping-policy" },
+    { icon: Calculator, label: "Work out EMI by bank", href: "/emi-calculator" },
+    { icon: Wrench, label: "Repairs at our New Road service desk", href: "/service" },
+  ];
+
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-10 p-4 sm:p-8">
-      <Breadcrumbs items={breadcrumbItems} />
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-12 px-4 py-8 sm:px-6 lg:gap-16 lg:px-12 lg:py-10">
+      <div className="flex flex-col gap-6">
+        <Breadcrumbs items={breadcrumbItems} />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <Gallery images={product.media.map((media) => ({ src: media.url, alt: media.alt }))} />
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-12">
+          <Gallery
+            images={product.media.map((media) => ({ src: media.url, alt: media.alt }))}
+            className="lg:sticky lg:top-32 lg:self-start"
+          />
 
-        <div className="flex flex-col gap-3">
-          <span className="text-label-mono-xs text-on-surface-variant">{product.brand.name}</span>
-          <h1 className="text-headline-md text-on-surface">{product.h1}</h1>
-          <p className="text-body-md text-on-surface-variant">{product.shortDescription}</p>
-          <BuyBox variants={product.variants} />
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-3">
+              <p className="eyebrow">
+                {[
+                  product.brand.name,
+                  product.primaryCategory.name,
+                  product.conditionType === "REFURBISHED" ? "Refurbished" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" // ")}
+              </p>
+              <h1 className="text-display-sm text-on-surface">{product.h1}</h1>
+              {product.shortDescription && (
+                <p className="text-body-lg text-on-surface-variant">{product.shortDescription}</p>
+              )}
+            </div>
+
+            <BuyBox variants={product.variants} deliveryPromise={deliveryPromise} />
+
+            <ul className="grid grid-cols-1 gap-2 border-t border-outline-variant pt-5 sm:grid-cols-2">
+              {assurances.map(({ icon: Icon, label, href }) => (
+                <li key={label}>
+                  <Link
+                    href={href}
+                    className="flex items-center gap-2.5 rounded font-mono text-[0.75rem] text-on-surface-variant transition-colors hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
 
+      {hasDescription && descriptionDoc && (
+        <section aria-labelledby="overview-heading" className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <p className="eyebrow">[01] // Overview</p>
+            <h2 id="overview-heading" className="text-headline-lg text-on-surface">
+              About this product
+            </h2>
+          </div>
+          <div className="panel max-w-4xl p-6 text-body-lg text-on-surface-variant sm:p-8">
+            <TiptapContent doc={descriptionDoc} />
+          </div>
+        </section>
+      )}
+
       {specGroups.length > 0 && (
-        <section aria-labelledby="specs-heading" className="flex flex-col gap-4">
-          <h2 id="specs-heading" className="text-headline-sm text-on-surface">
-            {t("specifications")}
-          </h2>
+        <section aria-labelledby="specs-heading" className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <p className="eyebrow">[{hasDescription ? "02" : "01"}] // Full specifications</p>
+            <h2 id="specs-heading" className="text-headline-lg text-on-surface">
+              {t("specifications")}
+            </h2>
+          </div>
           <SpecTable groups={specGroups} />
         </section>
       )}
 
       {product.relatedProducts.length > 0 && (
-        <section aria-labelledby="related-heading" className="flex flex-col gap-4">
-          <h2 id="related-heading" className="text-headline-sm text-on-surface">
-            {t("relatedProducts")}
-          </h2>
-          <ProductGrid products={product.relatedProducts.map(toProductCardData)} />
+        <section aria-labelledby="related-heading" className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <p className="eyebrow">Goes well with</p>
+            <h2 id="related-heading" className="text-headline-lg text-on-surface">
+              {t("relatedProducts")}
+            </h2>
+          </div>
+          <ProductGrid
+            products={product.relatedProducts.map(toProductCardData)}
+            deliveryPromise={deliveryPromise}
+            className="xl:grid-cols-4"
+          />
         </section>
       )}
 

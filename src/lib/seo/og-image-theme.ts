@@ -9,11 +9,12 @@
  * exactly one other file to update.
  */
 export const OG_COLORS = {
-  background: "#09090b",
-  surface: "#131315",
-  primary: "#a4e6ff",
-  onSurface: "#e5e1e4",
-  onSurfaceVariant: "#bbc9cf",
+  // Obsidian Kinetic (2026-10-04) — mirrors globals.css :root.
+  background: "#0b0b0d",
+  surface: "#141417",
+  primary: "#ff5a1f",
+  onSurface: "#f5f5f7",
+  onSurfaceVariant: "#9a9aa3",
 } as const;
 
 export const OG_IMAGE_SIZE = { width: 1200, height: 630 } as const;

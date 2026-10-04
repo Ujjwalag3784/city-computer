@@ -6,7 +6,50 @@ tracks against.
 
 ## Good morning — start here
 
-**Latest session (4 Oct 2026): fixed what was broken on the live site, and
+**Latest session (4 Oct 2026, evening): the "Obsidian Kinetic" redesign,
+and a database bug that broke every category page.**
+
+**The redesign** comes from the owner's Google Stitch export
+(`stitch_city_computer_flagship_store`: ten screens + `DESIGN.md`). A dark,
+matte flagship-store look: near-black graphite canvas, hairline borders,
+one electric-orange accent, Manrope / Inter / JetBrains Mono.
+
+- **Theme** (`globals.css`, `app/layout.tsx`): every token re-valued, so
+  the whole app — storefront and admin — re-skins from one file. Radii,
+  type scale and shadows follow DESIGN.md. Two text styles used in 37
+  places (`text-headline-sm`, `text-display-sm`) had never been defined and
+  rendered at browser default size; they exist now.
+- **Rebuilt to the Stitch layouts:** header (utility strip, search, category
+  row with "Build a PC"), footer, homepage (split hero with a live product
+  spotlight, department tiles, featured grid, builder band, deals, trust
+  strip, brands), product card, category / brand / search / shop listings
+  (filter panel, toolbar, shared `ListingHeader`), product page (price
+  panel, stock + delivery, quantity, spec cards), cart, checkout, and the
+  PC builder (compact mode switch, sticky diagnostics sidebar).
+- **Logo:** the Stitch emblem is `components/layout/brand-mark.tsx` and
+  `app/icon.svg` (favicon).
+- **Dead UI fixed on the way:** the header and mobile-menu search boxes did
+  nothing (now a real GET form to `/search`); "Prebuilt PCs" linked to a
+  page that never existed; mobile nav linked `/c/desktops` and `/c/gaming`
+  (404s); footer social icons linked to `#` (removed).
+- **Stitch copy not carried over, on purpose:** same-day delivery, 0% EMI
+  from named banks, eSewa/Khalti/Fonepay, ratings, bank account numbers —
+  none of these exist yet, so the pages only state what is true.
+
+**Bug: every category page showed "not found"** (fixed in its own commit).
+`server/db/soft-delete-extension.ts` post-filtered `findUnique` results on
+`row.deletedAt`, which is absent when the caller passes a narrow `select`,
+so every live row came back `null`. That broke `/c/*` and any other narrow
+`findUnique` on the eight soft-delete models. The previous sessions' note
+about a "transient" category-not-found was this. Unit-tested and verified
+against Postgres.
+
+**Verified:** typecheck, lint, **791 tests**, and — for the first time — the
+whole storefront running against a real local Postgres + Redis, screenshot
+at desktop and phone width (no horizontal overflow on any page), with a real
+add-to-cart → cart → checkout run.
+
+**Earlier on 4 Oct 2026: fixed what was broken on the live site, and
 built the missing account-recovery pages.** Checked against the real deploy
 (`city-computer-tp4m.vercel.app`) in a browser, not guessed.
 

@@ -3,6 +3,7 @@ import { auth } from "@/server/auth";
 import { db } from "@/server/db";
 import { getViewerCart, getCartView, type CartView } from "@/server/services/commerce/cart";
 import { previewCoupon, type CouponPreview } from "@/server/services/commerce/coupon";
+import { LISTING_PAGE_CLASS, ListingHeader } from "@/components/commerce/listing-header";
 import { CartPageClient } from "./_components/cart-page-client";
 
 export const metadata: Metadata = {
@@ -55,8 +56,12 @@ export default async function CartPage() {
   const initialCoupon = await restoreAppliedCoupon(cart?.couponCode ?? null, view, customer?.id);
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="mb-6 text-headline-md text-on-surface">Your cart</h1>
+    <div className={LISTING_PAGE_CLASS}>
+      <ListingHeader
+        eyebrow={`Cart // ${view.itemCount} item${view.itemCount === 1 ? "" : "s"}`}
+        title="Review your order"
+        description="Check quantities and apply a coupon before you check out. Prices are rechecked live."
+      />
       <CartPageClient initialView={view} initialCoupon={initialCoupon} />
     </div>
   );

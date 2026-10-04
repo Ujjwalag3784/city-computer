@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Home } from "lucide-react";
+import { Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -43,7 +43,7 @@ export interface BreadcrumbsProps {
 }
 
 const linkClasses = cn(
-  "rounded text-body-sm text-on-surface-variant underline-offset-4 transition-colors hover:text-on-surface hover:underline",
+  "rounded font-mono text-label-mono-xs text-on-surface-variant underline-offset-4 transition-colors hover:text-on-surface",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background",
 );
 
@@ -62,7 +62,7 @@ export function Breadcrumbs({ items, className, showHomeIcon = true }: Breadcrum
             </li>
             {items.length > 0 && (
               <li aria-hidden="true" className="flex items-center">
-                <ChevronRight className="size-3.5 text-on-surface-variant" />
+                <span className="font-mono text-label-mono-xs text-outline">/</span>
               </li>
             )}
           </>
@@ -74,7 +74,7 @@ export function Breadcrumbs({ items, className, showHomeIcon = true }: Breadcrum
           return (
             <li key={`${item.label}-${index}`} className="flex items-center gap-1.5">
               {isLast ? (
-                <span aria-current="page" className="text-body-sm font-medium text-on-surface">
+                <span aria-current="page" className="font-mono text-label-mono-xs text-primary">
                   {item.label}
                 </span>
               ) : (
@@ -84,7 +84,9 @@ export function Breadcrumbs({ items, className, showHomeIcon = true }: Breadcrum
               )}
 
               {!isLast && (
-                <ChevronRight aria-hidden="true" className="size-3.5 text-on-surface-variant" />
+                <span aria-hidden="true" className="font-mono text-label-mono-xs text-outline">
+                  /
+                </span>
               )}
             </li>
           );

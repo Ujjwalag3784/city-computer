@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ShoppingCart } from "lucide-react";
+import { ArrowLeft, Banknote, FileText, ShoppingCart, Store } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -32,6 +32,13 @@ function toLineItems(view: CartView): CartLineItemData[] {
     isOutOfStock: item.isOutOfStock,
   }));
 }
+
+/** Only what checkout really offers (COD, bank transfer, branch pickup, PDF invoice). */
+const CART_ASSURANCES = [
+  { icon: Banknote, label: "Cash on delivery or bank transfer" },
+  { icon: Store, label: "Free pickup from our New Road showroom" },
+  { icon: FileText, label: "PDF invoice with every order" },
+];
 
 export interface CartPageClientProps {
   initialView: CartView;
@@ -122,7 +129,11 @@ export function CartPageClient({ initialView, initialCoupon }: CartPageClientPro
           </div>
         )}
 
-        <ul className="divide-y divide-glass-stroke rounded-xl border border-glass-stroke bg-surface-container px-4">
+        <div className="mb-3 hidden grid-cols-[1fr_auto] gap-4 rounded-xl border border-outline-variant bg-surface px-5 py-3 font-mono text-label-mono-xs text-on-surface-variant sm:grid">
+          <span>Product</span>
+          <span>Quantity · Subtotal</span>
+        </div>
+        <ul className="panel divide-y divide-outline-variant px-5">
           {toLineItems(view).map((item) => (
             <li key={item.variantId}>
               <CartLineItem
@@ -133,6 +144,13 @@ export function CartPageClient({ initialView, initialCoupon }: CartPageClientPro
             </li>
           ))}
         </ul>
+
+        <Button variant="outline" asChild className="mt-4">
+          <Link href="/shop">
+            <ArrowLeft aria-hidden="true" />
+            Continue shopping
+          </Link>
+        </Button>
       </div>
 
       <div className="lg:col-span-4">
@@ -148,8 +166,19 @@ export function CartPageClient({ initialView, initialCoupon }: CartPageClientPro
               <Link href="/checkout">Proceed to checkout</Link>
             </Button>
           }
-          className="sticky top-24"
+          className="lg:sticky lg:top-32"
         />
+        <ul className="mt-4 flex flex-col gap-2.5 px-1">
+          {CART_ASSURANCES.map(({ icon: Icon, label }) => (
+            <li
+              key={label}
+              className="flex items-center gap-2.5 text-body-sm text-on-surface-variant"
+            >
+              <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              {label}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

@@ -95,13 +95,16 @@ export function CartLineItem({ item, onQuantityChange, onRemove, className }: Ca
   const lineTotal = unitPrice * quantity;
 
   return (
-    <div className={cn("flex gap-4 py-4", className)}>
-      <Link href={productHref} className="relative block size-20 shrink-0 overflow-hidden rounded">
+    <div className={cn("flex gap-4 py-5", className)}>
+      <Link
+        href={productHref}
+        className="tile relative block size-20 shrink-0 overflow-hidden sm:size-24"
+      >
         <ProductImage
           src={imageUrl}
           alt={imageAlt}
-          sizes="80px"
-          className={cn("aspect-square object-cover", isOutOfStock && "opacity-75")}
+          sizes="96px"
+          className={cn("object-contain p-2", isOutOfStock && "opacity-75")}
         />
       </Link>
 
@@ -111,13 +114,18 @@ export function CartLineItem({ item, onQuantityChange, onRemove, className }: Ca
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={productHref}
-                className="rounded text-body-md font-medium text-on-surface hover:text-primary-container"
+                className="rounded font-display text-[0.9375rem] font-semibold text-on-surface hover:text-primary"
               >
                 {displayTitle}
               </Link>
               {isOutOfStock && <StockBadge status="out-of-stock" />}
             </div>
-            {variantLabel && <p className="text-body-sm text-on-surface-variant">{variantLabel}</p>}
+            {variantLabel && (
+              <p className="font-mono text-label-mono-xs text-on-surface-variant">{variantLabel}</p>
+            )}
+            <p className="font-mono text-[0.75rem] text-on-surface-variant">
+              {formatNPR(unitPrice)} each
+            </p>
           </div>
 
           <Button

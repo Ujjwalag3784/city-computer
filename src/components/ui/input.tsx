@@ -22,10 +22,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     <input
       ref={ref}
       className={cn(
-        "flex h-11 w-full rounded border bg-surface-container px-3 text-body-md text-on-surface transition-colors",
+        "flex h-11 w-full rounded-lg border bg-surface-container px-3 text-body-md text-on-surface transition-colors",
         "placeholder:text-on-surface-variant",
         "border-glass-stroke",
-        "focus-visible:outline-none focus-visible:border-primary-container focus-visible:shadow-glow",
+        // DESIGN.md "Input Fields": focus turns the border orange, no glow ring.
+        "focus-visible:outline-none focus-visible:border-primary",
         "disabled:cursor-not-allowed disabled:opacity-50",
         error && "border-error",
         className,

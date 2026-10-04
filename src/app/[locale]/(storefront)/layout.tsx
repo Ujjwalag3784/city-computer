@@ -4,7 +4,14 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { CookieConsent } from "@/components/layout/cookie-consent";
 import { CartDrawerHost } from "@/components/commerce/cart-drawer-host";
-import { PRIMARY_NAV_ITEMS } from "@/config/navigation";
+import { BUILD_NAV_ITEM, PRIMARY_NAV_ITEMS } from "@/config/navigation";
+import {
+  STORE_ADDRESS_LABEL,
+  STORE_MAPS_SHARE_URL,
+  STORE_WHATSAPP_E164,
+  STORE_WHATSAPP_URL,
+} from "@/config/store";
+import { formatNepalPhoneForDisplay } from "@/lib/nepal";
 import { auth } from "@/server/auth";
 import { subscribeNewsletterAction } from "./_actions";
 
@@ -38,11 +45,22 @@ export default async function StorefrontLayout({ children }: { children: ReactNo
   return (
     <>
       <AnnouncementBar
-        message="Free delivery inside Kathmandu Valley on orders over Rs. 5,000."
-        href="/pages/warranty"
-        linkLabel="Learn more"
+        highlight="Free delivery"
+        message="inside Kathmandu Valley on orders over रु 5,000"
+        meta={[
+          { label: STORE_ADDRESS_LABEL, href: STORE_MAPS_SHARE_URL },
+          {
+            label: `${formatNepalPhoneForDisplay(STORE_WHATSAPP_E164)} (WhatsApp)`,
+            href: STORE_WHATSAPP_URL,
+          },
+        ]}
       />
-      <SiteHeader variant="with-search" navItems={PRIMARY_NAV_ITEMS} user={user} />
+      <SiteHeader
+        variant="with-search"
+        navItems={PRIMARY_NAV_ITEMS}
+        ctaItem={BUILD_NAV_ITEM}
+        user={user}
+      />
 
       <main id="main-content">{children}</main>
 

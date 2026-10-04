@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Search } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
+import { SearchForm } from "@/components/layout/search-form";
+import { BrandMark } from "@/components/layout/brand-mark";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -48,11 +49,11 @@ export interface NavItem {
  */
 export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { label: "Laptops", href: "/c/laptops" },
-  { label: "Desktops", href: "/c/desktops" },
+  { label: "Desktops", href: "/c/desktops-prebuilts" },
   { label: "Components", href: "/c/components" },
   { label: "Peripherals", href: "/c/peripherals" },
   { label: "Monitors", href: "/c/monitors" },
-  { label: "Gaming", href: "/c/gaming" },
+  { label: "Networking", href: "/c/networking" },
   { label: "PC Builder", href: "/build/new" },
   { label: "Deals", href: "/shop?sort=-discount&onSale=true" },
 ];
@@ -69,7 +70,7 @@ const SECONDARY_NAV_ITEMS: NavItem[] = [
 ];
 
 const navRowClasses = cn(
-  "flex min-h-11 items-center rounded px-3 text-body-md text-on-surface transition-colors",
+  "flex min-h-11 items-center rounded px-3 font-display text-[0.9375rem] font-semibold text-on-surface transition-colors",
   "hover:bg-surface-container-high",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-surface-container",
 );
@@ -95,18 +96,13 @@ export function MobileNav({ navItems = DEFAULT_NAV_ITEMS }: MobileNavProps) {
       </SheetTrigger>
       <SheetContent side="left">
         <SheetHeader>
-          <SheetTitle className="text-body-sm text-on-surface-variant">Menu</SheetTitle>
+          <SheetTitle>
+            <BrandMark />
+            <span className="sr-only">Menu</span>
+          </SheetTitle>
         </SheetHeader>
 
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-on-surface-variant" />
-          <Input
-            type="search"
-            placeholder="Search products..."
-            aria-label="Search products"
-            className="pl-9"
-          />
-        </div>
+        <SearchForm id="mobile-menu-search" placeholder="Search products…" />
 
         <nav aria-label="Primary" className="flex flex-col gap-1 overflow-y-auto">
           {navItems.map((item) => (

@@ -46,10 +46,11 @@ export interface BarChartProps {
   height?: number;
 }
 
-const PRIMARY_CONTAINER_HEX = "#00d1ff";
-const ON_SURFACE_VARIANT_HEX = "#bbc9cf";
-const OUTLINE_VARIANT_HEX = "#3c494e";
-const SURFACE_CONTAINER_HIGH_HEX = "#2a2a2c";
+// Obsidian Kinetic accent (globals.css --primary). Recharts needs literal values.
+const PRIMARY_CONTAINER_HEX = "#ff5a1f";
+const ON_SURFACE_VARIANT_HEX = "#9a9aa3";
+const OUTLINE_VARIANT_HEX = "#26262b";
+const SURFACE_CONTAINER_HIGH_HEX = "#1a1a1e";
 const GLASS_STROKE = "rgba(255, 255, 255, 0.1)";
 
 const axisTick = { fill: ON_SURFACE_VARIANT_HEX, fontSize: 12 };

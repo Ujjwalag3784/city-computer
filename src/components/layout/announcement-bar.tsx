@@ -11,14 +11,6 @@ import { cn } from "@/lib/utils";
  * above `SiteHeader` (e.g. "Free delivery inside Kathmandu Valley on orders
  * over Rs. 5,000").
  *
- * Token choice: `bg-primary-container text-on-primary-container` (both
- * defined in globals.css — `--primary-container: #00d1ff`,
- * `--on-primary-container: #00566a`) rather than `bg-primary text-on-primary`.
- * The container pairing is the brighter, more saturated cyan, which reads as
- * a deliberate promo strip against the near-black `--background` rather than
- * blending in with the rest of the chrome — appropriate for something meant
- * to grab attention above the header.
- *
  * Must be a Client Component: dismissal is local `useState`, no
  * `"use client"` wouldn't compile with the `onClick` handler below. The
  * dismissal is session-only (resets on reload/navigation to a fresh mount) —
@@ -38,25 +30,41 @@ import { cn } from "@/lib/utils";
  * the same technique `SheetContent`'s close button uses. Focus ring follows
  * docs/05 §5 A11's standard pattern.
  */
+export interface AnnouncementMetaItem {
+  label: string;
+  href?: string;
+}
+
 export interface AnnouncementBarProps {
   /** The announcement copy, e.g. "Free delivery inside Kathmandu Valley on orders over Rs. 5,000." */
   message: string;
+  /** Optional short lead-in rendered in orange caps before the message, e.g. "Free delivery". */
+  highlight?: string;
   /** Optional destination for an inline link rendered after the message. */
   href?: string;
   /** Label for the inline link. Required (and only rendered) when `href` is set. */
   linkLabel?: string;
-  /** Whether the bar can be dismissed with a close button. Defaults to `true`. */
+  /** Right-aligned store facts (address, phone), shown from `md` up. */
+  meta?: AnnouncementMetaItem[];
+  /** Whether the bar can be dismissed with a close button. Defaults to `false` (it is the store's contact strip now, not a promo). */
   dismissible?: boolean;
 }
 
 const focusRing =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
+/**
+ * 2026-10-04 redesign: Stitch's thin utility strip — a mono "● FREE DELIVERY
+ * inside Kathmandu Valley …" on the left and store facts on the right, on
+ * the canvas colour with a hairline below, instead of a solid colour band.
+ */
 export function AnnouncementBar({
   message,
+  highlight,
   href,
   linkLabel,
-  dismissible = true,
+  meta = [],
+  dismissible = false,
 }: AnnouncementBarProps) {
   const [open, setOpen] = React.useState(true);
 
@@ -68,34 +76,62 @@ export function AnnouncementBar({
     <div
       role="region"
       aria-label="Announcement"
-      className="relative min-h-10 w-full bg-primary-container text-on-primary-container"
+      className="relative border-b border-outline-variant bg-background"
     >
-      <div className="flex min-h-10 items-center justify-center gap-2 px-4 text-center text-body-sm">
-        <span>{message}</span>
-        {href && linkLabel && (
-          <Link
-            href={href}
-            className={cn("rounded underline underline-offset-2 hover:no-underline", focusRing)}
+      <div className="mx-auto flex min-h-9 max-w-[1440px] items-center justify-between gap-6 px-4 font-mono text-[0.6875rem] tracking-[0.02em] text-on-surface-variant sm:px-6 lg:px-12">
+        <p className="flex min-w-0 items-center gap-2">
+          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-primary" />
+          <span className="truncate">
+            {highlight && <span className="font-medium uppercase text-primary">{highlight} </span>}
+            {message}
+            {href && linkLabel && (
+              <>
+                {" "}
+                <Link
+                  href={href}
+                  className={cn(
+                    "rounded text-on-surface underline underline-offset-2 hover:no-underline",
+                    focusRing,
+                  )}
+                >
+                  {linkLabel}
+                </Link>
+              </>
+            )}
+          </span>
+        </p>
+
+        {meta.length > 0 && (
+          <ul className="hidden shrink-0 items-center gap-4 md:flex">
+            {meta.map((item, index) => (
+              <li key={item.label} className="flex items-center gap-4">
+                {index > 0 && <span aria-hidden="true" className="h-3 w-px bg-outline-variant" />}
+                {item.href ? (
+                  <a href={item.href} className={cn("rounded hover:text-on-surface", focusRing)}>
+                    {item.label}
+                  </a>
+                ) : (
+                  <span>{item.label}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {dismissible && (
+          <button
+            type="button"
+            aria-label="Dismiss announcement"
+            onClick={() => setOpen(false)}
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:text-on-surface",
+              focusRing,
+            )}
           >
-            {linkLabel}
-          </Link>
+            <X className="size-4" aria-hidden="true" />
+          </button>
         )}
       </div>
-
-      {dismissible && (
-        <button
-          type="button"
-          aria-label="Dismiss announcement"
-          onClick={() => setOpen(false)}
-          className={cn(
-            "absolute end-2 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full",
-            "text-on-primary-container/80 transition-colors hover:text-on-primary-container",
-            focusRing,
-          )}
-        >
-          <X className="size-4" aria-hidden="true" />
-        </button>
-      )}
     </div>
   );
 }

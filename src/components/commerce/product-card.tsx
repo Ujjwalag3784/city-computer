@@ -5,7 +5,6 @@ import { ProductCardAddToCart } from "@/components/commerce/product-card-add-to-
 import { PriceBlock } from "@/components/commerce/price-block";
 import { RatingStars } from "@/components/commerce/rating-stars";
 import { StockBadge } from "@/components/commerce/stock-badge";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 /**
@@ -77,6 +76,10 @@ export interface ProductCardData {
   reviewCount?: number;
   stockStatus: "in-stock" | "low-stock" | "out-of-stock" | "preorder" | "pickup-only";
   stockQuantity?: number;
+  /** Primary category name, shown in the card's mono kicker. */
+  category?: string;
+  /** Up to three short spec values rendered as mono chips, e.g. "RTX 4060", "16 GB". */
+  specs?: string[];
 }
 
 export interface ProductCardProps {
@@ -198,46 +201,76 @@ export function ProductCard({
   }
 
   // variant === "grid" (default) — built on the shared `Card` primitive.
+  const kicker = [product.brand, product.category].filter(Boolean).join(" // ");
+
+  // DESIGN.md "Product Tiles": an Elevation 1 panel holding an inset
+  // Elevation 2 image stage, a mono kicker, spec chips, the pricing
+  // cluster and a full-width add-to-cart.
   return (
-    <Card
+    <article
       className={cn(
-        "group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-primary-container/60 hover:shadow-glow",
+        "group panel flex min-w-0 flex-col gap-4 p-3 transition-colors duration-150 hover:border-outline",
         className,
       )}
     >
-      <Link href={href} className={cn("flex flex-1 flex-col", linkFocusClassName)}>
-        <div className="relative aspect-square w-full overflow-hidden bg-surface-container-high">
+      <Link href={href} className={cn("flex flex-1 flex-col gap-4", linkFocusClassName)}>
+        <div className="tile relative aspect-[4/3] w-full overflow-hidden">
           <ProductImage
             src={product.imageUrl}
             alt={product.imageAlt}
-            sizes="(min-width: 1024px) 33vw, 50vw"
-            className="object-contain transition-transform duration-500 ease-out group-hover:scale-105"
+            sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, 50vw"
+            className="object-contain p-4 transition-transform duration-500 ease-out group-hover:scale-[1.03]"
             priority={priority}
           />
+          <div className="pointer-events-none absolute inset-x-2 top-2 flex items-start justify-between gap-2">
+            <StockBadge status={product.stockStatus} quantity={product.stockQuantity} />
+          </div>
         </div>
-        <CardContent className="flex flex-1 flex-col gap-1.5 pt-3">
-          {product.brand && (
-            <span className="text-label-mono-xs text-on-surface-variant">{product.brand}</span>
+
+        <div className="flex flex-1 flex-col gap-2 px-1">
+          {kicker && (
+            <span className="truncate font-mono text-label-mono-xs text-on-surface-variant">
+              {kicker}
+            </span>
           )}
-          <span className="line-clamp-2 text-body-md font-medium text-on-surface transition-colors group-hover:text-primary">
+          <h3 className="line-clamp-2 font-display text-[0.9375rem] font-semibold leading-snug text-on-surface transition-colors group-hover:text-primary">
             {product.displayTitle}
-          </span>
+          </h3>
+          {product.specs && product.specs.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5" aria-label="Key specifications">
+              {product.specs.map((spec) => (
+                <li
+                  key={spec}
+                  className="max-w-full truncate rounded border border-outline-variant bg-surface-container-high px-1.5 py-0.5 font-mono text-[0.6875rem] text-on-surface-variant"
+                >
+                  {spec}
+                </li>
+              ))}
+            </ul>
+          )}
           {rating !== null && (
             <RatingStars rating={rating} count={product.reviewCount} size="sm" readOnly />
           )}
-          <PriceBlock price={product.price} compareAtPrice={product.compareAtPrice} size="md" />
-          <StockBadge status={product.stockStatus} quantity={product.stockQuantity} />
-          {deliveryLine}
-        </CardContent>
+          <PriceBlock
+            price={product.price}
+            compareAtPrice={product.compareAtPrice}
+            size="md"
+            className="mt-auto pt-1"
+          />
+          {deliveryPromise && (
+            <p className="hidden items-center gap-1.5 font-mono text-[0.6875rem] text-on-surface-variant sm:flex">
+              <Truck className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="line-clamp-1">{deliveryPromise}</span>
+            </p>
+          )}
+        </div>
       </Link>
 
-      <CardFooter className="pt-0">
-        <ProductCardAddToCart
-          variantId={product.variantId}
-          outOfStock={outOfStock}
-          className="w-full"
-        />
-      </CardFooter>
-    </Card>
+      <ProductCardAddToCart
+        variantId={product.variantId}
+        outOfStock={outOfStock}
+        className="w-full"
+      />
+    </article>
   );
 }

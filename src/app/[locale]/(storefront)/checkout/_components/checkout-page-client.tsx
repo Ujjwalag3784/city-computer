@@ -218,7 +218,7 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
   return (
     <div className="grid gap-8 lg:grid-cols-12">
       <div className="lg:col-span-8">
-        <StepperNav steps={steps} className="mb-8" />
+        <StepperNav steps={steps} className="panel mb-6 px-5 py-4" />
 
         {stepError && (
           <Alert variant="destructive" className="mb-4">
@@ -275,7 +275,7 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
               )}
 
               <div>
-                <h2 className="mb-3 text-body-lg font-medium text-on-surface">
+                <h2 className="mb-3 text-headline-sm text-on-surface">
                   {fulfilmentType === "PICKUP" ? "Contact details" : "Shipping address"}
                 </h2>
                 <AddressFields
@@ -300,7 +300,7 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
 
               {!billingSameAsShipping && (
                 <div>
-                  <h2 className="mb-3 text-body-lg font-medium text-on-surface">Billing address</h2>
+                  <h2 className="mb-3 text-headline-sm text-on-surface">Billing address</h2>
                   <AddressFields
                     idPrefix="billing"
                     value={billingAddress}
@@ -361,7 +361,7 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
           <Card variant="surface">
             <CardContent className="flex flex-col gap-6 pt-(--space-card-padding)">
               <div>
-                <h2 className="mb-2 text-body-lg font-medium text-on-surface">
+                <h2 className="mb-2 text-headline-sm text-on-surface">
                   {fulfilmentType === "PICKUP" ? "Pickup" : "Delivery address"}
                 </h2>
                 <p className="text-body-sm text-on-surface-variant">
@@ -382,7 +382,7 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
               </div>
 
               <div>
-                <h2 className="mb-2 text-body-lg font-medium text-on-surface">Payment method</h2>
+                <h2 className="mb-2 text-headline-sm text-on-surface">Payment method</h2>
                 <p className="text-body-sm text-on-surface-variant">
                   {paymentMethod === "COD" ? "Cash on Delivery" : "Bank Transfer"}
                 </p>
@@ -432,7 +432,7 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
               </Button>
             ) : undefined
           }
-          className="sticky top-24"
+          className="lg:sticky lg:top-32"
         />
       </div>
     </div>

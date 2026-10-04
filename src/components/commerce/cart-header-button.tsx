@@ -36,7 +36,7 @@ export function CartHeaderButton({ fallbackCount = 0 }: { fallbackCount?: number
     >
       <ShoppingCart />
       {count > 0 && (
-        <Badge variant="primary" className="absolute -right-1 -top-1 min-w-4 justify-center px-1">
+        <Badge variant="solid" className="absolute -right-0.5 -top-0.5 min-w-4 justify-center px-1">
           {count}
         </Badge>
       )}

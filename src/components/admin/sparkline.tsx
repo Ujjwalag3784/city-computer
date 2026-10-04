@@ -34,7 +34,8 @@ export interface SparklineProps {
   width?: number;
 }
 
-const PRIMARY_CONTAINER_HEX = "#00d1ff";
+// Obsidian Kinetic accent (globals.css --primary). Recharts needs literal values.
+const PRIMARY_CONTAINER_HEX = "#ff5a1f";
 
 export function Sparkline({ data, className, height = 32, width = 96 }: SparklineProps) {
   const points = data.map((value, index) => ({ index, value }));
