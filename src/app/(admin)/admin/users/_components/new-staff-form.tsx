@@ -58,7 +58,7 @@ export function NewStaffForm({ roles }: { roles: StaffRoleDescription[] }) {
   if (created) {
     return (
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-3 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-3 pt-(--space-card-padding)">
           <p className="text-body-md text-on-surface">
             <span className="font-medium">{created.name}</span> has been added.
           </p>

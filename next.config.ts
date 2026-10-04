@@ -27,6 +27,12 @@ const nextConfig: NextConfig = {
     // `ProductImage` instead, so the optimiser never has to accept scriptable
     // SVG input.
   },
+  // Next.js does not generate a `/sitemap.xml` index for a sitemap that uses
+  // `generateSitemaps()`; this serves the one `robots.ts` advertises. See
+  // `src/app/api/sitemap-index/route.ts`.
+  async rewrites() {
+    return [{ source: "/sitemap.xml", destination: "/api/sitemap-index" }];
+  },
   async headers() {
     return [
       {

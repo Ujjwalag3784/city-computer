@@ -38,7 +38,7 @@ export default async function AdminSettingsPage() {
               variant="surface"
               className="h-full transition-colors hover:border-primary-container"
             >
-              <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+              <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
                 <p className="text-body-lg font-medium text-on-surface">{group.label}</p>
                 <p className="text-body-sm text-on-surface-variant">
                   {group.settingCount} setting{group.settingCount === 1 ? "" : "s"}
@@ -52,7 +52,7 @@ export default async function AdminSettingsPage() {
             variant="surface"
             className="h-full transition-colors hover:border-primary-container"
           >
-            <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
               <p className="text-body-lg font-medium text-on-surface">Delivery pricing</p>
               <p className="text-body-sm text-on-surface-variant">Shipping zones and rates</p>
             </CardContent>
@@ -63,7 +63,7 @@ export default async function AdminSettingsPage() {
             variant="surface"
             className="h-full transition-colors hover:border-primary-container"
           >
-            <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
               <p className="text-body-lg font-medium text-on-surface">Payment connections</p>
               <p className="text-body-sm text-on-surface-variant">
                 Status of eSewa, Khalti, Fonepay, connectIPS

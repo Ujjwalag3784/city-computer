@@ -53,3 +53,56 @@ export function productSitemapChunkCount(totalCount: number): number {
 export function productSitemapChunk<T>(products: T[], chunkIndex: number): T[] {
   return products.slice(chunkIndex * PRODUCTS_PER_SITEMAP, (chunkIndex + 1) * PRODUCTS_PER_SITEMAP);
 }
+
+/** Shards 0-5 are fixed (static, categories, brands, posts, pages, branches); products start at 6. */
+export const FIXED_SITEMAP_SHARD_COUNT = 6;
+
+/** Every shard id `src/app/sitemap.ts` serves, for a catalogue of `productCount` indexable products. */
+export function sitemapShardIds(productCount: number): number[] {
+  const total = FIXED_SITEMAP_SHARD_COUNT + productSitemapChunkCount(productCount);
+  return Array.from({ length: total }, (_, id) => id);
+}
+
+/**
+ * Next.js hands a `generateSitemaps()` shard id to the sitemap function as
+ * the URL segment string (`"0"`, from `/sitemap/0.xml`), not the number
+ * `generateSitemaps()` returned. Comparing it with `case 0:` never matches,
+ * which is how every shard on the live site came back as an empty
+ * `<urlset>`. Returns `null` for anything that is not a non-negative integer.
+ */
+export function parseSitemapShardId(id: unknown): number | null {
+  const n =
+    typeof id === "number" ? id : typeof id === "string" && /^\d+$/.test(id) ? Number(id) : NaN;
+  return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+/**
+ * The `/sitemap.xml` index. Next.js does NOT generate one when a sitemap uses
+ * `generateSitemaps()` — it only serves `/sitemap/{id}.xml` — so `robots.txt`
+ * was pointing crawlers at a 404. Served from `app/api/sitemap-index` via a
+ * rewrite in `next.config.ts`.
+ */
+export function buildSitemapIndexXml(
+  siteOrigin: string,
+  shardIds: number[],
+  lastModified: Date,
+): string {
+  const origin = siteOrigin.replace(/\/+$/, "");
+  const lastmod = lastModified.toISOString();
+  const entries = shardIds
+    .map(
+      (id) =>
+        `  <sitemap>\n    <loc>${escapeXml(`${origin}/sitemap/${id}.xml`)}</loc>\n    <lastmod>${lastmod}</lastmod>\n  </sitemap>`,
+    )
+    .join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</sitemapindex>\n`;
+}

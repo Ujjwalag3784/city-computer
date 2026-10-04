@@ -97,13 +97,13 @@ export default async function AdminCustomerDetailPage({ params }: CustomerDetail
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card variant="surface">
-          <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+          <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
             <p className="text-body-sm text-on-surface-variant">Orders</p>
             <p className="text-headline-sm text-on-surface">{customer.totalOrders}</p>
           </CardContent>
         </Card>
         <Card variant="surface">
-          <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+          <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
             <p className="text-body-sm text-on-surface-variant">Total spent</p>
             <p className="text-headline-sm text-on-surface">
               {formatNPR(customer.totalSpentPaisa)}
@@ -111,7 +111,7 @@ export default async function AdminCustomerDetailPage({ params }: CustomerDetail
           </CardContent>
         </Card>
         <Card variant="surface">
-          <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+          <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
             <p className="text-body-sm text-on-surface-variant">Last order</p>
             <p className="text-headline-sm text-on-surface">
               {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt) : "Never ordered"}
@@ -121,7 +121,7 @@ export default async function AdminCustomerDetailPage({ params }: CustomerDetail
       </div>
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-3 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-3 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">Cash on Delivery</h2>
           <p className="text-body-sm text-on-surface-variant">
             Blocking a customer here stops them from choosing Cash on Delivery at checkout — they
@@ -136,7 +136,7 @@ export default async function AdminCustomerDetailPage({ params }: CustomerDetail
       </Card>
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-3 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-3 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">Notes</h2>
           <p className="text-body-sm text-on-surface-variant">
             Only your team can see this — customers never see it.
@@ -150,7 +150,7 @@ export default async function AdminCustomerDetailPage({ params }: CustomerDetail
       </Card>
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-3 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-3 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">Addresses</h2>
           {customer.addresses.length === 0 ? (
             <p className="text-body-sm text-on-surface-variant">No saved addresses.</p>
@@ -183,7 +183,7 @@ export default async function AdminCustomerDetailPage({ params }: CustomerDetail
       </Card>
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-3 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-3 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">Recent orders</h2>
           {customer.recentOrders.length === 0 ? (
             <p className="text-body-sm text-on-surface-variant">No orders yet.</p>

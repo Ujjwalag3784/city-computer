@@ -137,7 +137,7 @@
 
   /* Spacing rhythm (docs/05 §3) — named on top of Tailwind's own scale,
      for the handful of places layout rhythm is called out by name rather
-     than an arbitrary Tailwind step. Use as `p-[--space-card-padding]`
+     than an arbitrary Tailwind step. Use as `p-(--space-card-padding)`
      etc., or Tailwind's numeric scale directly everywhere else. */
   --space-unit: 4px;
   --space-gutter: 24px;

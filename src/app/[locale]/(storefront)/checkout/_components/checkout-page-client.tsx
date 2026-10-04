@@ -228,7 +228,7 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
 
         {step === 0 && (
           <Card variant="surface">
-            <CardContent className="flex flex-col gap-6 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-6 pt-(--space-card-padding)">
               <div>
                 <Label className="mb-2 block">How would you like to get your order?</Label>
                 <RadioGroup
@@ -324,7 +324,7 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
 
         {step === 1 && quote && (
           <Card variant="surface">
-            <CardContent className="flex flex-col gap-4 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-4 pt-(--space-card-padding)">
               <RadioGroup
                 value={paymentMethod ?? ""}
                 onValueChange={(value) => setPaymentMethod(value as PaymentChoice)}
@@ -359,7 +359,7 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
 
         {step === 2 && quote && paymentMethod && (
           <Card variant="surface">
-            <CardContent className="flex flex-col gap-6 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-6 pt-(--space-card-padding)">
               <div>
                 <h2 className="mb-2 text-body-lg font-medium text-on-surface">
                   {fulfilmentType === "PICKUP" ? "Pickup" : "Delivery address"}

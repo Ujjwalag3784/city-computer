@@ -80,7 +80,7 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 size-4 shrink-0 text-on-surface-variant" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0">
         <Command>
           <CommandInput placeholder={placeholder} />
           <CommandList>

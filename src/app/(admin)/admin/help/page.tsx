@@ -33,7 +33,7 @@ export default function AdminHelpIndexPage() {
               variant="surface"
               className="h-full transition-colors hover:border-primary-container"
             >
-              <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+              <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
                 <p className="text-body-lg font-medium text-on-surface">{article.title}</p>
                 <p className="text-body-sm text-on-surface-variant">{article.summary}</p>
               </CardContent>

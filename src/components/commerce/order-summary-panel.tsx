@@ -122,7 +122,7 @@ export function OrderSummaryPanel({
           for the top gap) — there is no header here, so `pt-[--space-card-
           padding]` is restored via `className`, which `cn`'s `twMerge` lets
           win over the base `pt-0`. */}
-      <CardContent className="flex flex-col gap-4 pt-[--space-card-padding]">
+      <CardContent className="flex flex-col gap-4 pt-(--space-card-padding)">
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between text-body-md text-on-surface">
             <span>Subtotal</span>

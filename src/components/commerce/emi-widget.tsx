@@ -100,7 +100,7 @@ export function EmiWidget({ amount, banks = DEFAULT_EMI_BANKS, className }: EmiW
   return (
     <div
       className={cn(
-        "flex flex-col gap-5 rounded-xl border border-glass-stroke bg-surface-container p-[--space-card-padding]",
+        "flex flex-col gap-5 rounded-xl border border-glass-stroke bg-surface-container p-(--space-card-padding)",
         className,
       )}
     >

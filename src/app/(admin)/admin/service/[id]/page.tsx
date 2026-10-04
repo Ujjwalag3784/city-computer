@@ -67,7 +67,7 @@ export default async function AdminServiceTicketDetailPage({ params }: TicketDet
       <TicketTransitionPanel ticketId={ticket.id} nextStatuses={nextStatuses} />
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-2 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-2 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">Device</h2>
           <p className="text-body-sm text-on-surface-variant">
             {ticket.brand} {ticket.model ?? ""} ({ticket.deviceType})
@@ -84,7 +84,7 @@ export default async function AdminServiceTicketDetailPage({ params }: TicketDet
       </Card>
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-2 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-2 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">The problem</h2>
           <p className="text-body-sm text-on-surface-variant">{ticket.issueCategory}</p>
           <p className="text-body-md text-on-surface">{ticket.issueDescription}</p>
@@ -93,7 +93,7 @@ export default async function AdminServiceTicketDetailPage({ params }: TicketDet
 
       {(ticket.estimatedCostPaisa !== null || ticket.finalCostPaisa !== null) && (
         <Card variant="surface">
-          <CardContent className="flex flex-col gap-2 pt-[--space-card-padding]">
+          <CardContent className="flex flex-col gap-2 pt-(--space-card-padding)">
             <h2 className="text-body-lg font-medium text-on-surface">Cost</h2>
             {ticket.estimatedCostPaisa !== null && (
               <p className="text-body-sm text-on-surface-variant">
@@ -110,7 +110,7 @@ export default async function AdminServiceTicketDetailPage({ params }: TicketDet
       )}
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-3 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-3 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">Internal notes</h2>
           <p className="text-body-sm text-on-surface-variant">Only your team sees this.</p>
           <TicketNotes ticketId={ticket.id} initialNotes={ticket.internalNotes} />
@@ -118,7 +118,7 @@ export default async function AdminServiceTicketDetailPage({ params }: TicketDet
       </Card>
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-3 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-3 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">History</h2>
           <TicketTimeline events={ticket.events} />
         </CardContent>

@@ -62,7 +62,7 @@ export default async function AdminTodayPage() {
         />
       </div>
 
-      <Card className="flex flex-col gap-3 p-[--space-card-padding]">
+      <Card className="flex flex-col gap-3 p-(--space-card-padding)">
         <h2 className="text-title text-on-surface">What to do next</h2>
 
         {tasks.length === 0 ? (
@@ -151,7 +151,7 @@ function DashboardListCard({
   emptyMessage: string;
 }) {
   return (
-    <Card className="flex flex-col gap-3 p-[--space-card-padding]">
+    <Card className="flex flex-col gap-3 p-(--space-card-padding)">
       <h2 className="text-title text-on-surface">{title}</h2>
       {items.length === 0 ? (
         <p className="text-body-sm text-on-surface-variant">{emptyMessage}</p>

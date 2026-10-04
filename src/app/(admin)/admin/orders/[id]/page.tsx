@@ -114,7 +114,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
 
       {latestPayment && (
         <Card variant="surface">
-          <CardContent className="pt-[--space-card-padding]">
+          <CardContent className="pt-(--space-card-padding)">
             <PaymentPanel
               orderId={detail.id}
               payment={latestPayment}
@@ -126,7 +126,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
       )}
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-3 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-3 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">Items</h2>
           <ul className="flex flex-col divide-y divide-glass-stroke">
             {detail.items.map((item) => (
@@ -181,7 +181,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
       </Card>
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-4 pt-[--space-card-padding] sm:flex-row sm:gap-8">
+        <CardContent className="flex flex-col gap-4 pt-(--space-card-padding) sm:flex-row sm:gap-8">
           {shipping && (
             <div className="flex-1">
               <h2 className="mb-2 text-body-lg font-medium text-on-surface">
@@ -215,7 +215,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
 
       {(detail.customerNote || detail.internalNote || detail.cancellationReason) && (
         <Card variant="surface">
-          <CardContent className="flex flex-col gap-2 pt-[--space-card-padding]">
+          <CardContent className="flex flex-col gap-2 pt-(--space-card-padding)">
             {detail.customerNote && (
               <p className="text-body-sm text-on-surface-variant">
                 Customer note: {detail.customerNote}
@@ -236,7 +236,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
       )}
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-2 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-2 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">History</h2>
           <OrderTimeline events={detail.statusEvents} />
         </CardContent>

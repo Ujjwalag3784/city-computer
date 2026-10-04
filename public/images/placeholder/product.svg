@@ -6,8 +6,8 @@
     at per-product .avif filenames that were never generated and 404'd).
 
     Colours are the literal Obsidian Peak token values from
-    `src/app/globals.css` — --surface-container-high (#2a2a2c),
-    --surface-container-highest (#353437) and --outline (#948f99) — rather
+    `src/app/globals.css`: surface-container-high (#2a2a2c),
+    surface-container-highest (#353437) and outline (#948f99), rather
     than CSS variables, because an <img>-loaded SVG cannot see the page's
     custom properties. If those tokens change, this file has to change with
     them; it is the only place in the repo that hard-codes them.

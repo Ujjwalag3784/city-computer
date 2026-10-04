@@ -423,6 +423,8 @@ async function seedOneProduct(demo: DemoProduct) {
     update: {},
   });
 
+  await seedOpeningStock(variant.id);
+
   for (const [specIndex, spec] of demo.specs.entries()) {
     await db.productSpec.upsert({
       where: { productId_key: { productId: product.id, key: spec.key } },
@@ -446,4 +448,46 @@ async function seedOneProduct(demo: DemoProduct) {
   }
 
   return { product, variant };
+}
+
+/** Opening quantity for every demo variant at the default branch. */
+const DEMO_OPENING_STOCK = 10;
+
+/**
+ * Gives a demo variant opening stock at the default fulfilment branch.
+ *
+ * WHY. The seed used to create no `StockLevel` rows at all, so every demo
+ * product rendered "Out of stock" on the storefront and could not be added
+ * to a cart — the whole buy flow was unreachable on a freshly seeded site.
+ *
+ * Create-only on purpose: if a row already exists (from an earlier run, or
+ * because the shop has since entered real counts), it is left untouched, so
+ * re-running `pnpm db:seed` against a live database never overwrites real
+ * stock. The matching `INITIAL` movement keeps Stock History truthful.
+ */
+async function seedOpeningStock(variantId: string) {
+  const branch = await db.branch.findFirst({ where: { isDefaultFulfilment: true } });
+  if (!branch) {
+    throw new Error("seedCatalog: no default fulfilment branch — run seedCore first.");
+  }
+
+  const existing = await db.stockLevel.findUnique({
+    where: { variantId_branchId: { variantId, branchId: branch.id } },
+  });
+  if (existing) return;
+
+  await db.$transaction([
+    db.stockLevel.create({
+      data: { variantId, branchId: branch.id, quantity: DEMO_OPENING_STOCK },
+    }),
+    db.stockMovement.create({
+      data: {
+        variantId,
+        branchId: branch.id,
+        delta: DEMO_OPENING_STOCK,
+        reason: "INITIAL",
+        note: "Demo opening stock (seed)",
+      },
+    }),
+  ]);
 }

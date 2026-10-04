@@ -1,11 +1,11 @@
 /**
  * docs/11-SEO-STRATEGY.md §5.1-§5.3 — the sitemap index + child sitemaps.
- * Uses Next.js 15's `generateSitemaps()` multi-file convention: Next
- * itself serves `/sitemap.xml` as the index listing every `/sitemap/
- * {id}.xml` this file produces — that IS this codebase's sitemap index,
- * not a hand-rolled XML file, matching the doc's "a sitemap index is
- * required" requirement without reinventing what the framework already
- * does correctly.
+ * Uses Next.js 15's `generateSitemaps()` multi-file convention, which serves
+ * each shard at `/sitemap/{id}.xml`. CORRECTED: Next does NOT also serve a
+ * `/sitemap.xml` index for it (an earlier version of this comment said it
+ * did, and the live `/sitemap.xml` was a 404). The index is
+ * `app/api/sitemap-index/route.ts`, rewritten to `/sitemap.xml` in
+ * `next.config.ts`.
  *
  * Shard layout (fixed ids 0-5, then one id per product chunk):
  *   0 — static core pages (home, /faq, /stores, /service,
@@ -29,9 +29,11 @@
  */
 import type { MetadataRoute } from "next";
 import {
+  FIXED_SITEMAP_SHARD_COUNT,
+  parseSitemapShardId,
   productSitemapChunk,
-  productSitemapChunkCount,
   sitemapRowsToEntries,
+  sitemapShardIds,
   toSitemapUrlEntries,
 } from "@/lib/seo/sitemap";
 import {
@@ -54,16 +56,24 @@ const STATIC_CORE_PATHS = [
   "/build/new",
 ] as const;
 
-const FIXED_SHARD_COUNT = 6; // ids 0-5
-
 export async function generateSitemaps(): Promise<{ id: number }[]> {
   const productCount = await listSitemapProducts().then((rows) => rows.length);
-  const productChunkCount = productSitemapChunkCount(productCount);
-  return Array.from({ length: FIXED_SHARD_COUNT + productChunkCount }, (_, id) => ({ id }));
+  return sitemapShardIds(productCount).map((id) => ({ id }));
 }
 
-export default async function sitemap({ id }: { id: number }): Promise<MetadataRoute.Sitemap> {
+/**
+ * `id` arrives as the URL segment string ("0" from `/sitemap/0.xml`), not a
+ * number, despite `generateSitemaps()` returning numbers — see
+ * `parseSitemapShardId`. Typed `unknown` so nothing compares it raw again.
+ */
+export default async function sitemap({
+  id: rawId,
+}: {
+  id: unknown;
+}): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const id = parseSitemapShardId(rawId);
+  if (id === null) return [];
 
   switch (id) {
     case 0:
@@ -83,7 +93,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
     case 5:
       return sitemapRowsToEntries(await listSitemapBranches(), (slug) => `/stores/${slug}`);
     default: {
-      const chunkIndex = id - FIXED_SHARD_COUNT;
+      const chunkIndex = id - FIXED_SITEMAP_SHARD_COUNT;
       const products = await listSitemapProducts();
       const chunk = productSitemapChunk(products, chunkIndex);
       return sitemapRowsToEntries(chunk, (slug) => `/p/${slug}`);

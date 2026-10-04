@@ -96,7 +96,7 @@ export function EmiCalculatorClient({ schedules }: EmiCalculatorClientProps) {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-4 rounded-xl border border-glass-stroke bg-surface-container p-[--space-card-padding]">
+      <div className="flex flex-col gap-4 rounded-xl border border-glass-stroke bg-surface-container p-(--space-card-padding)">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="emi-amount">Item price (NPR)</Label>
@@ -181,7 +181,7 @@ export function EmiCalculatorClient({ schedules }: EmiCalculatorClientProps) {
         </p>
       </div>
 
-      <div className="flex flex-col gap-4 rounded-xl border border-glass-stroke p-[--space-card-padding]">
+      <div className="flex flex-col gap-4 rounded-xl border border-glass-stroke p-(--space-card-padding)">
         <h2 className="text-headline-sm text-on-surface">Want us to call you about this?</h2>
         {leadSent ? (
           <p className="text-body-md text-on-surface-variant">

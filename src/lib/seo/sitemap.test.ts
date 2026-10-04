@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { SITE_URL } from "./site";
 import {
+  buildSitemapIndexXml,
+  FIXED_SITEMAP_SHARD_COUNT,
+  parseSitemapShardId,
+  sitemapShardIds,
   productSitemapChunk,
   productSitemapChunkCount,
   PRODUCTS_PER_SITEMAP,
@@ -80,5 +84,54 @@ describe("productSitemapChunk", () => {
   it("returns an empty slice past the end", () => {
     const products = Array.from({ length: 5 }, (_, i) => i);
     expect(productSitemapChunk(products, 3)).toEqual([]);
+  });
+});
+
+describe("parseSitemapShardId", () => {
+  it("accepts the string segment Next.js actually passes", () => {
+    expect(parseSitemapShardId("0")).toBe(0);
+    expect(parseSitemapShardId("6")).toBe(6);
+    expect(parseSitemapShardId("12")).toBe(12);
+  });
+
+  it("still accepts a number", () => {
+    expect(parseSitemapShardId(3)).toBe(3);
+  });
+
+  it("rejects anything that is not a non-negative integer", () => {
+    for (const bad of [undefined, null, "", "-1", "1.5", "abc", "0.xml", -1, 1.5, NaN]) {
+      expect(parseSitemapShardId(bad)).toBeNull();
+    }
+  });
+});
+
+describe("sitemapShardIds", () => {
+  it("lists the six fixed shards plus at least one product shard", () => {
+    expect(sitemapShardIds(0)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it("adds a product shard per chunk", () => {
+    const ids = sitemapShardIds(PRODUCTS_PER_SITEMAP * 2 + 1);
+    expect(ids).toHaveLength(FIXED_SITEMAP_SHARD_COUNT + 3);
+    expect(ids.at(-1)).toBe(FIXED_SITEMAP_SHARD_COUNT + 2);
+  });
+});
+
+describe("buildSitemapIndexXml", () => {
+  const when = new Date("2026-10-04T00:00:00.000Z");
+
+  it("lists every shard as an absolute URL", () => {
+    const xml = buildSitemapIndexXml("https://example.com/", [0, 1], when);
+    expect(xml).toContain('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
+    expect(xml).toContain("<loc>https://example.com/sitemap/0.xml</loc>");
+    expect(xml).toContain("<loc>https://example.com/sitemap/1.xml</loc>");
+    expect(xml).toContain("<lastmod>2026-10-04T00:00:00.000Z</lastmod>");
+    expect(xml).not.toContain("example.com//sitemap");
+  });
+
+  it("escapes XML-special characters in the origin", () => {
+    const xml = buildSitemapIndexXml("https://example.com/?a=1&b=2", [0], when);
+    expect(xml).toContain("&amp;");
+    expect(xml).not.toMatch(/&b=/);
   });
 });

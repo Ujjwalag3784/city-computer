@@ -174,7 +174,7 @@ export function OrderTrackingClient({ orderNumber, initialDetail }: OrderTrackin
   if (!detail) {
     return (
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-4 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-4 pt-(--space-card-padding)">
           <p className="text-body-md text-on-surface-variant">
             Enter the phone number used when this order was placed to view its status.
           </p>
@@ -216,7 +216,7 @@ export function OrderTrackingClient({ orderNumber, initialDetail }: OrderTrackin
   return (
     <div className="flex flex-col gap-6">
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-4 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-4 pt-(--space-card-padding)">
           <OrderStatusTracker status={detail.visibleStatus} />
           {detail.extraStatusNote && (
             <p className="text-body-sm text-on-surface-variant">{detail.extraStatusNote}</p>
@@ -230,7 +230,7 @@ export function OrderTrackingClient({ orderNumber, initialDetail }: OrderTrackin
       </Card>
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-3 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-3 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">Items</h2>
           <ul className="flex flex-col divide-y divide-glass-stroke">
             {detail.items.map((item) => (
@@ -284,7 +284,7 @@ export function OrderTrackingClient({ orderNumber, initialDetail }: OrderTrackin
       </Card>
 
       <Card variant="surface">
-        <CardContent className="flex flex-col gap-4 pt-[--space-card-padding]">
+        <CardContent className="flex flex-col gap-4 pt-(--space-card-padding)">
           <h2 className="text-body-lg font-medium text-on-surface">
             {detail.fulfilmentType === "PICKUP" ? "Pickup" : "Delivery address"}
           </h2>

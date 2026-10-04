@@ -88,7 +88,7 @@ export default async function AdminReportsPage({
         <h2 className="text-body-lg font-medium text-on-surface">Sales — {sales.rangeLabel}</h2>
         <div className="grid gap-4 sm:grid-cols-4">
           <Card variant="surface">
-            <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
               <p className="text-body-sm text-on-surface-variant">Orders</p>
               <Link
                 href="/admin/orders"
@@ -99,19 +99,19 @@ export default async function AdminReportsPage({
             </CardContent>
           </Card>
           <Card variant="surface">
-            <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
               <p className="text-body-sm text-on-surface-variant">Revenue</p>
               <p className="text-headline-sm text-on-surface">{formatNPR(sales.revenuePaisa)}</p>
             </CardContent>
           </Card>
           <Card variant="surface">
-            <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
               <p className="text-body-sm text-on-surface-variant">Average order value</p>
               <p className="text-headline-sm text-on-surface">{formatNPR(sales.aovPaisa)}</p>
             </CardContent>
           </Card>
           <Card variant="surface">
-            <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
               <p className="text-body-sm text-on-surface-variant">Cancelled</p>
               <Link
                 href="/admin/orders?filter=cancelled"
@@ -154,7 +154,7 @@ export default async function AdminReportsPage({
         <h2 className="text-body-lg font-medium text-on-surface">Stock</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Card variant="surface">
-            <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
               <p className="text-body-sm text-on-surface-variant">Almost out of stock</p>
               <Link
                 href="/admin/inventory?filter=low-stock"
@@ -165,7 +165,7 @@ export default async function AdminReportsPage({
             </CardContent>
           </Card>
           <Card variant="surface">
-            <CardContent className="flex flex-col gap-1 pt-[--space-card-padding]">
+            <CardContent className="flex flex-col gap-1 pt-(--space-card-padding)">
               <p className="text-body-sm text-on-surface-variant">Out of stock</p>
               <Link
                 href="/admin/inventory?filter=out-of-stock"
