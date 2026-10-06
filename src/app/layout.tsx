@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Inter, JetBrains_Mono, Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import { getLocale } from "next-intl/server";
 import { JsonLd } from "@/components/seo/json-ld";
 import { buildOrganizationJsonLd } from "@/lib/seo/jsonld/organization";
@@ -12,27 +12,35 @@ import "./globals.css";
 // Manrope for display/headlines, Inter for body, JetBrains Mono for specs,
 // SKUs and labels — see globals.css's header.
 //
+// Self-hosted variable fonts (src/app/fonts/README.md), not
+// `next/font/google`: Google intermittently serves a font URL that crashes
+// next/font's loader and fails the production build. One variable file per
+// family covers every weight the design uses.
+//
 // None of the three ships Devanagari glyphs; Nepali (`ne`) text falls back
 // to the next font in each stack, the same accepted pattern as before.
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
+const manrope = localFont({
+  src: "./fonts/manrope-latin-wght.woff2",
+  weight: "200 800",
   display: "swap",
   variable: "--font-manrope",
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+const inter = localFont({
+  src: "./fonts/inter-latin-wght.woff2",
+  weight: "100 900",
   display: "swap",
   variable: "--font-inter",
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const jetbrainsMono = localFont({
+  src: "./fonts/jetbrains-mono-latin-wght.woff2",
+  weight: "100 800",
   display: "swap",
   variable: "--font-jetbrains-mono",
+  fallback: ["ui-monospace", "monospace"],
 });
 
 /**

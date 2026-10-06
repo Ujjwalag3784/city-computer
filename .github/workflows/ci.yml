@@ -17,8 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Version comes from package.json "packageManager" (pnpm@9.15.9);
+      # also passing `version` here makes the action fail outright.
       - uses: pnpm/action-setup@v4
-        with: { version: 9 }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
@@ -28,8 +29,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Version comes from package.json "packageManager" (pnpm@9.15.9);
+      # also passing `version` here makes the action fail outright.
       - uses: pnpm/action-setup@v4
-        with: { version: 9 }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
@@ -40,8 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Version comes from package.json "packageManager" (pnpm@9.15.9);
+      # also passing `version` here makes the action fail outright.
       - uses: pnpm/action-setup@v4
-        with: { version: 9 }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
@@ -53,8 +56,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Version comes from package.json "packageManager" (pnpm@9.15.9);
+      # also passing `version` here makes the action fail outright.
       - uses: pnpm/action-setup@v4
-        with: { version: 9 }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
@@ -66,8 +70,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Version comes from package.json "packageManager" (pnpm@9.15.9);
+      # also passing `version` here makes the action fail outright.
       - uses: pnpm/action-setup@v4
-        with: { version: 9 }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
@@ -89,9 +94,18 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
+      # Version comes from package.json "packageManager" (pnpm@9.15.9);
+      # also passing `version` here makes the action fail outright.
       - uses: pnpm/action-setup@v4
-        with: { version: 9 }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # The sitemap reads the catalogue at build time, so the build needs a
+      # migrated database. Throwaway CI-only values; nothing here is secret.
+      - run: pnpm db:deploy
+        env:
+          DATABASE_URL: postgresql://citycomputer:citycomputer@localhost:5432/citycomputer
       - run: pnpm build
+        env:
+          DATABASE_URL: postgresql://citycomputer:citycomputer@localhost:5432/citycomputer
+          AUTH_SECRET: ci-only-not-a-real-secret-0123456789abcdef
