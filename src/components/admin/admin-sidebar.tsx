@@ -62,6 +62,8 @@ export interface AdminNavItem {
    */
   icon: ReactNode;
   badgeCount?: number;
+  /** Other sections this row should light up for (e.g. Content → /admin/brands). */
+  activePrefixes?: string[];
 }
 
 /**
@@ -131,10 +133,16 @@ export interface AdminSidebarProps {
  * "PC Builder") even though the row's own `href` points at that section's
  * landing page, not every page under it.
  */
-function isNavItemActive(itemHref: string, activeHref: string | undefined): boolean {
+function isNavItemActive(
+  itemHref: string,
+  activeHref: string | undefined,
+  activePrefixes: readonly string[] = [],
+): boolean {
   if (!activeHref) return false;
   if (itemHref === "/admin") return activeHref === "/admin";
-  return activeHref === itemHref || activeHref.startsWith(`${itemHref}/`);
+  return [itemHref, ...activePrefixes].some(
+    (prefix) => activeHref === prefix || activeHref.startsWith(`${prefix}/`),
+  );
 }
 
 /**
@@ -159,7 +167,7 @@ export function AdminSidebarContent({
 
       <ul className="flex flex-1 flex-col gap-1 overflow-y-auto">
         {items.map((item) => {
-          const isActive = isNavItemActive(item.href, activeHref);
+          const isActive = isNavItemActive(item.href, activeHref, item.activePrefixes);
           return (
             <li key={item.href}>
               <Link

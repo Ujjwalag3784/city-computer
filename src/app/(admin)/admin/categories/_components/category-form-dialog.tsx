@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { SeoPreview } from "@/components/admin/seo-preview";
 import type { AdminCategoryNode } from "@/server/services/admin/category";
 import { createCategoryAction, updateCategoryAction } from "../_actions";
+import { SITE_HOST } from "@/lib/client/site-host";
 
 /**
  * The one form both "Add a category" and "Edit category" use — docs/09-
@@ -184,7 +185,7 @@ export function CategoryFormDialog({
                   aren't hidden behind SEO jargon for day-to-day category edits.
                 */}
                 <SeoPreview
-                  pageUrl={`citycomputer.com.np/c/${name ? name.toLowerCase().replace(/\s+/g, "-") : "..."}`}
+                  pageUrl={`${SITE_HOST}/c/${name ? name.toLowerCase().replace(/\s+/g, "-") : "..."}`}
                   pageTitle={metaTitle}
                   onPageTitleChange={setMetaTitle}
                   searchDescription={metaDescription}

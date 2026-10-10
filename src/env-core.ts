@@ -55,6 +55,10 @@ const envSchema = z.object({
   S3_BUCKET: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
+  // Vercel Blob — set automatically on the Vercel project when a Blob store
+  // is connected. When present, product photos upload there instead of S3
+  // (server/services/admin/media.ts).
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
   NEXT_PUBLIC_CDN_URL: z.string().url().optional(),
 
   RESEND_API_KEY: z.string().optional(),
@@ -102,8 +106,20 @@ const envSchema = z.object({
   SMS_SENDER_ID: z.string().optional(),
 });
 
+/**
+ * When `NEXT_PUBLIC_SITE_URL` isn't set on a Vercel deployment, use the
+ * project's production domain (a system variable Vercel always provides)
+ * instead of falling through to `http://localhost:3000`, which would put
+ * localhost into canonical tags, sitemaps and email links.
+ */
+function withVercelSiteUrl(source: NodeJS.ProcessEnv): Record<string, string | undefined> {
+  const productionHost = source.VERCEL_PROJECT_PRODUCTION_URL;
+  if (source.NEXT_PUBLIC_SITE_URL || !productionHost) return source;
+  return { ...source, NEXT_PUBLIC_SITE_URL: `https://${productionHost}` };
+}
+
 function loadEnv() {
-  const parsed = envSchema.safeParse(process.env);
+  const parsed = envSchema.safeParse(withVercelSiteUrl(process.env));
   if (!parsed.success) {
     console.error("❌ Invalid environment variables:");
     console.error(parsed.error.flatten().fieldErrors);

@@ -2,6 +2,10 @@
 
 import { SeoPreview } from "@/components/admin/seo-preview";
 import type { SeoFormState } from "../_lib/wizard-types";
+import { defaultPageTitle, defaultSearchDescription } from "../_lib/seo-defaults";
+import { SITE_HOST } from "@/lib/client/site-host";
+
+export { defaultPageTitle, defaultSearchDescription };
 
 /**
  * Step 4 — "Search information" (docs/09-ADMIN-DAD-MODE.md §5.1). A thin
@@ -22,17 +26,6 @@ export interface SearchStepProps {
   slug?: string;
 }
 
-export function defaultPageTitle(productName: string, brandName: string): string {
-  const parts = [productName, "Price in Nepal"];
-  if (brandName) parts.push(brandName);
-  parts.push("City Computer");
-  return parts.filter(Boolean).join(" | ").slice(0, 70);
-}
-
-export function defaultSearchDescription(shortDescription: string): string {
-  return shortDescription.slice(0, 160);
-}
-
 export function SearchStep({
   value,
   onChange,
@@ -42,11 +35,12 @@ export function SearchStep({
   slug,
 }: SearchStepProps) {
   const pageTitle = value.metaTitle || defaultPageTitle(productName, brandName);
-  const searchDescription = value.metaDescription || defaultSearchDescription(shortDescription);
+  const searchDescription =
+    value.metaDescription || defaultSearchDescription(productName, shortDescription);
 
   return (
     <SeoPreview
-      pageUrl={slug ? `citycomputer.com.np/p/${slug}` : "citycomputer.com.np/p/..."}
+      pageUrl={slug ? `${SITE_HOST}/p/${slug}` : `${SITE_HOST}/p/...`}
       pageTitle={pageTitle}
       onPageTitleChange={(metaTitle) => onChange({ ...value, metaTitle })}
       searchDescription={searchDescription}

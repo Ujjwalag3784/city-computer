@@ -20,6 +20,7 @@ import { TiptapEditor } from "@/components/admin/tiptap-editor";
 import { PageTemplate, PostStatus } from "@/generated/prisma/enums";
 import { slugify } from "@/lib/slug";
 import { createPageAction, updatePageAction, deletePageAction } from "../_actions";
+import { SITE_HOST } from "@/lib/client/site-host";
 
 export interface PageFormValues {
   title: string;
@@ -141,7 +142,7 @@ export function PageForm({ pageId, initialValues }: PageFormProps) {
           required
         />
         <p className="text-body-sm text-on-surface-variant">
-          Will be published at citycomputer.com.np/pages/{values.slug || "..."}
+          Will be published at {SITE_HOST}/pages/{values.slug || "..."}
         </p>
         {issues.slug && <p className="text-body-sm text-danger">{issues.slug}</p>}
       </div>
@@ -188,7 +189,7 @@ export function PageForm({ pageId, initialValues }: PageFormProps) {
         <Label>Search information</Label>
         {/* Same `SeoPreview` the product wizard and blog post form use — see PROGRESS.md Phase 11's admin-SEO-fields audit note. */}
         <SeoPreview
-          pageUrl={`citycomputer.com.np/pages/${values.slug || "..."}`}
+          pageUrl={`${SITE_HOST}/pages/${values.slug || "..."}`}
           pageTitle={values.metaTitle}
           onPageTitleChange={(metaTitle) => update("metaTitle", metaTitle)}
           searchDescription={values.metaDescription}

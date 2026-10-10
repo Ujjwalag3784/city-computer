@@ -82,13 +82,13 @@ export function AdminShell({
 
       <AdminSidebar items={navItems} activeHref={resolvedActiveHref} />
 
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <AdminTopBar
           onMobileMenuClick={() => setMobileSidebarOpen(true)}
           onSearch={onSearch}
           userName={userName}
         />
-        <main id="main-content" className="flex-1 overflow-y-auto bg-background p-4 lg:p-6">
+        <main id="main-content" className="min-w-0 flex-1 overflow-y-auto bg-background p-4 lg:p-6">
           {children}
         </main>
       </div>

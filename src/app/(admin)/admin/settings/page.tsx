@@ -1,13 +1,47 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { BarChart3, History, Store, UserCog } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { HubLinkGrid, type HubLink } from "@/components/admin/hub-link-grid";
 import { auth } from "@/server/auth";
-import { requirePermission } from "@/server/auth/permissions";
+import { permissionSetHas, requirePermission } from "@/server/auth/permissions";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { listSettingGroups } from "@/server/services/admin/settings";
 
 export const metadata: Metadata = { title: "Settings — Admin — City Computer Systems" };
+
+/** Owner tools that have no sidebar row of their own. */
+const OWNER_TOOLS: (HubLink & { permission: string })[] = [
+  {
+    href: "/admin/reports",
+    title: "Reports",
+    description: "Sales, best sellers, stock, and searches that found nothing.",
+    icon: <BarChart3 />,
+    permission: "report:view",
+  },
+  {
+    href: "/admin/users",
+    title: "Staff accounts",
+    description: "Who can sign in to this admin, and what they're allowed to do.",
+    icon: <UserCog />,
+    permission: "user:manage",
+  },
+  {
+    href: "/admin/branches",
+    title: "Stores",
+    description: "Your shop locations for pickup and repairs.",
+    icon: <Store />,
+    permission: "branch:write",
+  },
+  {
+    href: "/admin/activity",
+    title: "Activity history",
+    description: "Every change anyone has made, and when.",
+    icon: <History />,
+    permission: "audit:view",
+  },
+];
 
 /** `/admin/settings` — docs/09-ADMIN-DAD-MODE.md §3, OWNER only. */
 export default async function AdminSettingsPage() {
@@ -21,6 +55,8 @@ export default async function AdminSettingsPage() {
   }
 
   const groups = await listSettingGroups();
+  const permissionKeys = session!.user.permissionKeys;
+  const tools = OWNER_TOOLS.filter((tool) => permissionSetHas(permissionKeys, tool.permission));
 
   return (
     <div className="flex flex-col gap-6">
@@ -31,6 +67,11 @@ export default async function AdminSettingsPage() {
         </p>
       </div>
 
+      <HubLinkGrid title="Shop tools" links={tools} />
+
+      <h2 className="font-mono text-label-mono-xs tracking-[0.12em] text-on-surface-variant uppercase">
+        Website settings
+      </h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {groups.map((group) => (
           <Link key={group.group} href={`/admin/settings/${group.group}`}>

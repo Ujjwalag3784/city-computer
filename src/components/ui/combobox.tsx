@@ -46,7 +46,10 @@ export interface ComboboxProps {
   emptyText?: string;
   className?: string;
   disabled?: boolean;
+  /** Lets a `<Label htmlFor>` point at the trigger. */
+  id?: string;
   "aria-label"?: string;
+  "aria-invalid"?: boolean;
 }
 
 export function Combobox({
@@ -71,7 +74,13 @@ export function Combobox({
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className={cn("w-full justify-between font-normal", className)}
+          // Reads as a form field, not a button: body font, field border.
+          className={cn(
+            "w-full justify-between !font-sans text-body-md !font-normal !tracking-normal",
+            "border-outline-variant bg-surface-container hover:bg-surface-container-high",
+            "aria-invalid:border-error",
+            className,
+          )}
           {...props}
         >
           <span className={cn("truncate", !selected && "text-on-surface-variant")}>

@@ -59,6 +59,7 @@ const NAV_DEFINITIONS: {
   label: string;
   href: string;
   icon: AdminNavItem["icon"];
+  activePrefixes?: string[];
   allowedRoles: readonly AdminRoleKey[];
 }[] = [
   {
@@ -117,6 +118,7 @@ const NAV_DEFINITIONS: {
     key: "pc-builder",
     label: "PC Builder",
     href: "/admin/builder/parts",
+    activePrefixes: ["/admin/builder"],
     icon: createElement(Cpu, { className: ICON_CLASS }),
     // Union of `/admin/builder/parts` (+TECHNICIAN), `/admin/builder/rules`
     // (OWNER+TECHNICIAN only), `/admin/builder/builds` (OWNER+MANAGER).
@@ -125,7 +127,19 @@ const NAV_DEFINITIONS: {
   {
     key: "content",
     label: "Content",
-    href: "/admin/blog",
+    href: "/admin/content",
+    activePrefixes: [
+      "/admin/categories",
+      "/admin/brands",
+      "/admin/coupons",
+      "/admin/campaigns",
+      "/admin/reviews",
+      "/admin/media",
+      "/admin/blog",
+      "/admin/pages",
+      "/admin/faqs",
+      "/admin/menus",
+    ],
     icon: createElement(FileText, { className: ICON_CLASS }),
     // Union of blog/pages (+CONTENT_EDITOR), media (+CONTENT_EDITOR),
     // categories/brands/coupons/campaigns/reviews (OWNER+MANAGER only).
@@ -135,6 +149,7 @@ const NAV_DEFINITIONS: {
     key: "settings",
     label: "Settings",
     href: "/admin/settings",
+    activePrefixes: ["/admin/reports", "/admin/users", "/admin/branches", "/admin/activity"],
     icon: createElement(Settings, { className: ICON_CLASS }),
     // §3: `/admin/settings/*`, `/admin/users`, `/admin/branches`,
     // `/admin/activity` are all OWNER only. `/admin/reports` (OWNER+
@@ -199,6 +214,7 @@ export function buildAdminNavItems(
       label: definition.label,
       href: definition.href,
       icon: definition.icon,
+      ...(definition.activePrefixes ? { activePrefixes: definition.activePrefixes } : {}),
       ...(typeof badgeCount === "number" && badgeCount > 0 ? { badgeCount } : {}),
     };
   });

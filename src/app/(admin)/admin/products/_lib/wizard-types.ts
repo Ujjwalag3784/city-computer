@@ -26,8 +26,15 @@ export interface BasicInfoFormState {
   brandId: string;
   primaryCategoryId: string;
   additionalCategoryIds: string[];
+  /** The normal (full) price, shown struck through when there's an offer. */
   priceRupees: number | "";
-  compareAtPriceRupees: number | "";
+  /**
+   * The discounted price the customer actually pays, or "" for no discount.
+   * Owners think "normal price + offer price"; the database stores
+   * "selling price + compare-at price". `product-wizard.tsx` maps between
+   * the two (`basicInfoPayload` / `fromWizardData`).
+   */
+  offerPriceRupees: number | "";
   stockQuantity: number | "";
   productCode: string;
   conditionType: ConditionType;
@@ -44,7 +51,7 @@ export function emptyBasicInfo(): BasicInfoFormState {
     primaryCategoryId: "",
     additionalCategoryIds: [],
     priceRupees: "",
-    compareAtPriceRupees: "",
+    offerPriceRupees: "",
     stockQuantity: "",
     productCode: "",
     conditionType: "NEW" as ConditionType,

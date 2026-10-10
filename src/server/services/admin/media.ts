@@ -6,6 +6,17 @@
  * presigner`, added this session) to mint a real presigned PUT URL —
  * this is not a stub.
  *
+ * STORAGE BACKENDS (2026-10-10): Vercel Blob when `BLOB_READ_WRITE_TOKEN`
+ * is set (the live site — Vercel sets it when a Blob store is connected to
+ * the project), otherwise S3/MinIO via the `S3_*` settings. Both follow the
+ * same three steps: the server issues a short-lived, single-path upload
+ * credential (`requestUpload`), the browser sends the file straight to
+ * storage, and `completeUpload` records the `Media` row. For Blob the
+ * credential is a client token pinned to one pathname, one content type
+ * and the declared size; `completeUpload` then asks Blob for the object
+ * (`head`) so a row is only ever created for a file that really exists,
+ * using the URL Blob reports rather than one the browser sends.
+ *
  * WHAT IS NOT YET BUILT, flagged rather than faked:
  * - **Server-side derivative generation** (docs/09 §5.1: "automatically:
  *   resize, generate AVIF + WebP + JPEG, produce thumbnails and a blur
@@ -29,6 +40,8 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { head } from "@vercel/blob";
+import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { db } from "@/server/db";
 import { env } from "@/env";
@@ -84,20 +97,43 @@ function sanitizeFileName(fileName: string): string {
   return `${randomUUID()}${ext}`;
 }
 
-export interface RequestedUpload {
-  uploadUrl: string;
-  key: string;
-  expiresInSeconds: number;
+export type RequestedUpload =
+  | { mode: "s3"; uploadUrl: string; key: string; expiresInSeconds: number }
+  | { mode: "blob"; clientToken: string; key: string; expiresInSeconds: number };
+
+/** True when photos go to Vercel Blob (see the module doc comment). */
+export function isBlobConfigured(): boolean {
+  return Boolean(env.BLOB_READ_WRITE_TOKEN);
 }
 
-/** Mints a presigned S3 PUT URL the browser uploads directly to — the file's bytes never pass through this Next.js server. */
-export async function requestUpload(input: RequestUploadInput): Promise<RequestedUpload> {
-  const config = requireS3Config();
-  const client = getS3Client(config);
-
+function newProductPhotoKey(fileName: string): string {
   const now = new Date();
   const datePrefix = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-  const key = `products/${datePrefix}/${sanitizeFileName(input.fileName)}`;
+  return `products/${datePrefix}/${sanitizeFileName(fileName)}`;
+}
+
+/**
+ * Issues the short-lived credential the browser uploads with — the file's
+ * bytes never pass through this Next.js server (which also keeps uploads
+ * clear of Vercel's 4.5 MB function body limit).
+ */
+export async function requestUpload(input: RequestUploadInput): Promise<RequestedUpload> {
+  const key = newProductPhotoKey(input.fileName);
+
+  if (isBlobConfigured()) {
+    const clientToken = await generateClientTokenFromReadWriteToken({
+      token: env.BLOB_READ_WRITE_TOKEN,
+      pathname: key,
+      allowedContentTypes: [input.mimeType],
+      maximumSizeInBytes: input.sizeBytes,
+      validUntil: Date.now() + PRESIGNED_URL_TTL_SECONDS * 1000,
+      addRandomSuffix: false,
+    });
+    return { mode: "blob", clientToken, key, expiresInSeconds: PRESIGNED_URL_TTL_SECONDS };
+  }
+
+  const config = requireS3Config();
+  const client = getS3Client(config);
 
   const command = new PutObjectCommand({
     Bucket: config.bucket,
@@ -108,12 +144,36 @@ export async function requestUpload(input: RequestUploadInput): Promise<Requeste
 
   const uploadUrl = await getSignedUrl(client, command, { expiresIn: PRESIGNED_URL_TTL_SECONDS });
 
-  return { uploadUrl, key, expiresInSeconds: PRESIGNED_URL_TTL_SECONDS };
+  return { mode: "s3", uploadUrl, key, expiresInSeconds: PRESIGNED_URL_TTL_SECONDS };
 }
 
 function publicUrlForKey(key: string, bucket: string, endpoint: string): string {
   if (env.NEXT_PUBLIC_CDN_URL) return `${env.NEXT_PUBLIC_CDN_URL.replace(/\/$/, "")}/${key}`;
   return `${endpoint.replace(/\/$/, "")}/${bucket}/${key}`;
+}
+
+/**
+ * The public URL for a just-uploaded object. For Blob, `head` both proves
+ * the upload finished and returns Blob's own URL; a key that was never
+ * uploaded throws, so no `Media` row can point at a missing file.
+ */
+async function resolveUploadedUrl(key: string): Promise<string> {
+  if (!key.startsWith("products/")) {
+    throw new AppError("VALIDATION_FAILED", "That upload isn't a product photo.");
+  }
+  if (isBlobConfigured()) {
+    try {
+      const blob = await head(key, { token: env.BLOB_READ_WRITE_TOKEN });
+      return blob.url;
+    } catch {
+      throw new AppError(
+        "VALIDATION_FAILED",
+        "The photo didn't finish uploading. Please try adding it again.",
+      );
+    }
+  }
+  const config = requireS3Config();
+  return publicUrlForKey(key, config.bucket, config.endpoint);
 }
 
 /** See the module doc comment's "auto alt text" note — a deterministic placeholder, not real image analysis. */
@@ -149,8 +209,7 @@ export async function completeUpload(
     return { id: existing.id, url: existing.url, altText: existing.altText, deduplicated: true };
   }
 
-  const config = requireS3Config();
-  const url = publicUrlForKey(input.key, config.bucket, config.endpoint);
+  const url = await resolveUploadedUrl(input.key);
   const altText = input.altText?.trim() || buildFallbackAltText(altTextHint);
 
   const media = await db.media.create({

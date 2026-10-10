@@ -27,6 +27,27 @@ function pageHref(query: ProductListQuery, page: number): string {
   return `/admin/products?${params.toString()}`;
 }
 
+function ProductThumb({ url }: { url: string | null }) {
+  return (
+    <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-surface-container-high">
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- CDN/S3 host is environment-configured (env.NEXT_PUBLIC_CDN_URL), not a fixed domain next/image's remotePatterns can be set to ahead of time.
+        <img src={url} alt="" className="size-full object-cover" />
+      ) : (
+        <ImageIcon className="size-5 text-on-surface-variant" aria-hidden="true" />
+      )}
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: AdminProductListItem["status"] }) {
+  return (
+    <Badge variant={status === "ACTIVE" ? "success" : "glass"} className="shrink-0">
+      {status === "ACTIVE" ? "Live" : "Not published yet"}
+    </Badge>
+  );
+}
+
 /**
  * `/admin/products` — docs/09-ADMIN-DAD-MODE.md §5.2 "Product list".
  * Search (`ProductSearchBox`) and the filter chips (`FilterChips`) both
@@ -74,20 +95,15 @@ export default async function AdminProductsPage({
   const canEditPrice = permissionSetHas(permissionKeys, "price:update");
   const canEditStock = permissionSetHas(permissionKeys, "stock:update");
 
+  const emptyMessage = canCreate
+    ? "You haven't added any products yet. Adding a product takes about 3 minutes."
+    : "No products yet.";
+
   const columns: DataTableColumn<AdminProductListItem>[] = [
     {
       key: "photo",
       header: "Photo",
-      render: (row) => (
-        <div className="flex size-12 items-center justify-center overflow-hidden rounded bg-surface-container-high">
-          {row.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- CDN/S3 host is environment-configured (env.NEXT_PUBLIC_CDN_URL), not a fixed domain next/image's remotePatterns can be set to ahead of time.
-            <img src={row.photoUrl} alt="" className="size-full object-cover" />
-          ) : (
-            <ImageIcon className="size-5 text-on-surface-variant" aria-hidden="true" />
-          )}
-        </div>
-      ),
+      render: (row) => <ProductThumb url={row.photoUrl} />,
     },
     {
       key: "name",
@@ -127,11 +143,7 @@ export default async function AdminProductsPage({
     {
       key: "status",
       header: "Status",
-      render: (row) => (
-        <Badge variant={row.status === "ACTIVE" ? "success" : "glass"}>
-          {row.status === "ACTIVE" ? "Live" : "Not published yet"}
-        </Badge>
-      ),
+      render: (row) => <StatusBadge status={row.status} />,
     },
     {
       key: "actions",
@@ -170,16 +182,55 @@ export default async function AdminProductsPage({
       <ProductSearchBox initialValue={query.q ?? ""} />
       <FilterChips active={query.filter} q={query.q} />
 
-      <DataTableStatic
-        columns={columns}
-        rows={result.items}
-        getRowId={(row) => row.id}
-        emptyMessage={
-          canCreate
-            ? "You haven't added any products yet. Adding a product takes about 3 minutes."
-            : "No products yet."
-        }
-      />
+      {/* Phones: one card per product instead of a sideways-scrolling table. */}
+      <ul className="flex flex-col gap-3 md:hidden">
+        {result.items.length === 0 && (
+          <li className="rounded-lg border border-outline-variant p-6 text-center text-body-sm text-on-surface-variant">
+            {emptyMessage}
+          </li>
+        )}
+        {result.items.map((row) => (
+          <li
+            key={row.id}
+            className="flex flex-col gap-3 rounded-lg border border-outline-variant bg-surface-container-low p-3"
+          >
+            <Link href={`/admin/products/${row.id}/edit`} className="flex items-start gap-3">
+              <ProductThumb url={row.photoUrl} />
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="font-medium leading-snug text-on-surface">{row.name}</span>
+                <span className="text-body-sm text-on-surface-variant">
+                  {row.brandName} · {row.categoryName}
+                </span>
+              </span>
+              <StatusBadge status={row.status} />
+            </Link>
+            <div className="flex items-center justify-between gap-4 border-t border-outline-variant pt-3">
+              <InlinePriceCell
+                variantId={row.variantId}
+                pricePaisa={row.pricePaisa}
+                compareAtPricePaisa={row.compareAtPricePaisa}
+                canEditPrice={canEditPrice}
+              />
+              <div className="w-36">
+                <InlineStockCell
+                  variantId={row.variantId}
+                  quantity={row.stockQuantity}
+                  canEditStock={canEditStock}
+                />
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden md:block">
+        <DataTableStatic
+          columns={columns}
+          rows={result.items}
+          getRowId={(row) => row.id}
+          emptyMessage={emptyMessage}
+        />
+      </div>
 
       <div className="flex items-center justify-between">
         <p className="text-body-sm text-on-surface-variant">

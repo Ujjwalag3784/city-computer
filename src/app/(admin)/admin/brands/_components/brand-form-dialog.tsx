@@ -24,6 +24,7 @@ import {
 import { SeoPreview } from "@/components/admin/seo-preview";
 import type { AdminBrandRow } from "@/server/services/admin/brand";
 import { createBrandAction, updateBrandAction } from "../_actions";
+import { SITE_HOST } from "@/lib/client/site-host";
 
 /** Same "reused-once, re-synced-on-open" pattern as `categories/_components/category-form-dialog.tsx` — see that file's doc comment. Presence of `brand` selects edit vs. create mode. */
 export interface BrandFormDialogProps {
@@ -172,7 +173,7 @@ export function BrandFormDialog({ open, onOpenChange, brand }: BrandFormDialogPr
                   as the category dialog.
                 */}
                 <SeoPreview
-                  pageUrl={`citycomputer.com.np/b/${brand?.slug ?? (name ? name.toLowerCase().replace(/\s+/g, "-") : "...")}`}
+                  pageUrl={`${SITE_HOST}/b/${brand?.slug ?? (name ? name.toLowerCase().replace(/\s+/g, "-") : "...")}`}
                   pageTitle={metaTitle}
                   onPageTitleChange={setMetaTitle}
                   searchDescription={metaDescription}

@@ -35,10 +35,13 @@ export interface PresignedUploadRequest {
   sizeBytes: number;
 }
 
-export interface PresignedUploadResult {
-  uploadUrl: string;
-  key: string;
-}
+/** Mirrors `RequestedUpload` in `server/services/admin/media.ts`. */
+export type PresignedUploadResult =
+  | { mode: "s3"; uploadUrl: string; key: string }
+  | { mode: "blob"; clientToken: string; key: string };
+
+/** Above this, Blob uploads are split into parallel, retried parts. */
+const MULTIPART_THRESHOLD_BYTES = 8 * 1024 * 1024;
 
 export interface CompleteUploadPayload {
   key: string;
@@ -119,17 +122,33 @@ export async function uploadPhoto(
     throw new Error(presigned.message ?? "Couldn't start the photo upload. Please try again.");
   }
 
-  const putResponse = await fetch(presigned.data.uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": mimeType },
-    body: file,
-  });
-  if (!putResponse.ok) {
-    throw new Error("The photo upload didn't finish. Please try again.");
+  const target = presigned.data;
+  if (target.mode === "blob") {
+    // Loaded only when needed, so the S3 path never ships Blob's client.
+    const { put } = await import("@vercel/blob/client");
+    try {
+      await put(target.key, file, {
+        access: "public",
+        token: target.clientToken,
+        contentType: mimeType,
+        multipart: file.size > MULTIPART_THRESHOLD_BYTES,
+      });
+    } catch {
+      throw new Error("The photo upload didn't finish. Please check your internet and try again.");
+    }
+  } else {
+    const putResponse = await fetch(target.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": mimeType },
+      body: file,
+    });
+    if (!putResponse.ok) {
+      throw new Error("The photo upload didn't finish. Please try again.");
+    }
   }
 
   const completed = await actions.completeUpload(
-    { key: presigned.data.key, mimeType, sizeBytes: file.size, checksum, ...dimensions },
+    { key: target.key, mimeType, sizeBytes: file.size, checksum, ...dimensions },
     altTextHint,
   );
   if (!completed.ok || !completed.data) {

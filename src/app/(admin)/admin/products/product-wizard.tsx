@@ -26,6 +26,7 @@ import {
   saveSeoAction,
   saveSpecsAction,
 } from "./_actions";
+import { SITE_HOST } from "@/lib/client/site-host";
 
 /**
  * The four-step product wizard's orchestrator (docs/09-ADMIN-DAD-MODE.md
@@ -74,11 +75,14 @@ function fromWizardData(data: ProductWizardData): Omit<WizardFormState, "specs">
       brandId: data.basicInfo.brandId,
       primaryCategoryId: data.basicInfo.primaryCategoryId,
       additionalCategoryIds: data.basicInfo.additionalCategoryIds,
-      priceRupees: paisaToRupees(data.basicInfo.pricePaisa),
-      compareAtPriceRupees:
-        data.basicInfo.compareAtPricePaisa !== null
-          ? paisaToRupees(data.basicInfo.compareAtPricePaisa)
-          : "",
+      // A stored compare-at price means the product is on offer: the
+      // compare-at is the normal price and the selling price is the offer.
+      ...(data.basicInfo.compareAtPricePaisa !== null
+        ? {
+            priceRupees: paisaToRupees(data.basicInfo.compareAtPricePaisa),
+            offerPriceRupees: paisaToRupees(data.basicInfo.pricePaisa),
+          }
+        : { priceRupees: paisaToRupees(data.basicInfo.pricePaisa), offerPriceRupees: "" as const }),
       stockQuantity: data.basicInfo.stockQuantity,
       productCode: data.basicInfo.productCode,
       conditionType: data.basicInfo.conditionType,
@@ -99,6 +103,57 @@ function fromWizardData(data: ProductWizardData): Omit<WizardFormState, "specs">
   };
 }
 
+/** Plain-English names for the fields the server can reject. */
+const FIELD_LABELS = new Map<string, string>(
+  Object.entries({
+    name: "Product name",
+    shortTitle: "Short title",
+    description: "Description",
+    brandId: "Brand",
+    primaryCategoryId: "Category",
+    additionalCategoryIds: "Also show in",
+    pricePaisa: "Price",
+    compareAtPricePaisa: "Offer price",
+    stockQuantity: "Stock",
+    productCode: "Product code",
+    conditionType: "Condition",
+    warrantyMonths: "Warranty",
+    warrantyText: "Warranty note",
+    photos: "Photos",
+    specs: "Details",
+    metaTitle: "Page title",
+    metaDescription: "Search description",
+    canonicalOverride: "Canonical link",
+  }),
+);
+
+/**
+ * Turns a failed action into a message that says *which* field is wrong,
+ * instead of the generic "One or more fields are invalid."
+ */
+function explainFailure(
+  result: { message?: string; issues?: { field: string; message: string }[] },
+  fallback: string,
+): string {
+  const issue = result.issues?.find((i) => i.field !== "root") ?? result.issues?.[0];
+  if (!issue) return result.message ?? fallback;
+  const key = issue.field.split(".")[0] ?? issue.field;
+  const label = FIELD_LABELS.get(key);
+  return label ? `${label}: ${issue.message}` : issue.message;
+}
+
+/**
+ * "Normal price + optional offer price" (what the owner types) →
+ * "selling price + optional compare-at price" (what the schema stores).
+ */
+function priceFields(form: BasicInfoFormState) {
+  const normalPaisa = form.priceRupees === "" ? 0 : rupeesToPaisa(form.priceRupees);
+  if (form.offerPriceRupees === "") {
+    return { pricePaisa: normalPaisa, compareAtPricePaisa: undefined };
+  }
+  return { pricePaisa: rupeesToPaisa(form.offerPriceRupees), compareAtPricePaisa: normalPaisa };
+}
+
 function basicInfoPayload(form: BasicInfoFormState) {
   return {
     name: form.name,
@@ -107,9 +162,7 @@ function basicInfoPayload(form: BasicInfoFormState) {
     brandId: form.brandId,
     primaryCategoryId: form.primaryCategoryId,
     additionalCategoryIds: form.additionalCategoryIds,
-    pricePaisa: form.priceRupees === "" ? 0 : rupeesToPaisa(form.priceRupees),
-    compareAtPricePaisa:
-      form.compareAtPriceRupees === "" ? undefined : rupeesToPaisa(form.compareAtPriceRupees),
+    ...priceFields(form),
     stockQuantity: form.stockQuantity === "" ? 0 : form.stockQuantity,
     productCode: form.productCode || undefined,
     conditionType: form.conditionType,
@@ -184,9 +237,23 @@ export function ProductWizard({
       setStepError("Fill in the price and stock before continuing.");
       return false;
     }
+    if (form.basicInfo.priceRupees <= 0) {
+      setStepError("The price must be more than Rs 0.");
+      return false;
+    }
+    if (
+      form.basicInfo.offerPriceRupees !== "" &&
+      (form.basicInfo.offerPriceRupees <= 0 ||
+        form.basicInfo.offerPriceRupees >= form.basicInfo.priceRupees)
+    ) {
+      setStepError(
+        "The offer price must be lower than the normal price. Leave it blank if there's no discount.",
+      );
+      return false;
+    }
     const result = await saveBasicInfoAction(basicInfoPayload(form.basicInfo), productId);
     if (!result.ok || !result.data) {
-      setStepError(result.message ?? "Couldn't save. Please check the fields above.");
+      setStepError(explainFailure(result, "Couldn't save. Please check the fields above."));
       return false;
     }
     setProductId(result.data.id);
@@ -205,7 +272,7 @@ export function ProductWizard({
       })),
     });
     if (!result.ok) {
-      setStepError(result.message ?? "Couldn't save the photos.");
+      setStepError(explainFailure(result, "Couldn't save the photos."));
       return false;
     }
     setStepError(null);
@@ -216,7 +283,7 @@ export function ProductWizard({
     if (!productId) return false;
     const result = await saveSpecsAction(productId, { specs: form.specs });
     if (!result.ok) {
-      setStepError(result.message ?? "Couldn't save the details.");
+      setStepError(explainFailure(result, "Couldn't save the details."));
       return false;
     }
     setStepError(null);
@@ -231,14 +298,15 @@ export function ProductWizard({
   const saveSeoStep = useCallback(async (): Promise<boolean> => {
     if (!productId) return false;
     const metaTitle = form.seo.metaTitle || defaultPageTitle(form.basicInfo.name, brandName);
-    const metaDescription = form.seo.metaDescription || defaultSearchDescription(shortDescription);
+    const metaDescription =
+      form.seo.metaDescription || defaultSearchDescription(form.basicInfo.name, shortDescription);
     const result = await saveSeoAction(productId, {
       metaTitle,
       metaDescription,
       canonicalOverride: form.seo.canonicalOverride || undefined,
     });
     if (!result.ok) {
-      setStepError(result.message ?? "Couldn't save the search information.");
+      setStepError(explainFailure(result, "Couldn't save the search information."));
       return false;
     }
     setStepError(null);
@@ -329,7 +397,7 @@ export function ProductWizard({
     }
     setChecklistOpen(false);
     setStatus("ACTIVE" as ProductStatus);
-    toast(`Saved. Your product is now live at citycomputer.com.np/p/${slug}.`);
+    toast(`Saved. Your product is now live at ${SITE_HOST}/p/${slug}.`);
     router.push("/admin/products");
   }
 

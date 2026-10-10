@@ -22,6 +22,7 @@ import { TiptapEditor } from "@/components/admin/tiptap-editor";
 import { PostStatus } from "@/generated/prisma/enums";
 import { slugify } from "@/lib/slug";
 import { createPostAction, updatePostAction, deletePostAction } from "../_actions";
+import { SITE_HOST } from "@/lib/client/site-host";
 
 export interface PostFormAuthorOption {
   id: string;
@@ -172,7 +173,7 @@ export function PostForm({ postId, initialValues, authors }: PostFormProps) {
           required
         />
         <p className="text-body-sm text-on-surface-variant">
-          Will be published at citycomputer.com.np/blog/{values.slug || "..."}
+          Will be published at {SITE_HOST}/blog/{values.slug || "..."}
         </p>
         {issues.slug && <p className="text-body-sm text-danger">{issues.slug}</p>}
       </div>
@@ -287,7 +288,7 @@ export function PostForm({ postId, initialValues, authors }: PostFormProps) {
           PROGRESS.md Phase 11's admin-SEO-fields audit note).
         */}
         <SeoPreview
-          pageUrl={`citycomputer.com.np/blog/${values.slug || "..."}`}
+          pageUrl={`${SITE_HOST}/blog/${values.slug || "..."}`}
           pageTitle={values.metaTitle}
           onPageTitleChange={(metaTitle) => update("metaTitle", metaTitle)}
           searchDescription={values.metaDescription}

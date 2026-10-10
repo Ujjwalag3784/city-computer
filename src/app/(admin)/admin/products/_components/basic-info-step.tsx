@@ -77,8 +77,8 @@ export function BasicInfoStep({
   }
 
   const savePercent =
-    value.priceRupees !== "" && value.compareAtPriceRupees !== ""
-      ? discountPercent(value.priceRupees * 100, value.compareAtPriceRupees * 100)
+    value.priceRupees !== "" && value.offerPriceRupees !== ""
+      ? discountPercent(value.offerPriceRupees * 100, value.priceRupees * 100)
       : null;
 
   const otherCategoryOptions = categoryOptions.filter(
@@ -169,6 +169,7 @@ export function BasicInfoStep({
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="product-brand">Brand</Label>
           <Combobox
+            id="product-brand"
             options={brandOptions}
             value={value.brandId}
             onChange={(brandId) => patch({ brandId })}
@@ -187,6 +188,7 @@ export function BasicInfoStep({
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="product-category">Category</Label>
           <Combobox
+            id="product-category"
             options={categoryOptions}
             value={value.primaryCategoryId}
             onChange={(primaryCategoryId) =>
@@ -253,8 +255,8 @@ export function BasicInfoStep({
           <Label htmlFor="product-offer-price">Offer price</Label>
           <MoneyInput
             id="product-offer-price"
-            value={value.compareAtPriceRupees}
-            onChange={(compareAtPriceRupees) => patch({ compareAtPriceRupees })}
+            value={value.offerPriceRupees}
+            onChange={(offerPriceRupees) => patch({ offerPriceRupees })}
           />
           <p className="text-body-sm text-on-surface-variant">
             The discounted price. Leave blank if there&rsquo;s no discount.

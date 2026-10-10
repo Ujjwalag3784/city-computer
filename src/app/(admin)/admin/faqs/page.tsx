@@ -6,6 +6,7 @@ import { requirePermission } from "@/server/auth/permissions";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { listFaqsForAdmin } from "@/server/services/admin/faqs";
 import { FaqList } from "./_components/faq-list";
+import { SITE_HOST } from "@/lib/client/site-host";
 
 export const metadata: Metadata = { title: "FAQs — Admin — City Computer Systems" };
 
@@ -27,7 +28,7 @@ export default async function AdminFaqsPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-headline-md text-on-surface">FAQs</h1>
         <p className="max-w-[65ch] text-body-sm text-on-surface-variant">
-          Shown at citycomputer.com.np/faq.
+          Shown at {SITE_HOST}/faq.
         </p>
       </div>
       <FaqList faqs={faqs} />
