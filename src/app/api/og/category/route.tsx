@@ -46,7 +46,8 @@ import { OG_COLORS, OG_IMAGE_SIZE } from "@/lib/seo/og-image-theme";
 const MAX_CATEGORY_PATH_LENGTH = 256;
 
 export async function GET(request: NextRequest) {
-  const rawPath = request.nextUrl.searchParams.get("path")?.slice(0, MAX_CATEGORY_PATH_LENGTH) ?? "";
+  const rawPath =
+    request.nextUrl.searchParams.get("path")?.slice(0, MAX_CATEGORY_PATH_LENGTH) ?? "";
   const locale = request.nextUrl.searchParams.get("locale") === "ne" ? "NE" : "EN";
 
   let name = rawPath.split("/").filter(Boolean).pop() ?? "Category";

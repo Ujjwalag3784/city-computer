@@ -65,9 +65,9 @@ describe("parseCreateAdminArgs", () => {
   });
 
   it("rejects a malformed email rather than creating an unusable login", () => {
-    expect(() => parseCreateAdminArgs(["--email=not-an-email", "--password=a-long-enough-one"])).toThrow(
-      /not a valid email address/,
-    );
+    expect(() =>
+      parseCreateAdminArgs(["--email=not-an-email", "--password=a-long-enough-one"]),
+    ).toThrow(/not a valid email address/);
   });
 
   it("rejects an unknown flag instead of silently ignoring a typo", () => {

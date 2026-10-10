@@ -35,6 +35,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # The Prisma client is generated, not committed; type-aware steps need
+      # it. Generating doesn't connect, so the URL is a placeholder.
+      - run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
       - run: pnpm typecheck
 
   lint:
@@ -48,6 +53,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # The Prisma client is generated, not committed; type-aware steps need
+      # it. Generating doesn't connect, so the URL is a placeholder.
+      - run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
       - run: pnpm lint
       - run: pnpm format:check
 
@@ -76,7 +86,15 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # The Prisma client is generated, not committed; type-aware steps need
+      # it. Generating doesn't connect, so the URL is a placeholder.
+      - run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
       - run: pnpm test:coverage
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          AUTH_SECRET: ci-only-not-a-secret
 
   build:
     needs: [typecheck, lint, unit]

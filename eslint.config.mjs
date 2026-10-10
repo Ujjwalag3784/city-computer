@@ -52,8 +52,7 @@ const config = [
       "no-restricted-syntax": [
         "error",
         {
-          selector:
-            "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
           message:
             "dangerouslySetInnerHTML is prohibited. Rich text must be rendered from validated JSON (see docs/13-SECURITY.md §4).",
         },
