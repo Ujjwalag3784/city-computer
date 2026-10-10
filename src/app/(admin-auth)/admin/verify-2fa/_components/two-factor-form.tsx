@@ -78,10 +78,15 @@ export function TwoFactorForm({ callbackUrl, qrCodeDataUrl, manualEntryKey }: Tw
           </div>
 
           {manualEntryKey ? (
-            <p className="text-center text-body-sm text-on-surface-variant">
-              Can&rsquo;t scan it? Type this key into the app instead:{" "}
-              <code className="font-mono break-all text-on-surface">{manualEntryKey}</code>
-            </p>
+            <div className="flex flex-col items-center gap-2 text-center">
+              <p className="text-body-sm text-on-surface-variant">
+                Setting up on this same phone, or can&rsquo;t scan it? In the app choose
+                &ldquo;enter a setup key&rdquo; and type this in (spaces don&rsquo;t matter):
+              </p>
+              <code className="rounded-md bg-surface-container-high px-3 py-2 font-mono text-body-md tracking-wider text-on-surface select-all">
+                {manualEntryKey.match(/.{1,4}/g)?.join(" ") ?? manualEntryKey}
+              </code>
+            </div>
           ) : null}
         </div>
       ) : (
