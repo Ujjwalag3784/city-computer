@@ -9,12 +9,9 @@ describe("buildOrganizationJsonLd", () => {
     expect(node["@id"]).toMatch(/^https?:\/\//);
   });
 
-  it("includes a logo ImageObject with explicit dimensions", () => {
+  it("points the logo at the site icon that actually exists", () => {
     const node = buildOrganizationJsonLd();
-    const logo = node.logo as Record<string, unknown>;
-    expect(logo["@type"]).toBe("ImageObject");
-    expect(logo.width).toBe(512);
-    expect(logo.height).toBe(512);
+    expect(String(node.logo)).toMatch(/\/icon\.svg$/);
   });
 
   it("includes a PostalAddress and at least one ContactPoint", () => {

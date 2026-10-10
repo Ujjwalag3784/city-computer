@@ -44,6 +44,7 @@ import {
   reservationTtlMs,
 } from "@/server/services/commerce/stock-reservation";
 import { checkCodEligibility, createCodPayment } from "@/server/services/commerce/payments/cod";
+import { getStoreSettings } from "@/server/services/store-settings";
 import { createBankTransferPayment } from "@/server/services/commerce/payments/bank-transfer";
 import type { CheckoutAddressInput, PlaceOrderInput } from "@/lib/validation/checkout";
 import type { Order } from "@/generated/prisma/client";
@@ -170,6 +171,7 @@ export async function placeOrder(
   if (input.paymentMethod === "COD") {
     await checkCodEligibility({
       totalPaisa: totals.totalPaisa,
+      codLimitRupees: (await getStoreSettings()).codLimitRupees,
       phone: normalizedPhone,
       customerId: identity.userId
         ? (

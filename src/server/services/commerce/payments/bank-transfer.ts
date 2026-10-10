@@ -50,6 +50,7 @@ import { paymentConfig } from "@/config/payment";
 import {
   consumeReservation,
   releaseReservation,
+  reserveStock,
 } from "@/server/services/commerce/stock-reservation";
 import { applyOrderTransition } from "@/server/services/commerce/order-state-machine";
 import { recordAuditLog } from "@/server/services/admin/audit-log";
@@ -129,14 +130,44 @@ export async function approveBankTransfer(paymentId: string, actor: ApprovalActo
   if (payment.status !== PaymentStatus.PENDING) {
     throw new AppError("PAYMENT_ALREADY_PROCESSED", "This payment has already been resolved.");
   }
-  if (!payment.receiptMediaId) {
-    throw new AppError("VALIDATION_FAILED", "There's no receipt attached to approve yet.");
-  }
+  // A receipt is evidence, not a requirement: the owner may approve once
+  // the money shows up in the shop's own bank account, even if the
+  // customer never uploaded anything. Which of the two it was is recorded
+  // in the PaymentEvent below.
   assertCanApprove(payment.amountPaisa, actor);
 
-  const reservations = await db.stockReservation.findMany({
+  let reservations = await db.stockReservation.findMany({
     where: { orderId: payment.orderId, status: "ACTIVE" },
   });
+  // The stock hold lapses after `bankTransferReservationHours` and the
+  // sweep hands those units back to the shelf. If the customer paid late,
+  // hold the same items again now so approving still takes them out of
+  // stock — and refuse, rather than oversell, if they've since sold.
+  if (reservations.length === 0) {
+    const lapsed = await db.stockReservation.findMany({
+      where: { orderId: payment.orderId, status: "EXPIRED" },
+    });
+    if (lapsed.length > 0) {
+      try {
+        reservations = await reserveStock(
+          lapsed.map((r) => ({
+            variantId: r.variantId,
+            branchId: r.branchId,
+            quantity: r.quantity,
+          })),
+          { orderId: payment.orderId, expiresAt: new Date(Date.now() + 60 * 60 * 1000) },
+        );
+      } catch (error) {
+        if (error instanceof AppError && error.code === "INSUFFICIENT_STOCK") {
+          throw new AppError(
+            "INSUFFICIENT_STOCK",
+            "This order's stock hold ran out and some of its items have since sold. Add the stock back (Stock screen) and approve again, or cancel the order and refund the customer.",
+          );
+        }
+        throw error;
+      }
+    }
+  }
 
   await db.$transaction(async (tx) => {
     await tx.payment.update({
@@ -150,7 +181,14 @@ export async function approveBankTransfer(paymentId: string, actor: ApprovalActo
       },
     });
     await tx.paymentEvent.create({
-      data: { paymentId, type: "MANUAL_APPROVED", payload: { actorId: actor.id } },
+      data: {
+        paymentId,
+        type: "MANUAL_APPROVED",
+        payload: {
+          actorId: actor.id,
+          evidence: payment.receiptMediaId ? "receipt" : "seen_in_bank_account",
+        },
+      },
     });
     await tx.order.update({
       where: { id: payment.orderId },
@@ -216,9 +254,38 @@ export async function rejectBankTransfer(
     });
   });
 
-  const reservations = await db.stockReservation.findMany({
+  let reservations = await db.stockReservation.findMany({
     where: { orderId: payment.orderId, status: "ACTIVE" },
   });
+  // The stock hold lapses after `bankTransferReservationHours` and the
+  // sweep hands those units back to the shelf. If the customer paid late,
+  // hold the same items again now so approving still takes them out of
+  // stock — and refuse, rather than oversell, if they've since sold.
+  if (reservations.length === 0) {
+    const lapsed = await db.stockReservation.findMany({
+      where: { orderId: payment.orderId, status: "EXPIRED" },
+    });
+    if (lapsed.length > 0) {
+      try {
+        reservations = await reserveStock(
+          lapsed.map((r) => ({
+            variantId: r.variantId,
+            branchId: r.branchId,
+            quantity: r.quantity,
+          })),
+          { orderId: payment.orderId, expiresAt: new Date(Date.now() + 60 * 60 * 1000) },
+        );
+      } catch (error) {
+        if (error instanceof AppError && error.code === "INSUFFICIENT_STOCK") {
+          throw new AppError(
+            "INSUFFICIENT_STOCK",
+            "This order's stock hold ran out and some of its items have since sold. Add the stock back (Stock screen) and approve again, or cancel the order and refund the customer.",
+          );
+        }
+        throw error;
+      }
+    }
+  }
   for (const reservation of reservations) {
     await releaseReservation(reservation.id, "RELEASED");
   }

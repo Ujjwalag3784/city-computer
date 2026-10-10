@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
 import { getViewerCart, getCartView } from "@/server/services/commerce/cart";
+import { getStoreSettings } from "@/server/services/store-settings";
 import { LISTING_PAGE_CLASS, ListingHeader } from "@/components/commerce/listing-header";
 import { CheckoutPageClient } from "./_components/checkout-page-client";
 
@@ -40,6 +41,8 @@ export default async function CheckoutPage() {
     select: { id: true, name: true, addressLine: true, district: true },
   });
 
+  const shop = await getStoreSettings();
+
   return (
     <div className={LISTING_PAGE_CLASS}>
       <ListingHeader
@@ -47,7 +50,12 @@ export default async function CheckoutPage() {
         title="Checkout"
         description="Three quick steps: where it's going, how you'll pay, and a final review."
       />
-      <CheckoutPageClient cartView={cartView} branches={branches} />
+      <CheckoutPageClient
+        cartView={cartView}
+        branches={branches}
+        bankAccount={shop.bankAccount}
+        whatsappE164={shop.whatsappE164}
+      />
     </div>
   );
 }

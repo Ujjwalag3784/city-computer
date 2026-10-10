@@ -30,6 +30,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { head } from "@vercel/blob";
+import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 import { db } from "@/server/db";
 import { env } from "@/env";
 import { AppError, NotFoundError } from "@/lib/errors";
@@ -42,6 +44,18 @@ import { attachReceipt } from "@/server/services/commerce/payments/bank-transfer
 
 const PRESIGNED_PUT_TTL_SECONDS = 300;
 const PRESIGNED_GET_TTL_SECONDS = 300;
+
+function isBlobConfigured(): boolean {
+  return Boolean(env.BLOB_READ_WRITE_TOKEN);
+}
+
+function isBlobUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname.endsWith(".blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
 
 function requireS3Config() {
   if (!env.S3_ENDPOINT || !env.S3_BUCKET || !env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY) {
@@ -82,11 +96,17 @@ function sanitizeFileName(fileName: string): string {
   return `${randomUUID()}${ext}`;
 }
 
-export interface RequestedReceiptUpload {
-  uploadUrl: string;
-  key: string;
-  expiresInSeconds: number;
-}
+/**
+ * Two storage backends:
+ * - Vercel Blob (when `BLOB_READ_WRITE_TOKEN` is set): Blob only serves
+ *   public files, so a receipt's privacy comes from its address instead —
+ *   two random UUIDs, no order number or name in the path, and the URL is
+ *   only ever handed to an admin with the bank-transfer permission.
+ * - S3 (otherwise): private bucket with short-lived presigned URLs.
+ */
+export type RequestedReceiptUpload =
+  | { mode: "s3"; uploadUrl: string; key: string; expiresInSeconds: number }
+  | { mode: "blob"; clientToken: string; key: string; expiresInSeconds: number };
 
 /** Mints a presigned PUT URL for a specific order's bank-transfer payment — callers must have already re-verified the requester owns this order (see the checkout-order `_actions.ts` layer, which does that before calling in). */
 export async function requestReceiptUpload(
@@ -103,11 +123,24 @@ export async function requestReceiptUpload(
     );
   }
 
-  const config = requireS3Config();
-  const client = getS3Client(config);
-
   const now = new Date();
   const datePrefix = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+
+  if (isBlobConfigured()) {
+    const key = `receipts/${datePrefix}/${randomUUID()}-${sanitizeFileName(input.fileName)}`;
+    const clientToken = await generateClientTokenFromReadWriteToken({
+      token: env.BLOB_READ_WRITE_TOKEN,
+      pathname: key,
+      allowedContentTypes: [input.mimeType],
+      maximumSizeInBytes: input.sizeBytes,
+      validUntil: Date.now() + PRESIGNED_PUT_TTL_SECONDS * 1000,
+      addRandomSuffix: false,
+    });
+    return { mode: "blob", clientToken, key, expiresInSeconds: PRESIGNED_PUT_TTL_SECONDS };
+  }
+
+  const config = requireS3Config();
+  const client = getS3Client(config);
   const key = `receipts/${datePrefix}/${orderId}/${sanitizeFileName(input.fileName)}`;
 
   const command = new PutObjectCommand({
@@ -118,7 +151,7 @@ export async function requestReceiptUpload(
   });
 
   const uploadUrl = await getSignedUrl(client, command, { expiresIn: PRESIGNED_PUT_TTL_SECONDS });
-  return { uploadUrl, key, expiresInSeconds: PRESIGNED_PUT_TTL_SECONDS };
+  return { mode: "s3", uploadUrl, key, expiresInSeconds: PRESIGNED_PUT_TTL_SECONDS };
 }
 
 export interface CompletedReceiptUpload {
@@ -147,11 +180,26 @@ export async function completeReceiptUpload(
     );
   }
 
-  const config = requireS3Config();
-  // Never publicUrlForKey here — see file doc comment. This "url" is a
-  // private, never-linked reference; `Media.url` is a required column, so
-  // it needs *some* string, but nothing storefront-facing ever renders it.
-  const privateUrl = `${config.endpoint.replace(/\/$/, "")}/${config.bucket}/${input.key}`;
+  if (!input.key.startsWith("receipts/")) {
+    throw new AppError("VALIDATION_FAILED", "That upload isn't a receipt upload.");
+  }
+
+  // Never publicUrlForKey here — see file doc comment. This "url" is never
+  // rendered on the storefront; only `getReceiptViewUrl` hands it out.
+  let privateUrl: string;
+  if (isBlobConfigured()) {
+    try {
+      privateUrl = (await head(input.key, { token: env.BLOB_READ_WRITE_TOKEN })).url;
+    } catch {
+      throw new AppError(
+        "VALIDATION_FAILED",
+        "The receipt didn't finish uploading. Please try again.",
+      );
+    }
+  } else {
+    const config = requireS3Config();
+    privateUrl = `${config.endpoint.replace(/\/$/, "")}/${config.bucket}/${input.key}`;
+  }
 
   const media = await db.media.create({
     data: {
@@ -179,6 +227,8 @@ export async function completeReceiptUpload(
 export async function getReceiptViewUrl(mediaId: string): Promise<string> {
   const media = await db.media.findUnique({ where: { id: mediaId } });
   if (!media) throw new NotFoundError("Receipt");
+
+  if (isBlobUrl(media.url)) return media.url;
 
   const config = requireS3Config();
   const client = getS3Client(config);

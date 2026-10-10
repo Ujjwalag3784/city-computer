@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/server/auth";
 import { isValidOrderNumber } from "@/lib/ids";
 import { getOrderDetailIfOwner } from "@/server/services/commerce/order-lookup";
+import { getStoreSettings } from "@/server/services/store-settings";
 import { OrderTrackingClient } from "./_components/order-tracking-client";
 
 export const metadata: Metadata = {
@@ -33,12 +34,20 @@ export default async function OrderTrackingPage({ params }: OrderPageProps) {
   if (!isValidOrderNumber(orderNumber)) notFound();
 
   const session = await auth();
-  const initialDetail = await getOrderDetailIfOwner(orderNumber, session?.user?.id);
+  const [initialDetail, shop] = await Promise.all([
+    getOrderDetailIfOwner(orderNumber, session?.user?.id),
+    getStoreSettings(),
+  ]);
 
   return (
     <div className="mx-auto max-w-[960px] px-4 py-8 sm:px-6 lg:px-8">
       <h1 className="mb-6 text-headline-md text-on-surface">Order {orderNumber}</h1>
-      <OrderTrackingClient orderNumber={orderNumber} initialDetail={initialDetail} />
+      <OrderTrackingClient
+        orderNumber={orderNumber}
+        initialDetail={initialDetail}
+        bankAccount={shop.bankAccount}
+        whatsappE164={shop.whatsappE164}
+      />
     </div>
   );
 }

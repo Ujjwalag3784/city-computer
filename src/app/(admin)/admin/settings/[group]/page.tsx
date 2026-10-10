@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { requirePermission } from "@/server/auth/permissions";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
-import { listSettingsByGroup } from "@/server/services/admin/settings";
+import { listSettingsByGroup, settingGroupLabel } from "@/server/services/admin/settings";
 import { SettingRow } from "../_components/setting-row";
 
 export const metadata: Metadata = { title: "Settings — Admin — City Computer Systems" };
@@ -31,7 +31,7 @@ export default async function AdminSettingsGroupPage({ params }: SettingsGroupPa
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-headline-md text-on-surface capitalize">{group}</h1>
+        <h1 className="text-headline-md text-on-surface">{settingGroupLabel(group)}</h1>
       </div>
       <div className="flex flex-col gap-4">
         {settings.map((setting) => (

@@ -1,5 +1,11 @@
 "use client";
 
+import { useCartStore } from "@/stores/cart-store";
+import { rememberOrderPhone } from "@/lib/client/order-phone";
+import {
+  BankTransferDetails,
+  type BankAccountView,
+} from "@/components/commerce/bank-transfer-details";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -31,6 +37,8 @@ export interface PickupBranchOption {
 export interface CheckoutPageClientProps {
   cartView: CartView;
   branches: PickupBranchOption[];
+  bankAccount: BankAccountView | null;
+  whatsappE164: string;
 }
 
 type FulfilmentChoice = "DELIVERY" | "PICKUP";
@@ -78,7 +86,12 @@ function addressErrorsFromZod(value: AddressFormValue): {
  * computed client-side, so nothing here can drift from what
  * `placeOrderAction` actually charges.
  */
-export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientProps) {
+export function CheckoutPageClient({
+  cartView,
+  branches,
+  bankAccount,
+  whatsappE164,
+}: CheckoutPageClientProps) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -207,6 +220,11 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
       }
 
       toast(`Order ${result.data.orderNumber} placed.`);
+      // The order used up the cart; clear the header badge without a reload.
+      useCartStore.setState({ view: null, isDrawerOpen: false });
+      // Lets the order page open straight away instead of asking a guest for
+      // the phone number they typed a moment ago. Tab-only storage.
+      rememberOrderPhone(result.data.orderNumber, shippingAddress.phone.trim());
       router.push(`/order/${result.data.orderNumber}`);
     } finally {
       setSubmitting(false);
@@ -338,12 +356,16 @@ export function CheckoutPageClient({ cartView, branches }: CheckoutPageClientPro
                       option.reason ??
                       (option.method === "COD"
                         ? "Pay in cash when your order arrives."
-                        : "Transfer to our bank account and upload the receipt.")
+                        : "Pay into our bank account. We confirm your order when the money arrives.")
                     }
                     disabled={!option.available}
                   />
                 ))}
               </RadioGroup>
+
+              {paymentMethod === "BANK_TRANSFER" && (
+                <BankTransferDetails account={bankAccount} whatsappE164={whatsappE164} />
+              )}
 
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setStep(0)}>

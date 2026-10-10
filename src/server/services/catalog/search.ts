@@ -52,23 +52,58 @@ export async function searchProducts(
   const { q, page, perPage } = parsed.data;
   const offset = (page - 1) * perPage;
 
+  // Substring pattern for partial words ("leno", "ideapad sl") and product
+  // codes, with LIKE wildcards in the shopper's text escaped.
+  const likePattern = `%${q.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+
+  // `matched` works whether or not the search-vector triggers from
+  // prisma/sql/manual-constraints.sql exist in this database: a product
+  // with no stored `search_vector` gets one built on the fly from its
+  // title, brand and short description. A catalogue this size (hundreds of
+  // products) scans in milliseconds either way.
+  const matched = Prisma.sql`
+    WITH candidates AS (
+      SELECT
+        p.id,
+        p.name,
+        coalesce(b.name, '') AS brand_name,
+        coalesce(
+          p.search_vector,
+          setweight(to_tsvector('english', coalesce(p.display_title, p.name, '')), 'A') ||
+          setweight(to_tsvector('english', coalesce(b.name, '')), 'B') ||
+          setweight(to_tsvector('english', coalesce(p.short_description, '')), 'C')
+        ) AS vector
+      FROM products p
+      LEFT JOIN brands b ON b.id = p.brand_id
+      WHERE p.status = 'ACTIVE' AND p.deleted_at IS NULL
+    ),
+    matched AS (
+      SELECT
+        c.id,
+        ts_rank_cd(c.vector, websearch_to_tsquery('english', ${q}))
+          + CASE WHEN c.name ILIKE ${likePattern} THEN 0.5 ELSE 0 END AS score
+      FROM candidates c
+      WHERE c.vector @@ websearch_to_tsquery('english', ${q})
+        OR c.name ILIKE ${likePattern}
+        OR (c.brand_name || ' ' || c.name) ILIKE ${likePattern}
+        OR EXISTS (
+          SELECT 1 FROM variants v
+          WHERE v.product_id = c.id AND v.sku ILIKE ${likePattern}
+        )
+    )
+  `;
+
   const [rankedRows, countRows] = await Promise.all([
     db.$queryRaw<SearchRankRow[]>(Prisma.sql`
-      SELECT id
-      FROM products
-      WHERE status = 'ACTIVE'
-        AND deleted_at IS NULL
-        AND search_vector @@ websearch_to_tsquery('english', ${q})
-      ORDER BY ts_rank_cd(search_vector, websearch_to_tsquery('english', ${q})) DESC
+      ${matched}
+      SELECT id FROM matched
+      ORDER BY score DESC, id
       LIMIT ${perPage}
       OFFSET ${offset}
     `),
     db.$queryRaw<SearchCountRow[]>(Prisma.sql`
-      SELECT COUNT(*)::bigint AS count
-      FROM products
-      WHERE status = 'ACTIVE'
-        AND deleted_at IS NULL
-        AND search_vector @@ websearch_to_tsquery('english', ${q})
+      ${matched}
+      SELECT COUNT(*)::bigint AS count FROM matched
     `),
   ]);
 

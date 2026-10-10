@@ -176,7 +176,8 @@ CREATE TRIGGER products_search_vector_trigger
 -- function.
 CREATE OR REPLACE FUNCTION product_specs_touch_product() RETURNS trigger AS $$
 BEGIN
-  UPDATE products SET updated_at = updated_at WHERE id = coalesce(NEW.product_id, OLD.product_id);
+  -- Touch a column the products trigger listens to; updated_at is not one.
+  UPDATE products SET display_title = display_title WHERE id = coalesce(NEW.product_id, OLD.product_id);
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;

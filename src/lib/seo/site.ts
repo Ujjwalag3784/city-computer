@@ -12,15 +12,18 @@
  */
 import { env } from "@/env";
 import { routing } from "@/i18n/routing";
+import { STORE_EMAIL, STORE_WHATSAPP_E164 } from "@/config/store";
 
 export const SITE_NAME = "City Computer Systems" as const;
 export const SITE_NAME_SHORT = "City Computer" as const;
 
-/** Placeholder contact/org details — docs/11 §4.1 flags these as `DECISION REQUIRED` (exact legal name, PAN/VAT, phone, social URLs) pending owner sign-off. Centralised here so the one eventual edit touches one file. */
+/** Organization details for structured data (docs/11 §4.1). Social profile URLs (`sameAs`) are still to be added. */
 export const ORG_INFO = {
   legalName: "City Computer Systems",
-  telephone: "+977-1-4230000",
-  email: "info@citycomputer.com.np",
+  // The shop's real WhatsApp/phone line (config/store.ts). No email until
+  // the owner sets a public one.
+  telephone: STORE_WHATSAPP_E164,
+  email: STORE_EMAIL,
   streetAddress: "New Road",
   addressLocality: "Kathmandu",
   addressRegion: "Bagmati",

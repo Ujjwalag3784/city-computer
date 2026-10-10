@@ -135,20 +135,21 @@ export function PaymentPanel({
               {viewingReceipt ? "Opening…" : "View receipt"}
             </Button>
           )}
-          {payment.status === "PENDING" && payment.receiptMediaId && canApprovePayment && (
+          {payment.status === "PENDING" && !payment.receiptMediaId && (
+            <p className="w-full text-body-sm text-on-surface-variant">
+              No receipt uploaded yet. Check your bank account: once{" "}
+              {formatNPR(payment.amountPaisa)} has arrived, you can approve it.
+            </p>
+          )}
+          {payment.status === "PENDING" && canApprovePayment && (
             <>
               <Button variant="primary" glow disabled={busy} onClick={() => void handleApprove()}>
-                Approve
+                {payment.receiptMediaId ? "Approve" : "Money received — approve"}
               </Button>
               <Button variant="destructive" disabled={busy} onClick={() => setPendingReject(true)}>
                 Reject
               </Button>
             </>
-          )}
-          {payment.status === "PENDING" && !payment.receiptMediaId && (
-            <p className="text-body-sm text-on-surface-variant">
-              Waiting for the customer to upload a receipt.
-            </p>
           )}
         </div>
       )}

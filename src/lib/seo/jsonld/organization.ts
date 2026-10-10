@@ -8,14 +8,9 @@ export function buildOrganizationJsonLd(): JsonLdNode {
     "@id": `${absoluteUrl("/", "en")}#organization`,
     name: SITE_NAME,
     url: absoluteUrl("/", "en"),
-    logo: {
-      "@type": "ImageObject",
-      url: absoluteAssetUrl("/brand/logo-512.png"),
-      width: 512,
-      height: 512,
-    },
+    logo: absoluteAssetUrl("/icon.svg"),
     telephone: ORG_INFO.telephone,
-    email: ORG_INFO.email,
+    ...(ORG_INFO.email ? { email: ORG_INFO.email } : {}),
     address: {
       "@type": "PostalAddress",
       streetAddress: ORG_INFO.streetAddress,

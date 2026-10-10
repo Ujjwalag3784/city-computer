@@ -32,6 +32,8 @@ import {
   type RequestedReceiptUpload,
 } from "@/server/services/commerce/receipt-upload";
 import { renderInvoicePdf } from "@/server/services/commerce/invoice";
+import { getStoreSettings } from "@/server/services/store-settings";
+import { STORE_INVOICE_DETAILS } from "@/config/store";
 import { requestReceiptUploadSchema, completeReceiptUploadSchema } from "@/lib/validation/receipt";
 import { runStorefrontAction, type ActionResult } from "../../_lib/action-result";
 
@@ -126,7 +128,12 @@ export async function downloadInvoiceAction(
   return runStorefrontAction(async () => {
     const parsed = requireOrderNumberAndOptionalPhone(input);
     const detail = await resolveOrderDetail(parsed.orderNumber, parsed.phone);
-    const bytes = await renderInvoicePdf(detail);
+    const shop = await getStoreSettings();
+    const bytes = await renderInvoicePdf(detail, {
+      legalName: STORE_INVOICE_DETAILS.legalName,
+      address: `${shop.address}, Nepal`,
+      panVatNumber: shop.panVatNumber,
+    });
     return {
       fileName: `${detail.orderNumber}-invoice.pdf`,
       base64: Buffer.from(bytes).toString("base64"),

@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { recallOrderPhone } from "@/lib/client/order-phone";
+import {
+  BankTransferDetails,
+  type BankAccountView,
+} from "@/components/commerce/bank-transfer-details";
+import { useEffect, useState } from "react";
 import { Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { OrderStatusTracker } from "@/components/commerce/order-status-tracker";
@@ -22,6 +27,8 @@ import {
 export interface OrderTrackingClientProps {
   orderNumber: string;
   initialDetail: OrderDetail | null;
+  bankAccount: BankAccountView | null;
+  whatsappE164: string;
 }
 
 async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
@@ -70,7 +77,12 @@ function PaymentStatusLabel({ status }: { status: string }) {
  * fetch re-checks ownership" rule — a page refresh re-gates, which is an
  * accepted, flagged trade-off (see `_actions.ts`'s own doc comment).
  */
-export function OrderTrackingClient({ orderNumber, initialDetail }: OrderTrackingClientProps) {
+export function OrderTrackingClient({
+  orderNumber,
+  initialDetail,
+  bankAccount,
+  whatsappE164,
+}: OrderTrackingClientProps) {
   const [detail, setDetail] = useState<OrderDetail | null>(initialDetail);
   const [verifiedPhone, setVerifiedPhone] = useState<string | undefined>(undefined);
   const [phoneDraft, setPhoneDraft] = useState("");
@@ -78,6 +90,22 @@ export function OrderTrackingClient({ orderNumber, initialDetail }: OrderTrackin
   const [verifying, setVerifying] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+
+  // Just placed this order in this tab? Open it without asking for the phone again.
+  useEffect(() => {
+    if (detail) return;
+    const remembered = recallOrderPhone(orderNumber);
+    if (!remembered) return;
+    void (async () => {
+      const result = await verifyOrderAccessAction({ orderNumber, phone: remembered });
+      if (result.ok && result.data) {
+        setDetail(result.data);
+        setVerifiedPhone(remembered);
+      }
+    })();
+    // Runs once on arrival; `detail` changing later must not re-trigger it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderNumber]);
 
   async function handleVerify() {
     setGateError(null);
@@ -119,20 +147,35 @@ export function OrderTrackingClient({ orderNumber, initialDetail }: OrderTrackin
         return;
       }
 
-      const putResponse = await fetch(presign.data.uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!putResponse.ok) {
-        toast("The upload didn't go through. Please try again.");
-        return;
+      const target = presign.data;
+      if (target.mode === "blob") {
+        try {
+          const { put } = await import("@vercel/blob/client");
+          await put(target.key, file, {
+            access: "public",
+            token: target.clientToken,
+            contentType: file.type,
+          });
+        } catch {
+          toast("The upload didn't go through. Please try again.");
+          return;
+        }
+      } else {
+        const putResponse = await fetch(target.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!putResponse.ok) {
+          toast("The upload didn't go through. Please try again.");
+          return;
+        }
       }
 
       const complete = await completeReceiptUploadAction({
         orderNumber,
         phone: verifiedPhone,
-        key: presign.data.key,
+        key: target.key,
         mimeType: file.type,
         sizeBytes: file.size,
         checksum,
@@ -329,8 +372,19 @@ export function OrderTrackingClient({ orderNumber, initialDetail }: OrderTrackin
           )}
 
           {showReceiptUpload && (
+            <BankTransferDetails
+              account={bankAccount}
+              whatsappE164={whatsappE164}
+              amountPaisa={detail.payment?.amountPaisa}
+              reference={detail.orderNumber}
+            />
+          )}
+
+          {showReceiptUpload && (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="receipt-upload">Upload your bank transfer receipt</Label>
+              <Label htmlFor="receipt-upload">
+                Upload a screenshot or photo of the transfer (optional)
+              </Label>
               <input
                 id="receipt-upload"
                 type="file"

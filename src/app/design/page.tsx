@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { env } from "@/env";
 import { PrimitivesSection } from "./sections/primitives-section";
 import { LayoutSection } from "./sections/layout-section";
 import { CommerceSection } from "./sections/commerce-section";
@@ -57,6 +59,9 @@ const SECTIONS = [
 ] as const;
 
 export default function DesignShowcasePage() {
+  // Internal developer page with made-up products and prices: never served
+  // on a deployed site.
+  if (env.NODE_ENV === "production") notFound();
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <a

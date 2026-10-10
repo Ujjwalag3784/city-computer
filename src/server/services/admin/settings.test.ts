@@ -64,7 +64,7 @@ describe("updateSetting", () => {
     } as never);
 
     await expect(
-      updateSetting("inventory.defaultLowStockThreshold", "not-a-number", ACTOR),
+      updateSetting("payments.codLimitRupees", "not-a-number", ACTOR),
     ).rejects.toBeInstanceOf(ValidationError);
     expect(db.setting.update).not.toHaveBeenCalled();
   });
@@ -89,7 +89,7 @@ describe("updateSetting", () => {
     } as never);
     vi.mocked(db.setting.update).mockResolvedValue({} as never);
 
-    await updateSetting("contact.email", "new@example.com", ACTOR);
+    await updateSetting("store.email", "new@example.com", ACTOR);
 
     expect(recordAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "setting.updated" }),

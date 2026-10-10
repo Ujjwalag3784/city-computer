@@ -55,6 +55,8 @@ function normalizedAddressHash(
 
 export interface CodEligibilityInput {
   totalPaisa: number;
+  /** The owner's limit from Settings; defaults to `paymentConfig.codValueCapRupees`. */
+  codLimitRupees?: number;
   phone: string;
   customerId?: string;
   address: Pick<CheckoutAddressInput, "streetAddress" | "municipality" | "district">;
@@ -67,11 +69,12 @@ export interface CodEligibilityInput {
  * blocked.
  */
 export async function checkCodEligibility(input: CodEligibilityInput): Promise<void> {
-  const codCapPaisa = rupeesToPaisa(paymentConfig.codValueCapRupees);
+  const codLimitRupees = input.codLimitRupees ?? paymentConfig.codValueCapRupees;
+  const codCapPaisa = rupeesToPaisa(codLimitRupees);
   if (input.totalPaisa > codCapPaisa) {
     throw new AppError(
       "COD_NOT_AVAILABLE",
-      `Cash on delivery is only available for orders up to रु ${paymentConfig.codValueCapRupees.toLocaleString("en-IN")}.`,
+      `Cash on delivery is only available for orders up to रु ${codLimitRupees.toLocaleString("en-IN")}.`,
     );
   }
 

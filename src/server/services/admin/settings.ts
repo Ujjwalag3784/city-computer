@@ -22,6 +22,11 @@ import type { Prisma } from "@/generated/prisma/client";
 import { SettingDataType } from "@/generated/prisma/client";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { recordAuditLog, type AuditActor } from "@/server/services/admin/audit-log";
+import {
+  STORE_SETTING_DEFINITIONS,
+  ensureStoreSettingRows,
+  isVisibleSettingKey,
+} from "@/server/services/store-settings";
 
 export interface AdminSettingRow {
   id: string;
@@ -39,27 +44,53 @@ export interface AdminSettingGroup {
 }
 
 /** Plain-language group labels — docs/09 §2's vocabulary rules apply to group names too. */
-const GROUP_LABEL: Record<string, string> = {
-  contact: "Contact details",
-  tax: "Tax",
-  payments: "Payments",
-  inventory: "Stock",
-  features: "Feature switches",
-};
+const GROUP_LABEL = new Map<string, string>([
+  ["store", "Shop details"],
+  ["bank", "Bank account for transfers"],
+  ["payments", "Payments"],
+  ["features", "Maintenance mode"],
+]);
+const GROUP_ORDER = [...GROUP_LABEL.keys()];
+const KEY_ORDER = STORE_SETTING_DEFINITIONS.map((d) => d.key);
 
+/**
+ * Only the settings the website actually uses are listed (see
+ * `store-settings.ts`); unused seeded rows and internal counters such as
+ * the order-number sequence stay hidden so they can't be edited by mistake.
+ */
 export async function listSettingGroups(): Promise<AdminSettingGroup[]> {
-  const rows = await db.setting.groupBy({ by: ["group"], _count: { _all: true } });
-  return rows
-    .map((row) => ({
-      group: row.group,
-      label: GROUP_LABEL[row.group] ?? row.group,
-      settingCount: row._count._all,
+  await ensureStoreSettingRows();
+  const rows = await db.setting.findMany({ select: { key: true, group: true } });
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (isVisibleSettingKey(row.key)) counts.set(row.group, (counts.get(row.group) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([group, settingCount]) => ({
+      group,
+      label: GROUP_LABEL.get(group) ?? group,
+      settingCount,
     }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort((a, b) => {
+      const ai = GROUP_ORDER.indexOf(a.group);
+      const bi = GROUP_ORDER.indexOf(b.group);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || a.label.localeCompare(b.label);
+    });
+}
+
+export function settingGroupLabel(group: string): string {
+  return GROUP_LABEL.get(group) ?? group;
 }
 
 export async function listSettingsByGroup(group: string): Promise<AdminSettingRow[]> {
-  const rows = await db.setting.findMany({ where: { group }, orderBy: { label: "asc" } });
+  await ensureStoreSettingRows();
+  const rows = (await db.setting.findMany({ where: { group } }))
+    .filter((row) => isVisibleSettingKey(row.key))
+    .sort((a, b) => {
+      const ai = KEY_ORDER.indexOf(a.key);
+      const bi = KEY_ORDER.indexOf(b.key);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || a.label.localeCompare(b.label);
+    });
   return rows.map((row) => ({
     id: row.id,
     key: row.key,
@@ -105,7 +136,7 @@ export async function updateSetting(
   actor: AuditActor,
 ): Promise<void> {
   const before = await db.setting.findUnique({ where: { key } });
-  if (!before) throw new NotFoundError("Setting");
+  if (!before || !isVisibleSettingKey(key)) throw new NotFoundError("Setting");
 
   const value = coerceRawValue(before.dataType, rawValue);
   await db.setting.update({ where: { key }, data: { value } });

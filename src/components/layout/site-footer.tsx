@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Mail } from "lucide-react";
+import { ArrowRight, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
@@ -15,7 +15,6 @@ import {
   STORE_MAPS_EMBED_SRC,
   STORE_MAPS_SHARE_URL,
   STORE_WHATSAPP_E164,
-  STORE_WHATSAPP_URL,
 } from "@/config/store";
 
 /**
@@ -55,8 +54,18 @@ import {
  * footer"). These are the only two places in the codebase that touch this
  * event name, and the string must stay byte-identical between them.
  */
+export interface FooterContact {
+  address: string;
+  phoneE164: string;
+  whatsappE164: string;
+  /** Empty hides the email row. */
+  email: string;
+}
+
 export interface SiteFooterProps {
   className?: string;
+  /** From the owner's Settings → Shop details; falls back to `config/store.ts`. */
+  contact?: FooterContact;
   /**
    * The newsletter form's real submit handler (Phase 10) — a plain async
    * function, not a direct `server/**` import, so this component stays
@@ -163,7 +172,15 @@ const LEGAL_LINKS: FooterLink[] = [
 /** Only the payment methods checkout actually offers (Phase 7: COD + bank transfer). */
 const PAYMENT_METHODS = ["Cash on delivery", "Bank transfer"];
 
-export function SiteFooter({ className, onSubscribe }: SiteFooterProps) {
+const DEFAULT_CONTACT: FooterContact = {
+  address: STORE_ADDRESS_LABEL,
+  phoneE164: STORE_WHATSAPP_E164,
+  whatsappE164: STORE_WHATSAPP_E164,
+  email: STORE_EMAIL,
+};
+
+export function SiteFooter({ className, onSubscribe, contact = DEFAULT_CONTACT }: SiteFooterProps) {
+  const whatsappHref = `https://wa.me/${contact.whatsappE164.replace(/[^\d]/g, "")}`;
   const [submitted, setSubmitted] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -239,7 +256,7 @@ export function SiteFooter({ className, onSubscribe }: SiteFooterProps) {
           <div className="panel overflow-hidden">
             <div className="flex items-center justify-between gap-4 border-b border-outline-variant px-5 py-3">
               <p className="font-mono text-label-mono-xs text-on-surface-variant">
-                <span className="text-primary">●</span> Showroom · {STORE_ADDRESS_LABEL}
+                <span className="text-primary">●</span> Showroom · {contact.address}
               </p>
               <Link
                 href={STORE_MAPS_SHARE_URL}
@@ -288,12 +305,26 @@ export function SiteFooter({ className, onSubscribe }: SiteFooterProps) {
                   rel="noopener noreferrer"
                   className={cn("rounded hover:text-on-surface", focusRing)}
                 >
-                  {STORE_ADDRESS_LABEL}, Nepal
+                  {contact.address}, Nepal
                 </Link>
               </li>
+              {contact.phoneE164 !== contact.whatsappE164 && (
+                <li>
+                  <Link
+                    href={`tel:${contact.phoneE164}`}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded hover:text-on-surface",
+                      focusRing,
+                    )}
+                  >
+                    <Phone className="size-3.5 shrink-0" aria-hidden="true" />
+                    {formatNepalPhoneForDisplay(contact.phoneE164)}
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link
-                  href={STORE_WHATSAPP_URL}
+                  href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
@@ -302,21 +333,23 @@ export function SiteFooter({ className, onSubscribe }: SiteFooterProps) {
                   )}
                 >
                   <WhatsappGlyph className="size-3.5" />
-                  {formatNepalPhoneForDisplay(STORE_WHATSAPP_E164)}
+                  {formatNepalPhoneForDisplay(contact.whatsappE164)}
                 </Link>
               </li>
-              <li>
-                <Link
-                  href={`mailto:${STORE_EMAIL}`}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded break-all hover:text-on-surface",
-                    focusRing,
-                  )}
-                >
-                  <Mail className="size-3.5 shrink-0" aria-hidden="true" />
-                  {STORE_EMAIL}
-                </Link>
-              </li>
+              {contact.email && (
+                <li>
+                  <Link
+                    href={`mailto:${contact.email}`}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded break-all hover:text-on-surface",
+                      focusRing,
+                    )}
+                  >
+                    <Mail className="size-3.5 shrink-0" aria-hidden="true" />
+                    {contact.email}
+                  </Link>
+                </li>
+              )}
             </ul>
             <ul className="flex flex-wrap gap-2" aria-label="Payment methods we accept">
               {PAYMENT_METHODS.map((method) => (

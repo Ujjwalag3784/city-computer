@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { after } from "next/server";
+import { maybeReleaseExpiredReservations } from "@/server/services/commerce/stock-reservation";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -49,6 +51,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   // runtime check.
   const activeSession = session!;
 
+  after(maybeReleaseExpiredReservations);
   const dashboard = await getTodayDashboardForRequest();
   const navItems = buildAdminNavItems(
     activeSession.user.roleKeys,

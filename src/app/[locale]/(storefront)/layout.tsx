@@ -1,18 +1,18 @@
 import type { ReactNode } from "react";
+import { after } from "next/server";
+import { maybeReleaseExpiredReservations } from "@/server/services/commerce/stock-reservation";
 import { AnnouncementBar } from "@/components/layout/announcement-bar";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { CookieConsent } from "@/components/layout/cookie-consent";
 import { CartDrawerHost } from "@/components/commerce/cart-drawer-host";
 import { BUILD_NAV_ITEM, PRIMARY_NAV_ITEMS } from "@/config/navigation";
-import {
-  STORE_ADDRESS_LABEL,
-  STORE_MAPS_SHARE_URL,
-  STORE_WHATSAPP_E164,
-  STORE_WHATSAPP_URL,
-} from "@/config/store";
+import { STORE_MAPS_SHARE_URL } from "@/config/store";
 import { formatNepalPhoneForDisplay } from "@/lib/nepal";
+import { isAdminRoleKey } from "@/lib/admin-roles";
 import { auth } from "@/server/auth";
+import { getStoreSettings, whatsappUrl } from "@/server/services/store-settings";
+import { MaintenancePage } from "./_components/maintenance-page";
 import { subscribeNewsletterAction } from "./_actions";
 
 /**
@@ -37,21 +37,31 @@ import { subscribeNewsletterAction } from "./_actions";
  * request via layout caching, not once per page.
  */
 export default async function StorefrontLayout({ children }: { children: ReactNode }) {
-  const session = await auth();
+  const [session, shop] = await Promise.all([auth(), getStoreSettings()]);
+  // Hands unpaid orders' expired stock holds back to the shelf, after the
+  // response is sent (throttled to once per 10 minutes).
+  after(maybeReleaseExpiredReservations);
   const user = session
     ? { name: session.user.name ?? null, email: session.user.email ?? null }
     : null;
 
+  // Maintenance mode (Admin → Settings): customers see a holding page;
+  // signed-in staff still see the real shop so they can check their work.
+  const isStaff = (session?.user.roleKeys ?? []).some(isAdminRoleKey);
+  if (shop.maintenanceMode && !isStaff) {
+    return <MaintenancePage whatsappE164={shop.whatsappE164} phoneE164={shop.phoneE164} />;
+  }
+
   return (
     <>
       <AnnouncementBar
-        highlight="Free delivery"
-        message="inside Kathmandu Valley on orders over रु 5,000"
+        highlight="Delivery"
+        message="across Kathmandu Valley in 1–2 days, or pick up from our New Road showroom"
         meta={[
-          { label: STORE_ADDRESS_LABEL, href: STORE_MAPS_SHARE_URL },
+          { label: shop.address, href: STORE_MAPS_SHARE_URL },
           {
-            label: `${formatNepalPhoneForDisplay(STORE_WHATSAPP_E164)} (WhatsApp)`,
-            href: STORE_WHATSAPP_URL,
+            label: `${formatNepalPhoneForDisplay(shop.whatsappE164)} (WhatsApp)`,
+            href: whatsappUrl(shop.whatsappE164),
           },
         ]}
       />
@@ -64,7 +74,15 @@ export default async function StorefrontLayout({ children }: { children: ReactNo
 
       <main id="main-content">{children}</main>
 
-      <SiteFooter onSubscribe={subscribeNewsletterAction} />
+      <SiteFooter
+        onSubscribe={subscribeNewsletterAction}
+        contact={{
+          address: shop.address,
+          phoneE164: shop.phoneE164,
+          whatsappE164: shop.whatsappE164,
+          email: shop.email,
+        }}
+      />
       <CookieConsent />
       <CartDrawerHost />
     </>

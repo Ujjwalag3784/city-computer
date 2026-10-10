@@ -31,6 +31,7 @@ import { db } from "@/server/db";
 import { StockReservationStatus, StockMovementReason } from "@/generated/prisma/client";
 import type { StockReservation } from "@/generated/prisma/client";
 import { AppError, NotFoundError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 export type ReservationPaymentMethod = "WALLET" | "BANK_TRANSFER" | "COD";
 
@@ -214,9 +215,8 @@ export interface ReleaseExpiredReservationsResult {
 /**
  * The sweep job docs/06 §5 calls for: "A job releases expired reservations
  * and writes `RESERVATION_RELEASE` movements." Not wired to any
- * cron/scheduler in this codebase yet (no job runner exists) — this
- * function is the real logic a future scheduled task should call, same
- * "flag rather than fake" as this file's header comment. Capped at 500 per
+ * cron; `maybeReleaseExpiredReservations` below runs it from ordinary
+ * page loads at most once every 10 minutes. Capped at 500 per
  * call so a real cron invocation can't accidentally try to process an
  * unbounded backlog in one transaction-per-row loop.
  */
@@ -240,4 +240,29 @@ export async function releaseExpiredReservations(
     }
   }
   return { releasedCount, failedReservationIds };
+}
+
+const SWEEP_LOCK_KEY = "jobs:release-expired-reservations";
+const SWEEP_INTERVAL_SECONDS = 10 * 60;
+
+/**
+ * Runs `releaseExpiredReservations` at most once every 10 minutes across
+ * all servers. There is no job runner on Vercel's free plan, so ordinary
+ * page loads (storefront and admin layouts, via `after()`) call this; a
+ * Redis `SET NX EX` lock makes every call but the first in each window a
+ * single cheap no-op. Never throws — a failed sweep just waits for the
+ * next window.
+ */
+export async function maybeReleaseExpiredReservations(): Promise<void> {
+  try {
+    const { redis } = await import("@/server/redis");
+    const acquired = await redis.set(SWEEP_LOCK_KEY, "1", "EX", SWEEP_INTERVAL_SECONDS, "NX");
+    if (acquired !== "OK") return;
+    const result = await releaseExpiredReservations();
+    if (result.releasedCount > 0 || result.failedReservationIds.length > 0) {
+      logger.info(result, "Released expired stock reservations");
+    }
+  } catch (error) {
+    logger.warn({ error }, "maybeReleaseExpiredReservations: sweep skipped");
+  }
 }

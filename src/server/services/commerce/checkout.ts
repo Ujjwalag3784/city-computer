@@ -11,6 +11,7 @@ import "server-only";
 import { db } from "@/server/db";
 import { rupeesToPaisa } from "@/lib/money";
 import { paymentConfig } from "@/config/payment";
+import { getStoreSettings } from "@/server/services/store-settings";
 import type { CartView } from "./cart";
 import type { DeliveryZone, ShippingRate } from "@/generated/prisma/client";
 
@@ -152,15 +153,18 @@ export interface PaymentMethodOption {
  * not implemented yet (flagged in this file's header and in
  * PROGRESS.md), so this only ever returns these two.
  */
-export function getAvailablePaymentMethods(totalPaisa: number): PaymentMethodOption[] {
-  const codCapPaisa = rupeesToPaisa(paymentConfig.codValueCapRupees);
+export function getAvailablePaymentMethods(
+  totalPaisa: number,
+  codLimitRupees: number = paymentConfig.codValueCapRupees,
+): PaymentMethodOption[] {
+  const codCapPaisa = rupeesToPaisa(codLimitRupees);
   return [
     {
       method: "COD",
       available: totalPaisa <= codCapPaisa,
       reason:
         totalPaisa > codCapPaisa
-          ? `Cash on delivery is only available for orders up to रु ${paymentConfig.codValueCapRupees.toLocaleString("en-IN")}.`
+          ? `Cash on delivery is only available for orders up to रु ${codLimitRupees.toLocaleString("en-IN")}.`
           : undefined,
     },
     { method: "BANK_TRANSFER", available: true },
@@ -184,5 +188,10 @@ export async function getCheckoutQuote(
     fulfilmentType === "DELIVERY" ? await resolveDeliveryZoneForDistrict(district) : null;
   const shippingPaisa = await computeShippingPaisa(zone, cartView, fulfilmentType);
   const totals = buildOrderTotals(cartView, discountPaisa, shippingPaisa);
-  return { zone, totals, paymentMethods: getAvailablePaymentMethods(totals.totalPaisa) };
+  const { codLimitRupees } = await getStoreSettings();
+  return {
+    zone,
+    totals,
+    paymentMethods: getAvailablePaymentMethods(totals.totalPaisa, codLimitRupees),
+  };
 }

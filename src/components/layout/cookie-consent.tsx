@@ -197,7 +197,7 @@ export function CookieConsent({ className }: CookieConsentProps) {
               We use cookies to run this site and, with your permission, to understand traffic and
               personalise marketing. See our{" "}
               <Link
-                href="/pages/privacy"
+                href="/pages/privacy-policy"
                 className={cn("rounded underline underline-offset-2 hover:no-underline", focusRing)}
               >
                 Cookie policy

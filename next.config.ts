@@ -25,6 +25,14 @@ const nextConfig: NextConfig = {
   // Next.js does not generate a `/sitemap.xml` index for a sitemap that uses
   // `generateSitemaps()`; this serves the one `robots.ts` advertises. See
   // `src/app/api/sitemap-index/route.ts`.
+  async redirects() {
+    return [
+      // The seeded "Contact" info page carried made-up phone numbers; the
+      // real contact page reads the owner's Settings.
+      { source: "/pages/contact", destination: "/contact", permanent: false },
+      { source: "/ne/pages/contact", destination: "/ne/contact", permanent: false },
+    ];
+  },
   async rewrites() {
     return [{ source: "/sitemap.xml", destination: "/api/sitemap-index" }];
   },
