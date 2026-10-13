@@ -232,3 +232,17 @@ model NewsletterSubscriber {
   @@index([status])
   @@map("newsletter_subscribers")
 }
+
+/// Short-lived key/value state with an expiry: admin session clocks, the
+/// 2FA "verified" flag and pending enrollment secret, rate-limit counters,
+/// and job locks. Lives in Postgres so the site depends on one service, not
+/// two (`server/kv-store.ts`). Expired rows are ignored on read and purged
+/// by the periodic sweep.
+model KvEntry {
+  key       String   @id
+  value     String
+  expiresAt DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("kv_entries")
+}

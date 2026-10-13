@@ -249,15 +249,17 @@ const SWEEP_INTERVAL_SECONDS = 10 * 60;
  * Runs `releaseExpiredReservations` at most once every 10 minutes across
  * all servers. There is no job runner on Vercel's free plan, so ordinary
  * page loads (storefront and admin layouts, via `after()`) call this; a
- * Redis `SET NX EX` lock makes every call but the first in each window a
- * single cheap no-op. Never throws — a failed sweep just waits for the
+ * set-if-absent lock makes every call but the first in each window a
+ * single cheap no-op (the lock lives in `kv_entries`; the same sweep purges
+ * that table's expired rows). Never throws — a failed sweep just waits for the
  * next window.
  */
 export async function maybeReleaseExpiredReservations(): Promise<void> {
   try {
-    const { redis } = await import("@/server/redis");
-    const acquired = await redis.set(SWEEP_LOCK_KEY, "1", "EX", SWEEP_INTERVAL_SECONDS, "NX");
-    if (acquired !== "OK") return;
+    const { kvSetIfAbsent, purgeExpiredKv } = await import("@/server/kv-store");
+    const acquired = await kvSetIfAbsent(SWEEP_LOCK_KEY, "1", SWEEP_INTERVAL_SECONDS);
+    if (!acquired) return;
+    await purgeExpiredKv();
     const result = await releaseExpiredReservations();
     if (result.releasedCount > 0 || result.failedReservationIds.length > 0) {
       logger.info(result, "Released expired stock reservations");

@@ -1,23 +1,14 @@
 /**
- * Per-session state that the `Session` Prisma model has no columns for —
- * tracked in Redis instead of via a schema migration.
+ * Per-session state that the `Session` Prisma model has no columns for:
+ * docs/13-SECURITY.md §2's (a) 8-hour absolute admin session lifetime,
+ * (b) 30-minute idle timeout, (c) "has this session completed 2FA" flag,
+ * and (d) the candidate secret of an in-progress 2FA enrollment.
  *
- * Why not just add columns: docs/13-SECURITY.md §2 needs (a) an admin
- * session's absolute lifetime capped at 8 hours regardless of activity,
- * (b) that same session killed after 30 minutes of *inactivity*, and (c) a
- * transient "has this session completed 2FA" flag. The `Session` model
- * (`prisma/schema/auth.prisma`) only has `expires` — one deadline, not two
- * independent clocks, and no 2FA flag at all. Adding fields would need
- * `prisma migrate` + `prisma generate`, and this sandbox's network policy
- * blocks Prisma's engine-binary CDN (see PROGRESS.md) — a schema edit here
- * would leave the generated client out of sync with no way to regenerate
- * it until someone runs that on a machine with real network access,
- * breaking typecheck in the meantime. Redis is already wired up
- * (`server/redis.ts`) and gives *correct* behaviour for all three needs
- * today, with zero schema risk: TTLs enforce the deadlines for free, and
- * nothing here is data that needs to survive a Redis restart (worst case,
- * a restart forces every admin to re-verify 2FA and resets idle timers —
- * safe-by-default, not a data-loss risk).
+ * Stored in the expiring key/value table in Postgres (`server/kv-store.ts`).
+ * It used to live in Redis, which was unreachable from the live site, so no
+ * admin could ever sign in. Losing this state is safe by default: a missing
+ * key means "not verified" / "outside the limits", which sends the admin
+ * back through sign-in.
  *
  * Keyed by the database session's own `sessionToken` (already an opaque,
  * unguessable value per docs/13 §2's cookie spec), never by userId — a
@@ -26,13 +17,13 @@
  * or letting one idle out should not silently touch the other.
  */
 import "server-only";
-import { redis } from "@/server/redis";
+import { kvCountLive, kvDelete, kvGet, kvSet, kvSetIfAbsent } from "@/server/kv-store";
 import { logger } from "@/lib/logger";
 
 /**
  * docs/13 §2: "Admin: 8-hour absolute". Exported so `config.ts`'s wrapped
  * adapter can set the *database row's* `expires` to the same deadline —
- * belt-and-braces: even if Redis were flushed, the Postgres-level session
+ * belt-and-braces: even if these keys were lost, the session row itself
  * still dies on schedule.
  */
 export const ADMIN_SESSION_ABSOLUTE_TTL_SECONDS = 8 * 60 * 60;
@@ -66,7 +57,7 @@ function pendingTwoFactorSecretKey(sessionToken: string): string {
  * so nothing can accidentally push this deadline forward.
  */
 export async function markAdminSessionIssued(sessionToken: string): Promise<void> {
-  await redis.set(issuedKey(sessionToken), "1", "EX", ADMIN_SESSION_ABSOLUTE_TTL_SECONDS, "NX");
+  await kvSetIfAbsent(issuedKey(sessionToken), "1", ADMIN_SESSION_ABSOLUTE_TTL_SECONDS);
 }
 
 /**
@@ -75,7 +66,7 @@ export async function markAdminSessionIssued(sessionToken: string): Promise<void
  * "rolling" half of the pair that `markAdminSessionIssued`'s `NX` is not.
  */
 export async function touchAdminSessionActivity(sessionToken: string): Promise<void> {
-  await redis.set(activeKey(sessionToken), "1", "EX", ADMIN_SESSION_IDLE_TTL_SECONDS);
+  await kvSet(activeKey(sessionToken), "1", ADMIN_SESSION_IDLE_TTL_SECONDS);
 }
 
 /**
@@ -84,7 +75,7 @@ export async function touchAdminSessionActivity(sessionToken: string): Promise<v
  * never touched) or because its TTL elapsed — fails closed: this session
  * cannot be treated as a live admin session, full stop.
  *
- * An *unreachable* Redis fails closed too, but deliberately as a `false`
+ * An unreachable store fails closed too, but deliberately as a `false`
  * rather than a throw. `middleware.ts` awaits this on every authenticated
  * `/admin/*` request, so before this `catch` existed an ETIMEDOUT against
  * Upstash propagated straight out of the middleware and returned HTTP 500
@@ -99,37 +90,36 @@ export async function touchAdminSessionActivity(sessionToken: string): Promise<v
  */
 export async function isAdminSessionWithinLimits(sessionToken: string): Promise<boolean> {
   try {
-    const [issued, active] = await Promise.all([
-      redis.exists(issuedKey(sessionToken)),
-      redis.exists(activeKey(sessionToken)),
-    ]);
-    return issued === 1 && active === 1;
+    const live = await kvCountLive([issuedKey(sessionToken), activeKey(sessionToken)]);
+    return live === 2;
   } catch (error) {
-    logger.error({ error }, "Redis unreachable checking admin session limits - denying access");
+    logger.error(
+      { error },
+      "Session store unreachable checking admin session limits - denying access",
+    );
     return false;
   }
 }
 
 /** Records that this session has passed TOTP or recovery-code verification. Called once, right after a successful `verifyTotpToken`/`matchRecoveryCode`. */
 export async function markTwoFactorVerified(sessionToken: string): Promise<void> {
-  await redis.set(twoFactorVerifiedKey(sessionToken), "1", "EX", TWO_FACTOR_VERIFIED_TTL_SECONDS);
+  await kvSet(twoFactorVerifiedKey(sessionToken), "1", TWO_FACTOR_VERIFIED_TTL_SECONDS);
 }
 
 /** Read by `callbacks.ts`'s `session` callback to populate `session.user.twoFactorVerified`. */
 export async function isTwoFactorVerified(sessionToken: string): Promise<boolean> {
-  const verified = await redis.exists(twoFactorVerifiedKey(sessionToken));
-  return verified === 1;
+  return (await kvCountLive([twoFactorVerifiedKey(sessionToken)])) === 1;
 }
 
 /**
- * Deletes every Redis-tracked flag for a session — call this alongside
+ * Deletes every tracked flag for a session — call this alongside
  * `adapter.deleteSession` (sign-out, or docs/13 §2's "password change...
  * kills every session for that user") so a revoked session token can never
  * pass `isAdminSessionWithinLimits`/`isTwoFactorVerified` again even
  * during the window before its own TTLs would have expired naturally.
  */
 export async function clearSessionState(sessionToken: string): Promise<void> {
-  await redis.del(
+  await kvDelete(
     issuedKey(sessionToken),
     activeKey(sessionToken),
     twoFactorVerifiedKey(sessionToken),
@@ -150,7 +140,7 @@ export async function clearSessionState(sessionToken: string): Promise<void> {
  * QR shown and the secret stored can never disagree, and refreshing shows
  * the same code instead of restarting the process.
  *
- * Redis rather than a hidden form field (which `two-factor.ts`'s own
+ * Server-side state rather than a hidden form field (which `two-factor.ts`'s own
  * comment suggests) for two reasons: a hidden field would have to be signed
  * to stop an injected value being enrolled on the victim's behalf, and this
  * app already keeps every other piece of per-session 2FA state right here,
@@ -165,8 +155,8 @@ export async function rememberPendingTwoFactorSecret(
   candidateSecret: string,
 ): Promise<string> {
   const key = pendingTwoFactorSecretKey(sessionToken);
-  await redis.set(key, candidateSecret, "EX", PENDING_TWO_FACTOR_SECRET_TTL_SECONDS, "NX");
-  const stored = await redis.get(key);
+  await kvSetIfAbsent(key, candidateSecret, PENDING_TWO_FACTOR_SECRET_TTL_SECONDS);
+  const stored = await kvGet(key);
   // A null read here means the key expired between the two commands — an
   // exceedingly narrow window, but returning the candidate keeps the QR the
   // caller is about to render consistent with what it will verify against.
@@ -175,10 +165,10 @@ export async function rememberPendingTwoFactorSecret(
 
 /** Reads back the candidate secret for a session's in-progress enrollment. Null if it expired or was never started, which the caller must treat as "start again", never as "skip verification". */
 export async function readPendingTwoFactorSecret(sessionToken: string): Promise<string | null> {
-  return redis.get(pendingTwoFactorSecretKey(sessionToken));
+  return kvGet(pendingTwoFactorSecretKey(sessionToken));
 }
 
 /** Drops the candidate secret once enrollment has been committed to `User.twoFactorSecret`. */
 export async function forgetPendingTwoFactorSecret(sessionToken: string): Promise<void> {
-  await redis.del(pendingTwoFactorSecretKey(sessionToken));
+  await kvDelete(pendingTwoFactorSecretKey(sessionToken));
 }
